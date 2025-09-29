@@ -1,17 +1,16 @@
 {
   "enabled": true,
   "name": "Documentation Sync",
-  "description": "Monitors source files and configuration changes to automatically update README and developer documentation",
+  "description": "Monitors source code and configuration changes to automatically update README.md and mdbook documentation in /docs/src/ to reflect new features, API changes, and usage patterns",
   "version": "1",
   "when": {
     "type": "userTriggered",
     "patterns": [
       "src/**/*.rs",
       "Cargo.toml",
-      "concept.md",
-      "rust-toolchain.toml",
-      "rustfmt.toml",
-      ".gitignore"
+      "Cargo.lock",
+      "*.md",
+      "docs/src/**/*.md"
     ]
   },
   "then": {
