@@ -175,7 +175,7 @@ See the [implementation plan](.kiro/specs/stringy-binary-analyzer/tasks.md) for 
 
 ## License
 
-Dual-licensed under Apache 2.0 and MIT.
+Licensed under Apache 2.0.
 
 ---
 
