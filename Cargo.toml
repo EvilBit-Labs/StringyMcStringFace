@@ -1,0 +1,29 @@
+[package]
+name = "stringy"
+version = "0.1.0"
+edition = "2021"
+authors = ["UncleSp1d3r <unclesp1d3r@evilbitlabs.io>"]
+description = "A smarter alternative to the strings command that leverages format-specific knowledge"
+license = "Apache-2.0"
+repository = "https://github.com/EvilBit-Labs/string_mcstringface"
+keywords = ["binary", "strings", "analysis", "reverse-engineering", "malware"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+goblin = "0.10.1"
+clap = { version = "4.5.48", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0.17"
+
+[dev-dependencies]
+criterion = "0.7.0"
+insta = "1.0"
+
+[[bin]]
+name = "stringy"
+path = "src/main.rs"
+
+[lib]
+name = "stringy"
+path = "src/lib.rs"
