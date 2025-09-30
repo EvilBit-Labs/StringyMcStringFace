@@ -1,6 +1,6 @@
 # Troubleshooting
 
-This guide helps resolve common issues when using Stringy. If you don't find a solution here, please check the [GitHub issues](https://github.com/EvilBit-Labs/string_mcstringface/issues) or create a new issue.
+This guide helps resolve common issues when using Stringy. If you don't find a solution here, please check the [GitHub issues](https://github.com/EvilBit-Labs/StringyMcStringFace/issues) or create a new issue.
 
 ## Installation Issues
 

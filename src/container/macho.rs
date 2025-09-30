@@ -15,15 +15,15 @@ use goblin::mach::{Mach, MachO};
 /// # Examples
 ///
 /// ```rust
-/// use stringy::container::{ContainerParser, MachoParser};
+/// use stringy::container::{ContainerParser, macho::MachoParser};
 ///
 /// let parser = MachoParser::new();
-/// let data = std::fs::read("example.dylib")?;
-/// if MachoParser::detect(&data) {
-///     let container_info = parser.parse(&data)?;
-///     println!("Found {} sections", container_info.sections.len());
-/// }
-/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// // Example usage (would require actual Mach-O binary data):
+/// // let data = std::fs::read("example.dylib")?;
+/// // if MachoParser::detect(&data) {
+/// //     let container_info = parser.parse(&data)?;
+/// //     println!("Found {} sections", container_info.sections.len());
+/// // }
 /// ```
 pub struct MachoParser;
 

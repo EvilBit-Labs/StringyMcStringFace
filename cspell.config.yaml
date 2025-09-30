@@ -1,0 +1,151 @@
+---
+# cspell configuration for StringyMcStringFace
+version: "0.2"
+
+language: "en"
+useGitignore: true
+allowCompoundWords: true
+caseSensitive: false
+
+dictionaries:
+  - en_US
+  - rust
+  - bash
+  - softwareTerms
+  - companies
+  - misc
+
+ignorePaths:
+  - target/
+  - dist/
+  - build/
+  - node_modules/
+  - .git/
+  - .cache/
+  - coverage/
+  - docs/book/
+  - docs/build/
+  - "*.lock"
+  - Cargo.lock
+  - ".github/workflows/release.yml"
+
+ignoreRegExpList:
+  # Hex hashes and SHAs
+  - "/\\b[a-fA-F0-9]{7,}\\b/g"
+  # UUIDs and GUIDs
+  - "/\\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\b/g"
+  # URIs and URLs
+  - "/https?:\\/\\/[\\w\\-\\.]+[\\w\\-\\._~:\\/?#[\\]@!\\$&'\\(\\)\\*\\+,;=]*/g"
+  # File paths
+  - "/[\\/\\\\][\\w\\-\\.]+[\\/\\\\][\\w\\-\\._~\\/?#[\\]@!\\$&'\\(\\)\\*\\+,;=]*/g"
+  # Code fences and content
+  - "/```[\\s\\S]*?```/g"
+  # Inline code
+  - "/`[^`]+`/g"
+  # Mermaid diagram blocks
+  - "/```mermaid[\\s\\S]*?```/g"
+  # Base64-like strings
+  - "/\\b[A-Za-z0-9+/]{20,}={0,2}\\b/g"
+
+languageSettings:
+  - languageId: "markdown"
+    allowCompoundWords: true
+    dictionaries:
+      - en_US
+      - rust
+      - softwareTerms
+      - companies
+  - languageId: "yaml,yml"
+    allowCompoundWords: true
+    dictionaries:
+      - en_US
+      - bash
+      - softwareTerms
+  - languageId: "toml"
+    allowCompoundWords: true
+    dictionaries:
+      - en_US
+      - rust
+      - softwareTerms
+  - languageId: "json"
+    allowCompoundWords: true
+    dictionaries:
+      - en_US
+      - softwareTerms
+
+words:
+  # Project-specific terms
+  - StringyMcStringFace
+  - stringy
+  - EvilBit
+  - evilbitlabs
+  - UncleSp1d3r
+  - unclesp1d3r
+  
+  # Rust ecosystem
+  - rustc
+  - rustup
+  - clippy
+  - rustfmt
+  - tokio
+  - serde
+  - goblin
+  - bstr
+  - regex
+  - thiserror
+  - clap
+  - insta
+  - criterion
+  - nextest
+  - mdbook
+  - mdformat
+  - actionlint
+  - lychee
+  - megalinter
+  - cspell
+  - justfile
+  
+  # Build and CI tools
+  - dist
+  - axodotdev
+  - homebrew
+  - formulae
+  - binstall
+  - auditable
+  - cyclonedx
+  - SBOM
+  - msvc
+  - musl
+  - aarch
+  - x86_64
+  
+  # Binary analysis terms
+  - rodata
+  - rdata
+  - cstring
+  - strtab
+  - dynstr
+  - rsrc
+  - macho
+  - mach
+  - YARA
+  - GUID
+  - GUIDs
+  
+  # Technical acronyms
+  - CLI
+  - JSON
+  - JSONL
+  - UTF
+  - UTF8
+  - UTF16
+  - UTF16LE
+  - UTF16BE
+  - ASCII
+  - APIs
+  - regex
+  - SHA
+  - API
+  - URL
+  - URLs
+  - IPs

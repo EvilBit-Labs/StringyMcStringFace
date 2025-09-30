@@ -1,2 +1,11 @@
+# Prettier ignore file - exclude Markdown per user preference
+*.md
 **/*.md
-**/*.yml
+
+# Generated files
+target/
+dist/
+build/
+node_modules/
+docs/book/
+.github/workflows/release.yml

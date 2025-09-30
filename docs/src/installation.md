@@ -22,8 +22,8 @@ source ~/.cargo/env
 ### Clone and Build
 
 ```bash
-git clone https://github.com/EvilBit-Labs/string_mcstringface
-cd string_mcstringface
+git clone https://github.com/EvilBit-Labs/StringyMcStringFace
+cd StringyMcStringFace
 cargo build --release
 ```
 
@@ -46,8 +46,8 @@ stringy --help
 For development and testing:
 
 ```bash
-git clone https://github.com/EvilBit-Labs/string_mcstringface
-cd string_mcstringface
+git clone https://github.com/EvilBit-Labs/StringyMcStringFace
+cd StringyMcStringFace
 cargo run -- --help
 ```
 
@@ -152,7 +152,7 @@ chmod +x ~/.cargo/bin/stringy
 If you encounter issues:
 
 1. Check the [troubleshooting guide](./troubleshooting.md)
-2. Search existing [GitHub issues](https://github.com/EvilBit-Labs/string_mcstringface/issues)
+2. Search existing [GitHub issues](https://github.com/EvilBit-Labs/StringyMcStringFace/issues)
 3. Open a new issue with:
    - Your operating system and version
    - Rust version (`rustc --version`)

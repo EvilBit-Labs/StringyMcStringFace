@@ -13,8 +13,8 @@ We welcome contributions to Stringy! This guide will help you get started with d
 ### Clone and Setup
 
 ```bash
-git clone https://github.com/EvilBit-Labs/string_mcstringface
-cd string_mcstringface
+git clone https://github.com/EvilBit-Labs/StringyMcStringFace
+cd StringyMcStringFace
 
 # Install development dependencies
 cargo build
