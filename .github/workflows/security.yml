@@ -31,10 +31,9 @@ jobs:
 
             - uses: taiki-e/install-action@v2
               with:
-                  tool: cargo-deny,cargo-outdated,cargo-dist
+                  tool: cargo-outdated,cargo-dist
 
-            - name: Run cargo deny check
-              run: cargo deny check --config deny.ci.toml
+            - uses: EmbarkStudios/cargo-deny-action@v1
 
             - name: Run cargo outdated
               run: cargo outdated --depth=1 --exit-code=1
