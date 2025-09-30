@@ -7,6 +7,11 @@ pub mod elf;
 pub mod macho;
 pub mod pe;
 
+// Re-export parsers for easier access
+pub use elf::ElfParser;
+pub use macho::MachoParser;
+pub use pe::PeParser;
+
 /// Trait for parsing different container formats
 pub trait ContainerParser {
     /// Detect if this parser can handle the given data

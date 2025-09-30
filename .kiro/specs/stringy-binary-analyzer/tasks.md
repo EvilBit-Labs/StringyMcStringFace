@@ -16,7 +16,7 @@
   - Add format detection capabilities to distinguish between binary types
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 3. Implement ELF section classification
+- [x] 3. Implement ELF section classification
 
   - Enhance ELF parser to classify sections by type (string data vs code vs other)
 
@@ -26,7 +26,7 @@
 
   - _Requirements: 1.1, 1.4_
 
-  - [ ] 3.1 Add ELF import/export extraction
+  - [x] 3.1 Add ELF import/export extraction
 
     - Extract import and export symbol names from ELF dynamic section
     - Classify symbols as imports vs exports for proper tagging
