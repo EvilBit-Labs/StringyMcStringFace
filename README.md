@@ -69,50 +69,52 @@ Presents the most relevant strings first using a scoring algorithm.
 
 ## Installation
 
+**Note**: Stringy is currently in development and not yet published to crates.io.
+
+### From Source
+
 ```bash
-cargo install stringy
+git clone https://github.com/EvilBit-Labs/string_mcstringface
+cd string_mcstringface
+cargo build --release
+./target/release/stringy --help
+```
+
+### Development Build
+
+```bash
+cargo run -- --help
 ```
 
 ---
 
 ## Usage
 
-### Basic Analysis
+**Current Status**: The CLI interface is under development. Currently available:
 
 ```bash
 stringy target_binary
 ```
 
-### Focused Extraction
+### Planned CLI Interface
+
+The following features are being implemented:
 
 ```bash
-# Only URLs and file paths
+# Basic analysis (coming soon)
+stringy target_binary
+
+# Focused extraction (planned)
 stringy --only url,filepath target_binary
-
-# Minimum length and encoding filters
 stringy --min-len 8 --enc ascii,utf16 target_binary
-
-# Top 50 results in JSON
 stringy --top 50 --json target_binary
-```
 
-### PE-Specific Features
-
-```bash
-# Extract version info and manifests
+# PE-specific features (planned)
 stringy --pe-version --pe-manifest target.exe
-
-# UTF-16 only (common in Windows binaries)
 stringy --utf16-only target.exe
-```
 
-### Pipeline Integration
-
-```bash
-# JSON output for jq processing
-stringy --json target_binary | jq '.matches[] | select(.tags[] | contains("url"))'
-
-# YARA rule candidates
+# Pipeline integration (planned)
+stringy --json target_binary | jq '.[] | select(.tags[] | contains("url"))'
 stringy --yara candidates.txt target_binary
 ```
 
@@ -141,7 +143,9 @@ Score  Offset    Section    Tags           String
   "section": ".rdata",
   "encoding": "utf-8",
   "length": 28,
-  "tags": ["url"],
+  "tags": [
+    "url"
+  ],
   "score": 95,
   "source": "SectionData"
 }
@@ -161,15 +165,27 @@ Score  Offset    Section    Tags           String
 
 ## Development Status
 
-This project is in active development. Current focus:
+This project is in active development. Current implementation status:
 
-- ✅ Basic format detection (ELF, PE, Mach-O)
-- ✅ Core data structures and error handling
-- 🚧 String extraction and classification
-- 🚧 Ranking and scoring system
-- 🚧 CLI interface and output formats
+- ✅ **Core Infrastructure**: Project structure, data types, error handling
+- ✅ **Format Detection**: ELF, PE, Mach-O binary format detection via `goblin`
+- ✅ **Container Parsers**: Section classification, import/export extraction
+- 🚧 **String Extraction**: ASCII/UTF-8 and UTF-16 extraction engines
+- 🚧 **Semantic Classification**: URL, domain, path, GUID pattern matching
+- 🚧 **Ranking System**: Section-aware scoring and relevance calculation
+- 🚧 **Output Formats**: JSONL, human-readable, and YARA-friendly output
+- 🚧 **CLI Interface**: Command-line argument parsing and main pipeline
 
-See the [implementation plan](.kiro/specs/stringy-binary-analyzer/tasks.md) for detailed progress.
+### Current Capabilities
+
+The foundation is solid with working binary format parsers that can:
+
+- Detect ELF, PE, and Mach-O formats
+- Classify sections by string likelihood (`.rodata`, `.rdata`, `__cstring`, etc.)
+- Extract import/export symbol names
+- Handle cross-platform section characteristics
+
+See the [implementation plan](.kiro/specs/stringy-binary-analyzer/tasks.md) for detailed progress tracking.
 
 ---
 
