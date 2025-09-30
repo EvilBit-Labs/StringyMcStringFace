@@ -8,7 +8,7 @@ Stringy provides extensive configuration options to customize string extraction,
 
 ### Default Location
 
-```
+```text
 ~/.config/stringy/config.toml
 ```
 
@@ -74,7 +74,7 @@ Control the minimum and maximum string lengths:
 ```toml
 [extraction]
 min_ascii_len = 4     # Minimum ASCII string length
-min_utf16_len = 3     # Minimum UTF-16 string length  
+min_utf16_len = 3     # Minimum UTF-16 string length
 max_string_len = 1024 # Maximum string length (prevents memory issues)
 ```
 

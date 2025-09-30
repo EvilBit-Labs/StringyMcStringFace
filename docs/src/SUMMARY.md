@@ -2,14 +2,14 @@
 
 [Introduction](./introduction.md)
 
-# User Guide
+## User Guide
 
 - [Installation](./installation.md)
 - [Quick Start](./quickstart.md)
 - [Command Line Interface](./cli.md)
 - [Output Formats](./output-formats.md)
 
-# Developer Guide
+## Developer Guide
 
 - [Architecture Overview](./architecture.md)
 - [Binary Format Support](./binary-formats.md)
@@ -18,7 +18,7 @@
 - [Ranking Algorithm](./ranking.md)
 - [Contributing](./contributing.md)
 
-# Reference
+## Reference
 
 - [API Documentation](./api.md)
 - [Configuration](./configuration.md)
