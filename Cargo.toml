@@ -5,13 +5,22 @@ edition = "2021"
 authors = ["UncleSp1d3r <unclesp1d3r@evilbitlabs.io>"]
 description = "A smarter alternative to the strings command that leverages format-specific knowledge"
 license = "Apache-2.0"
-repository = "https://github.com/EvilBit-Labs/string_mcstringface"
+repository = "https://github.com/EvilBit-Labs/StringyMcStringFace"
+homepage = "http://evilbitlabs.io/StringyMcStringFace/"
 keywords = ["binary", "strings", "analysis", "reverse-engineering", "malware"]
 categories = ["command-line-utilities", "development-tools"]
 
+[lib]
+name = "stringy"
+path = "src/lib.rs"
+
+[[bin]]
+name = "stringy"
+path = "src/main.rs"
+
 [dependencies]
-goblin = "0.10.1"
 clap = { version = "4.5.48", features = ["derive"] }
+goblin = "0.10.1"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0.17"
@@ -20,10 +29,7 @@ thiserror = "2.0.17"
 criterion = "0.7.0"
 insta = "1.0"
 
-[[bin]]
-name = "stringy"
-path = "src/main.rs"
-
-[lib]
-name = "stringy"
-path = "src/lib.rs"
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
