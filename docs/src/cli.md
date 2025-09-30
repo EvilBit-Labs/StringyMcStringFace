@@ -1,11 +1,25 @@
 # Command Line Interface
 
-**Note**: The CLI interface is currently under development. This documentation describes the planned interface.
+**Current Status**: Basic CLI is implemented with argument parsing. Advanced features are in development. This documentation describes both current and planned functionality.
 
 ## Basic Syntax
 
 ```bash
 stringy [OPTIONS] <FILE>
+```
+
+**Currently Implemented:**
+
+```bash
+stringy <FILE>          # Basic binary analysis
+stringy --help          # Show help information  
+stringy --version       # Show version
+```
+
+**In Development:**
+
+```bash
+stringy [OPTIONS] <FILE>  # Full option support
 ```
 
 ## Global Options
