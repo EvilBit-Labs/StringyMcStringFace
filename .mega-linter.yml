@@ -1,0 +1,48 @@
+---
+# MegaLinter configuration for StringyMcStringFace
+# This configuration minimizes false positives while maintaining code quality
+
+# Apply linter fixes where safe
+APPLY_FIXES: all
+
+# File/directory exclusions
+EXCLUDED_DIRECTORIES:
+  - target
+  - dist
+  - build
+  - node_modules
+  - .git
+  - .cache
+  - coverage
+  - docs/book
+  - docs/build
+
+# All linters now properly configured
+
+# ActionLint configuration - suppress shellcheck issues in generated cargo-dist file
+ACTION_ACTIONLINT_ARGUMENTS:
+  - --ignore=SC2086:info
+  - --ignore=SC2129:style
+  - --ignore=SC2001:style
+
+# File-specific exclusions for generated content
+FILTER_REGEX_EXCLUDE: |
+  \.github/workflows/release\.yml
+
+# Lychee configuration for link checking
+SPELL_LYCHEE_ARGUMENTS:
+  - --no-progress
+  - --exclude-loopback
+  - --exclude-private
+  - --exclude-mail
+  - --timeout=10
+
+# Markdown table formatting exclusions
+MARKDOWN_MARKDOWN_TABLE_FORMATTER_FILTER_REGEX_EXCLUDE: |
+  README\.md
+
+# Prettier configuration - respect .prettierignore
+JSON_PRETTIER_ARGUMENTS:
+  - --check
+YAML_PRETTIER_ARGUMENTS:
+  - --check

@@ -122,7 +122,18 @@ mdformat-install:
 # FORMATTING AND LINTING
 # =============================================================================
 
-format: fmt format-docs
+alias format-rust := fmt
+alias format-md := format-docs
+alias format-just := fmt-justfile
+
+# Main format recipe - calls all formatters
+format: fmt format-json-yaml format-docs fmt-justfile
+
+# Individual format recipes
+
+format-json-yaml:
+    npx prettier --write "**/*.{json,yaml,yml}"
+
 
 [windows]
 format-docs:
@@ -153,7 +164,21 @@ fmt-justfile:
 lint-justfile:
     @just --fmt --check --unstable
 
-lint: lint-rust lint-justfile
+# Main lint recipe - calls all sub-linters
+lint: lint-rust lint-actions lint-spell lint-docs lint-justfile
+
+# Individual lint recipes
+lint-actions:
+    actionlint .github/workflows/*.yml
+
+lint-spell:
+    cspell "**" --config cspell.config.yaml
+
+lint-docs:
+    markdownlint docs/**/*.md README.md
+    lychee docs/**/*.md README.md
+
+alias lint-just := lint-justfile
 
 # Run clippy with fixes
 fix:
@@ -216,7 +241,6 @@ test-fs:
 test-ci:
     cargo nextest run --workspace --no-capture
 
-
 # Run all tests including ignored/slow tests across workspace
 test-all:
     cargo nextest run --workspace --no-capture -- --ignored
@@ -274,8 +298,56 @@ dist-check:
 dist-plan:
     @dist plan
 
+# Regenerate cargo-dist CI workflow safely
+dist-generate-ci:
+    dist generate --ci github
+    @echo "Generated CI workflow. Remember to fix any expression errors if they exist."
+    @echo "Run 'just lint:actions' to validate the generated workflow."
+
 install:
     @cargo install --path .
+
+# =============================================================================
+# DOCUMENTATION
+# =============================================================================
+
+# Build complete documentation (mdBook + rustdoc)
+[unix]
+docs-build:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Build rustdoc
+    cargo doc --no-deps --document-private-items --target-dir docs/book/api-temp
+    # Move rustdoc output to final location
+    mkdir -p docs/book/api
+    cp -r docs/book/api-temp/doc/* docs/book/api/
+    rm -rf docs/book/api-temp
+    # Build mdBook
+    cd docs && mdbook build
+
+# Serve documentation locally with live reload
+[unix]
+docs-serve:
+    cd docs && mdbook serve --open
+
+# Clean documentation artifacts
+[unix]
+docs-clean:
+    rm -rf docs/book target/doc
+
+# Check documentation (build + link validation + formatting)
+[unix]
+docs-check:
+    cd docs && mdbook build
+    @just fmt-check
+
+# Generate and serve documentation
+[unix]
+docs: docs-build docs-serve
+
+[windows]
+docs:
+    @echo "mdbook requires a Unix-like environment to serve"
 
 # =============================================================================
 # GORELEASER TESTING
