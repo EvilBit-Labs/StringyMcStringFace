@@ -74,8 +74,8 @@ Presents the most relevant strings first using a scoring algorithm.
 ### From Source
 
 ```bash
-git clone https://github.com/EvilBit-Labs/string_mcstringface
-cd string_mcstringface
+git clone https://github.com/EvilBit-Labs/StringyMcStringFace
+cd StringyMcStringFace
 cargo build --release
 ./target/release/stringy --help
 ```
