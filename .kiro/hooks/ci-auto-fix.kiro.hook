@@ -8,11 +8,8 @@
     "patterns": [
       "src/**/*.rs",
       "Cargo.toml",
-      "Cargo.lock",
       "tests/**/*.rs",
-      "*.md",
-      "rustfmt.toml",
-      ".gitignore"
+      "rustfmt.toml"
     ]
   },
   "then": {
