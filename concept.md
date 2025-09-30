@@ -96,9 +96,9 @@ struct FoundString {
     rva: Option<u64>,        // image RVA if available
     section: Option<String>, // ".rdata" / "__cstring" / ...
     length: u32,
-    tags: Vec<Tag>,          // Url, Path, Domain, Reg, Guid, Fmt, B64, Import, Export, Version, Manifest, Resource
+    tags: Vec<Tag>, // Url, Path, Domain, Reg, Guid, Fmt, B64, Import, Export, Version, Manifest, Resource
     score: i32,
-    source: Source,          // Literal, ImportName, ExportName, Resource, Debug, LoadCmd
+    source: Source, // Literal, ImportName, ExportName, Resource, Debug, LoadCmd
 }
 ```
 

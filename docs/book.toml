@@ -3,16 +3,28 @@ authors = ["UncleSp1d3r <unclesp1d3r@evilbitlabs.io>"]
 language = "en"
 multilingual = false
 src = "src"
-title = "Stringy Developer Guide"
-description = "Developer documentation for Stringy - A smarter strings extraction tool"
+title = "Stringy User Guide"
+description = "Stringy User Guide - A smarter strings extraction tool"
+
+[rust]
+edition = "2021"
+
+[build]
+build-dir = "book"
+create-missing = true
 
 [preprocessor.links]
 
 [output.html]
 default-theme = "navy"
 preferred-dark-theme = "navy"
-git-repository-url = "https://github.com/EvilBit-Labs/string_mcstringface"
-edit-url-template = "https://github.com/EvilBit-Labs/string_mcstringface/edit/main/docs/{path}"
+git-repository-url = "https://github.com/EvilBit-Labs/StringyMcStringFace"
+edit-url-template = "https://github.com/EvilBit-Labs/StringyMcStringFace/edit/main/docs/{path}"
+smart-punctuation = true
+mathjax-support = false
+additional-css = ["whichlang.css"]
+additional-js = ["mermaid-init.js", "whichlang.js", "mermaid.min.js"]
+hash-files = true
 
 [output.html.playground]
 editable = false
@@ -29,3 +41,29 @@ boost-hierarchy = 1
 boost-paragraph = 1
 expand = true
 heading-split-level = 3
+
+
+[output.html.fold]
+enable = true
+level = 1
+
+
+[preprocessor.alerts]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[preprocessor.toc]
+command = "mdbook-toc"
+marker = "[TOC]"
+renderer = ["html"]
+
+
+[preprocessor.tabs]
+command = "mdbook-tabs"
+
+[preprocessor.yml-header]
+
+[output.html.print]
+enable = true     # include support for printable output
+page-break = true # insert page-break after each chapter
