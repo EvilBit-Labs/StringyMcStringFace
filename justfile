@@ -122,25 +122,18 @@ mdformat-install:
 # FORMATTING AND LINTING
 # =============================================================================
 
+alias format-rust := fmt
+alias format-md := format-docs
+alias format-just := fmt-justfile
+
 # Main format recipe - calls all formatters
-format:
-    @just format:rust
-    @just format:json-yaml
-    @just format:md
-    @just format:just
+format: fmt format-json-yaml format-docs fmt-justfile
 
 # Individual format recipes
-format:rust:
-    @just fmt
 
-format:json-yaml:
+format-json-yaml:
     npx prettier --write "**/*.{json,yaml,yml}"
 
-format:md:
-    @just format-docs
-
-format:just:
-    @just fmt-justfile
 
 [windows]
 format-docs:
@@ -172,30 +165,20 @@ lint-justfile:
     @just --fmt --check --unstable
 
 # Main lint recipe - calls all sub-linters
-lint:
-    @just lint:rust
-    @just lint:actions  
-    @just lint:spell
-    @just lint:docs
-    @just lint:just
+lint: lint-rust lint-actions lint-spell lint-docs lint-justfile
 
 # Individual lint recipes
-lint:rust:
-    @just fmt-check
-    @cargo clippy --workspace --all-targets --all-features -- -D warnings
-
-lint:actions:
+lint-actions:
     actionlint .github/workflows/*.yml
 
-lint:spell:
+lint-spell:
     cspell "**" --config cspell.config.yaml
 
-lint:docs:
+lint-docs:
     markdownlint docs/**/*.md README.md
     lychee docs/**/*.md README.md
 
-lint:just:
-    @just --fmt --check --unstable
+alias lint-just := lint-justfile
 
 # Run clippy with fixes
 fix:
@@ -257,7 +240,6 @@ test-fs:
 
 test-ci:
     cargo nextest run --workspace --no-capture
-
 
 # Run all tests including ignored/slow tests across workspace
 test-all:
