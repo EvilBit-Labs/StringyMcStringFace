@@ -81,7 +81,7 @@ words:
   - evilbitlabs
   - UncleSp1d3r
   - unclesp1d3r
-  
+
   # Rust ecosystem
   - rustc
   - rustup
@@ -104,7 +104,7 @@ words:
   - megalinter
   - cspell
   - justfile
-  
+
   # Build and CI tools
   - dist
   - axodotdev
@@ -118,7 +118,7 @@ words:
   - musl
   - aarch
   - x86_64
-  
+
   # Binary analysis terms
   - rodata
   - rdata
@@ -131,7 +131,7 @@ words:
   - YARA
   - GUID
   - GUIDs
-  
+
   # Technical acronyms
   - CLI
   - JSON
