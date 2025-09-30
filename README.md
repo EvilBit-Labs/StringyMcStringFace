@@ -1,4 +1,4 @@
-![Stupid Sentient Yarn Ball Logo](docs/logo.png)
+![Stupid Sentient Yarn Ball Logo](docs/logo-320.png)
 
 # StringyMcStringFace
 
