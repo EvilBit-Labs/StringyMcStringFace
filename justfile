@@ -122,7 +122,25 @@ mdformat-install:
 # FORMATTING AND LINTING
 # =============================================================================
 
-format: fmt format-docs
+# Main format recipe - calls all formatters
+format:
+    @just format:rust
+    @just format:json-yaml
+    @just format:md
+    @just format:just
+
+# Individual format recipes
+format:rust:
+    @just fmt
+
+format:json-yaml:
+    npx prettier --write "**/*.{json,yaml,yml}"
+
+format:md:
+    @just format-docs
+
+format:just:
+    @just fmt-justfile
 
 [windows]
 format-docs:
@@ -153,7 +171,31 @@ fmt-justfile:
 lint-justfile:
     @just --fmt --check --unstable
 
-lint: lint-rust lint-justfile
+# Main lint recipe - calls all sub-linters
+lint:
+    @just lint:rust
+    @just lint:actions  
+    @just lint:spell
+    @just lint:docs
+    @just lint:just
+
+# Individual lint recipes
+lint:rust:
+    @just fmt-check
+    @cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+lint:actions:
+    actionlint .github/workflows/*.yml
+
+lint:spell:
+    cspell "**" --config cspell.config.yaml
+
+lint:docs:
+    markdownlint docs/**/*.md README.md
+    lychee docs/**/*.md README.md
+
+lint:just:
+    @just --fmt --check --unstable
 
 # Run clippy with fixes
 fix:
@@ -273,6 +315,12 @@ dist-check:
 
 dist-plan:
     @dist plan
+
+# Regenerate cargo-dist CI workflow safely
+dist-generate-ci:
+    dist generate --ci github
+    @echo "Generated CI workflow. Remember to fix any expression errors if they exist."
+    @echo "Run 'just lint:actions' to validate the generated workflow."
 
 install:
     @cargo install --path .
