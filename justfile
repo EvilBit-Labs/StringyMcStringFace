@@ -278,6 +278,48 @@ install:
     @cargo install --path .
 
 # =============================================================================
+# DOCUMENTATION
+# =============================================================================
+
+# Build complete documentation (mdBook + rustdoc)
+[unix]
+docs-build:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Build rustdoc
+    cargo doc --no-deps --document-private-items --target-dir docs/book/api-temp
+    # Move rustdoc output to final location
+    mkdir -p docs/book/api
+    cp -r docs/book/api-temp/doc/* docs/book/api/
+    rm -rf docs/book/api-temp
+    # Build mdBook
+    cd docs && mdbook build
+
+# Serve documentation locally with live reload
+[unix]
+docs-serve:
+    cd docs && mdbook serve --open
+
+# Clean documentation artifacts
+[unix]
+docs-clean:
+    rm -rf docs/book target/doc
+
+# Check documentation (build + link validation + formatting)
+[unix]
+docs-check:
+    cd docs && mdbook build
+    @just fmt-check
+
+# Generate and serve documentation
+[unix]
+docs: docs-build docs-serve
+
+[windows]
+docs:
+    @echo "mdbook requires a Unix-like environment to serve"
+
+# =============================================================================
 # GORELEASER TESTING
 # =============================================================================
 
