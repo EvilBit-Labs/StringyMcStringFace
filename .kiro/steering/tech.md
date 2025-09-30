@@ -40,6 +40,7 @@
 - **criterion** - Performance benchmarks for critical path components
 
 ### Cross-platform Support
+
 - **CI Matrix**: Linux, macOS, Windows with multiple Rust versions (stable, beta, MSRV)
 - **Architecture**: x86_64 and ARM64 support validation
 

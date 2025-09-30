@@ -47,7 +47,7 @@ pub struct ContainerInfo {
     pub sections: Vec<SectionInfo>,
     pub imports: Vec<ImportInfo>,
     pub exports: Vec<ExportInfo>,
-    pub resources: Vec<ResourceInfo>, // PE-specific
+    pub resources: Vec<ResourceInfo>,    // PE-specific
     pub load_commands: Vec<LoadCommand>, // Mach-O specific
 }
 
@@ -62,12 +62,12 @@ pub struct SectionInfo {
 }
 
 pub enum SectionType {
-    StringData,    // .rodata, .rdata, __cstring
-    ReadOnlyData,  // .data.rel.ro, __DATA_CONST
-    WritableData,  // .data
-    Code,          // .text, __TEXT
-    Debug,         // .debug_*, __DWARF
-    Resources,     // PE resources
+    StringData,   // .rodata, .rdata, __cstring
+    ReadOnlyData, // .data.rel.ro, __DATA_CONST
+    WritableData, // .data
+    Code,         // .text, __TEXT
+    Debug,        // .debug_*, __DWARF
+    Resources,    // PE resources
     Other,
 }
 ```
@@ -237,16 +237,16 @@ pub struct ExtractionMetadata {
 pub enum StringyError {
     #[error("Unsupported file format")]
     UnsupportedFormat,
-    
+
     #[error("File I/O error: {0}")]
     IoError(#[from] std::io::Error),
-    
+
     #[error("Binary parsing error: {0}")]
     ParseError(String),
-    
+
     #[error("Invalid encoding in string at offset {offset}")]
     EncodingError { offset: u64 },
-    
+
     #[error("Configuration error: {0}")]
     ConfigError(String),
 }
@@ -270,7 +270,7 @@ pub type Result<T> = std::result::Result<T, StringyError>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_ascii_extraction() {
         let data = b"Hello\x00World\x00\x01\x02\x03Test";
@@ -280,7 +280,7 @@ mod tests {
         assert_eq!(strings[0].text, "Hello");
         assert_eq!(strings[1].text, "Test");
     }
-    
+
     #[test]
     fn test_utf16_detection() {
         let data = b"H\x00e\x00l\x00l\x00o\x00\x00\x00";

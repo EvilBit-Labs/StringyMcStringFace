@@ -14,7 +14,7 @@ Stringy is a smarter alternative to the standard `strings` command that leverage
 
 1. WHEN a user provides an ELF binary THEN the system SHALL use format knowledge to identify string-containing sections (.rodata, .data.rel.ro, .comment) and ignore code sections, padding, and binary tables
 2. WHEN a user provides a PE binary THEN the system SHALL use format knowledge to extract strings from appropriate sections (.rdata, .data) and resources (VERSIONINFO, STRINGTABLE) while ignoring executable code and binary structures
-3. WHEN a user provides a Mach-O binary THEN the system SHALL use format knowledge to target string sections (__TEXT,__cstring, __TEXT,__const, __DATA_CONST) and avoid load commands, code segments, and binary metadata
+3. WHEN a user provides a Mach-O binary THEN the system SHALL use format knowledge to target string sections (\_\_TEXT,\_\_cstring, \_\_TEXT,\_\_const, \_\_DATA_CONST) and avoid load commands, code segments, and binary metadata
 4. WHEN the system encounters printable characters in non-string sections THEN it SHALL apply format-specific heuristics to determine if they represent legitimate strings or coincidental binary data
 5. WHEN the system encounters an unsupported file format THEN it SHALL return an error message indicating the format is not supported
 6. WHEN future file format support is added THEN the system SHALL use feature gates to enable/disable specific format parsers
@@ -37,15 +37,15 @@ Stringy is a smarter alternative to the standard `strings` command that leverage
 
 #### Acceptance Criteria
 
-1. WHEN a string matches a URL pattern THEN the system SHALL tag it as "url"
-2. WHEN a string matches a domain pattern THEN the system SHALL tag it as "domain"
-3. WHEN a string matches an IPv4 or IPv6 pattern THEN the system SHALL tag it as "ipv4" or "ipv6"
-4. WHEN a string matches a file path pattern (POSIX or Windows) THEN the system SHALL tag it as "filepath"
-5. WHEN a string matches a Windows registry path pattern THEN the system SHALL tag it as "regpath"
-6. WHEN a string matches a GUID pattern THEN the system SHALL tag it as "guid"
-7. WHEN a string matches an email pattern THEN the system SHALL tag it as "email"
-8. WHEN a string matches a Base64 pattern THEN the system SHALL tag it as "b64"
-9. WHEN a string matches a printf-style format string THEN the system SHALL tag it as "fmt"
+01. WHEN a string matches a URL pattern THEN the system SHALL tag it as "url"
+02. WHEN a string matches a domain pattern THEN the system SHALL tag it as "domain"
+03. WHEN a string matches an IPv4 or IPv6 pattern THEN the system SHALL tag it as "ipv4" or "ipv6"
+04. WHEN a string matches a file path pattern (POSIX or Windows) THEN the system SHALL tag it as "filepath"
+05. WHEN a string matches a Windows registry path pattern THEN the system SHALL tag it as "regpath"
+06. WHEN a string matches a GUID pattern THEN the system SHALL tag it as "guid"
+07. WHEN a string matches an email pattern THEN the system SHALL tag it as "email"
+08. WHEN a string matches a Base64 pattern THEN the system SHALL tag it as "b64"
+09. WHEN a string matches a printf-style format string THEN the system SHALL tag it as "fmt"
 10. WHEN a string matches a user agent pattern THEN the system SHALL tag it as "user-agent-ish"
 
 ### Requirement 4
@@ -65,7 +65,7 @@ Stringy is a smarter alternative to the standard `strings` command that leverage
 
 #### Acceptance Criteria
 
-1. WHEN calculating string scores THEN the system SHALL apply section weights where .rodata/.rdata/__cstring sections receive higher scores than .data sections
+1. WHEN calculating string scores THEN the system SHALL apply section weights where .rodata/.rdata/\_\_cstring sections receive higher scores than .data sections
 2. WHEN calculating string scores THEN the system SHALL apply semantic boosts where URLs, GUIDs, registry paths, file paths, and format strings receive +2 to +5 point bonuses
 3. WHEN calculating string scores THEN the system SHALL apply noise penalties for high entropy strings, excessively long strings, repeated padding bytes, and obvious table data
 4. WHEN calculating string scores THEN the system SHALL boost import/export names in the final ranking
