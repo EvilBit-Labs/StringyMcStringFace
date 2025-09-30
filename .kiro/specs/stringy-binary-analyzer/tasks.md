@@ -49,7 +49,7 @@
   - Add unit test for PE section identification
   - _Requirements: 1.2_
 
-- [ ] 2.3 Create Mach-O container parser stub
+- [x] 2.3 Create Mach-O container parser stub
 
   - Create src/container/macho.rs with basic Mach-O parser structure
   - Implement Mach-O format detection and basic section enumeration
