@@ -30,38 +30,15 @@
 - `clap` - Command-line argument parsing
 - `serde` + `serde_json` - JSON serialization for output formats
 
-## Testing & Build Tools
+## Project-Specific Testing Tools
 
-- **Rust** - Primary language for performance and memory safety
-- **Cargo** - Build system for Rust projects
-- **cargo-nextest** - Test runner for faster, more reliable test execution
-- **llvm-cov** - for coverage measurement and reporting (target: >85%)
-- **insta** - for deterministic CLI output validation
-- **criterion** - Performance benchmarks for critical path components
+- **insta** - for deterministic CLI output validation (binary analysis results)
+- **criterion** - Performance benchmarks for string extraction and classification
 
 ### Cross-platform Support
 
 - **CI Matrix**: Linux, macOS, Windows with multiple Rust versions (stable, beta, MSRV)
 - **Architecture**: x86_64 and ARM64 support validation
-
-## Build Commands
-
-```bash
-# Development build
-cargo build
-
-# Release build (optimized)
-cargo build --release
-
-# Run tests
-cargo test
-
-# Run with example
-cargo run -- binary_file.exe --json
-
-# Install locally
-cargo install --path .
-```
 
 ## Development Phases
 
@@ -70,8 +47,9 @@ cargo install --path .
 - **v0.3**: Relocation hints + basic disassembly references
 - **v0.4**: DWARF support + Mach-O load commands + Go build info
 
-## Performance Considerations
+## Project-Specific Performance Considerations
 
-- Use memory mapping for large binaries
-- Lazy evaluation for optional features (DWARF, disasm)
-- Efficient regex compilation and caching
+- **Memory Mapping**: Use `memmap2` for large binary files (>1MB)
+- **Lazy Evaluation**: Defer expensive features (DWARF parsing, disassembly) until requested
+- **Regex Caching**: Compile semantic classification patterns once at startup
+- **Section Filtering**: Skip irrelevant binary sections (debug, relocation) during extraction

@@ -113,6 +113,8 @@ pub struct SectionInfo {
     pub is_executable: bool,
     /// Whether the section is writable
     pub is_writable: bool,
+    /// Weight indicating likelihood of containing meaningful strings (higher = more likely)
+    pub weight: f32,
 }
 
 /// Information about an import
