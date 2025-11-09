@@ -367,41 +367,6 @@ mod tests {
     }
 
     #[test]
-    fn test_symbol_filtering_criteria() {
-        // Test the symbol filtering logic by checking the constants we use
-        use goblin::elf::section_header::SHN_UNDEF;
-        use goblin::elf::sym::{STB_GLOBAL, STB_WEAK, STT_FUNC, STT_NOTYPE, STT_OBJECT};
-
-        // Verify that our filtering constants are correct
-        assert_eq!(SHN_UNDEF, 0); // Undefined section index
-        assert_eq!(STB_GLOBAL, 1); // Global binding
-        assert_eq!(STB_WEAK, 2); // Weak binding
-        assert_eq!(STT_FUNC, 2); // Function type
-        assert_eq!(STT_OBJECT, 1); // Object type
-        assert_eq!(STT_NOTYPE, 0); // No type
-
-        // These constants are used in our import/export filtering logic
-        // This test ensures they remain consistent with the goblin crate
-    }
-
-    #[test]
-    fn test_import_export_methods_exist() {
-        // Test that the import/export extraction methods exist and can be called
-        // Full functionality testing requires integration tests with real ELF binaries
-        let parser = ElfParser::new();
-
-        // We can't easily create a valid ELF structure for unit testing,
-        // but we can verify the methods exist and have the right signatures
-        // by checking that they compile and can be referenced
-        let _extract_imports = ElfParser::extract_imports;
-        let _extract_exports = ElfParser::extract_exports;
-        let _extract_library = ElfParser::extract_library_from_needed;
-
-        // Verify parser can be created (this is a compile-time check)
-        let _ = parser;
-    }
-
-    #[test]
     fn test_section_weight_calculation() {
         // Test weight calculation for different section types and names
 
