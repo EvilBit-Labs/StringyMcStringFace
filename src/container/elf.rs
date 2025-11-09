@@ -166,16 +166,44 @@ impl ElfParser {
 
         // Extract from dynamic symbol table
         for sym in &elf.dynsyms {
-            if sym.st_bind() == goblin::elf::sym::STB_GLOBAL
+            if (sym.st_bind() == goblin::elf::sym::STB_GLOBAL
+                || sym.st_bind() == goblin::elf::sym::STB_WEAK)
                 && sym.st_shndx != (goblin::elf::section_header::SHN_UNDEF as usize)
                 && sym.st_value != 0
             {
                 if let Some(name) = elf.dynstrtab.get_at(sym.st_name) {
-                    exports.push(ExportInfo {
-                        name: name.to_string(),
-                        address: sym.st_value,
-                        ordinal: None, // ELF doesn't use ordinals
-                    });
+                    if !name.is_empty() {
+                        exports.push(ExportInfo {
+                            name: name.to_string(),
+                            address: sym.st_value,
+                            ordinal: None, // ELF doesn't use ordinals
+                        });
+                    }
+                }
+            }
+        }
+
+        // Also check regular symbol table for static exports
+        for sym in &elf.syms {
+            if (sym.st_bind() == goblin::elf::sym::STB_GLOBAL
+                || sym.st_bind() == goblin::elf::sym::STB_WEAK)
+                && sym.st_shndx != (goblin::elf::section_header::SHN_UNDEF as usize)
+                && sym.st_value != 0
+                && (sym.st_type() == goblin::elf::sym::STT_FUNC
+                    || sym.st_type() == goblin::elf::sym::STT_OBJECT
+                    || sym.st_type() == goblin::elf::sym::STT_NOTYPE)
+            {
+                if let Some(name) = elf.strtab.get_at(sym.st_name) {
+                    if !name.is_empty() {
+                        // Avoid duplicates from dynamic symbol table
+                        if !exports.iter().any(|exp| exp.name == name) {
+                            exports.push(ExportInfo {
+                                name: name.to_string(),
+                                address: sym.st_value,
+                                ordinal: None, // ELF doesn't use ordinals
+                            });
+                        }
+                    }
                 }
             }
         }
