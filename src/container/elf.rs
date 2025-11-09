@@ -5,6 +5,7 @@ use crate::types::{
 };
 use goblin::Object;
 use goblin::elf::{Elf, SectionHeader};
+use std::collections::HashSet;
 
 /// Parser for ELF (Executable and Linkable Format) binaries
 pub struct ElfParser;
@@ -163,6 +164,7 @@ impl ElfParser {
     /// Extract basic export information from ELF symbol table
     fn extract_exports(&self, elf: &Elf) -> Vec<ExportInfo> {
         let mut exports = Vec::new();
+        let mut seen_names = HashSet::new();
 
         // Extract from dynamic symbol table
         for sym in &elf.dynsyms {
@@ -172,7 +174,7 @@ impl ElfParser {
                 && sym.st_value != 0
             {
                 if let Some(name) = elf.dynstrtab.get_at(sym.st_name) {
-                    if !name.is_empty() {
+                    if !name.is_empty() && seen_names.insert(name.to_string()) {
                         exports.push(ExportInfo {
                             name: name.to_string(),
                             address: sym.st_value,
@@ -194,15 +196,12 @@ impl ElfParser {
                     || sym.st_type() == goblin::elf::sym::STT_NOTYPE)
             {
                 if let Some(name) = elf.strtab.get_at(sym.st_name) {
-                    if !name.is_empty() {
-                        // Avoid duplicates from dynamic symbol table
-                        if !exports.iter().any(|exp| exp.name == name) {
-                            exports.push(ExportInfo {
-                                name: name.to_string(),
-                                address: sym.st_value,
-                                ordinal: None, // ELF doesn't use ordinals
-                            });
-                        }
+                    if !name.is_empty() && seen_names.insert(name.to_string()) {
+                        exports.push(ExportInfo {
+                            name: name.to_string(),
+                            address: sym.st_value,
+                            ordinal: None, // ELF doesn't use ordinals
+                        });
                     }
                 }
             }
