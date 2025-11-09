@@ -40,7 +40,7 @@ int main() {
         .args(["-o", elf_file.to_str().unwrap(), c_file.to_str().unwrap()])
         .output();
 
-    // If cross-compiler not available, try regular gcc
+    // If cross-compiler not available, try regular gcc (dynamically linked)
     if output.is_err() {
         output = Command::new("gcc")
             .args(["-o", elf_file.to_str().unwrap(), c_file.to_str().unwrap()])

@@ -5,6 +5,7 @@ use crate::types::{
 };
 use goblin::Object;
 use goblin::elf::{Elf, SectionHeader};
+use std::collections::HashSet;
 
 /// Parser for ELF (Executable and Linkable Format) binaries
 pub struct ElfParser;
@@ -163,19 +164,45 @@ impl ElfParser {
     /// Extract basic export information from ELF symbol table
     fn extract_exports(&self, elf: &Elf) -> Vec<ExportInfo> {
         let mut exports = Vec::new();
+        let mut seen_names = HashSet::new();
 
         // Extract from dynamic symbol table
         for sym in &elf.dynsyms {
-            if sym.st_bind() == goblin::elf::sym::STB_GLOBAL
+            if (sym.st_bind() == goblin::elf::sym::STB_GLOBAL
+                || sym.st_bind() == goblin::elf::sym::STB_WEAK)
                 && sym.st_shndx != (goblin::elf::section_header::SHN_UNDEF as usize)
                 && sym.st_value != 0
             {
                 if let Some(name) = elf.dynstrtab.get_at(sym.st_name) {
-                    exports.push(ExportInfo {
-                        name: name.to_string(),
-                        address: sym.st_value,
-                        ordinal: None, // ELF doesn't use ordinals
-                    });
+                    if !name.is_empty() && seen_names.insert(name.to_string()) {
+                        exports.push(ExportInfo {
+                            name: name.to_string(),
+                            address: sym.st_value,
+                            ordinal: None, // ELF doesn't use ordinals
+                        });
+                    }
+                }
+            }
+        }
+
+        // Also check regular symbol table for static exports
+        for sym in &elf.syms {
+            if (sym.st_bind() == goblin::elf::sym::STB_GLOBAL
+                || sym.st_bind() == goblin::elf::sym::STB_WEAK)
+                && sym.st_shndx != (goblin::elf::section_header::SHN_UNDEF as usize)
+                && sym.st_value != 0
+                && (sym.st_type() == goblin::elf::sym::STT_FUNC
+                    || sym.st_type() == goblin::elf::sym::STT_OBJECT
+                    || sym.st_type() == goblin::elf::sym::STT_NOTYPE)
+            {
+                if let Some(name) = elf.strtab.get_at(sym.st_name) {
+                    if !name.is_empty() && seen_names.insert(name.to_string()) {
+                        exports.push(ExportInfo {
+                            name: name.to_string(),
+                            address: sym.st_value,
+                            ordinal: None, // ELF doesn't use ordinals
+                        });
+                    }
                 }
             }
         }
