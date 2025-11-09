@@ -261,6 +261,129 @@ fn test_elf_import_export_extraction_static() {
 #[test]
 fn test_elf_section_classification_integration() {
     // Test with the current binary (this test executable)
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let c_file = temp_dir.path().join("test_static.c");
+    let elf_file = temp_dir.path().join("test_static");
+
+    let c_code = r#"
+        #include <stdio.h>
+        #include <stdlib.h>
+
+        void exported_function() {
+            printf("Hello from exported function\n");
+        }
+
+        int main() {
+            void *ptr = malloc(100);
+            printf("Allocated memory\n");
+            free(ptr);
+            exported_function();
+            return 0;
+        }
+    "#;
+
+    File::create(&c_file)
+        .expect("Failed to create C file")
+        .write_all(c_code.as_bytes())
+        .expect("Failed to write C code");
+
+    // Compile statically-linked binary with -static flag
+    let mut output = Command::new("x86_64-linux-gnu-gcc")
+        .args([
+            "-static",
+            "-o",
+            elf_file.to_str().unwrap(),
+            c_file.to_str().unwrap(),
+        ])
+        .output();
+
+    if output.is_err()
+        || !output
+            .as_ref()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    {
+        output = Command::new("gcc")
+            .args([
+                "-static",
+                "-o",
+                elf_file.to_str().unwrap(),
+                c_file.to_str().unwrap(),
+            ])
+            .output();
+    }
+
+    match output {
+        Ok(output) if output.status.success() => {
+            let elf_data = fs::read(&elf_file).expect("Failed to read ELF file");
+
+            let format_obj = goblin::Object::parse(&elf_data).expect("Failed to parse with goblin");
+
+            match format_obj {
+                goblin::Object::Elf(_elf) => {
+                    let parser = ElfParser::new();
+                    let container_info = parser.parse(&elf_data).expect("Failed to parse ELF");
+
+                    // Statically-linked binaries typically have no or very few dynamic imports
+                    // since all dependencies are embedded
+                    println!(
+                        "Static binary imports found: {} (expected: 0 or very few)",
+                        container_info.imports.len()
+                    );
+
+                    // Verify exports are still present
+                    assert!(
+                        !container_info.exports.is_empty(),
+                        "Static binary should still have exports like main, exported_function"
+                    );
+
+                    let export_names: Vec<String> = container_info
+                        .exports
+                        .iter()
+                        .map(|e| e.name.clone())
+                        .collect();
+
+                    let has_main = export_names.iter().any(|name| name == "main");
+                    let has_exported_function = export_names
+                        .iter()
+                        .any(|name| name == "exported_function");
+
+                    assert!(
+                        has_main,
+                        "Static binary should export main function. Found exports: {:?}",
+                        export_names
+                    );
+                    assert!(
+                        has_exported_function,
+                        "Static binary should export exported_function. Found exports: {:?}",
+                        export_names
+                    );
+                }
+                goblin::Object::Mach(_) => {
+                    println!("Compiled to Mach-O, skipping ELF-specific test");
+                }
+                _ => panic!("Unexpected binary format"),
+            }
+        }
+        Ok(output) => {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            println!(
+                "Static compilation failed, skipping test. This is expected if static libraries are not available.\nError: {}",
+                stderr
+            );
+        }
+        Err(e) => {
+            println!(
+                "GCC not available, skipping test. This is expected in some CI environments. Error: {}",
+                e
+            );
+        }
+    }
+}
+
+#[test]
+fn test_elf_section_classification_integration() {
+    // Test with the current binary (this test executable)
     let current_exe = std::env::current_exe().expect("Failed to get current executable path");
 
     if let Ok(elf_data) = fs::read(&current_exe) {
