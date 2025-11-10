@@ -22,6 +22,27 @@ Used primarily on Linux and other Unix-like systems.
 - **Dynamic Strings**: Process `.dynstr` for library names and symbols
 - **Section Flags**: Use `SHF_EXECINSTR` and `SHF_WRITE` for classification
 - **Virtual Addresses**: Map file offsets to runtime addresses
+- **Dynamic Linking**: Parse `DT_NEEDED` entries to extract library dependencies
+- **Symbol Types**: Support for functions (STT_FUNC), objects (STT_OBJECT), TLS variables (STT_TLS), and indirect functions (STT_GNU_IFUNC)
+- **Symbol Visibility**: Filter hidden and internal symbols from exports (STV_HIDDEN, STV_INTERNAL)
+
+### Enhanced Symbol Extraction
+
+The ELF parser now provides comprehensive symbol extraction with:
+
+1. **Import Detection**: Identifies all undefined symbols (SHN_UNDEF) that need runtime resolution
+   - Supports multiple symbol types: functions, objects, TLS variables, and indirect functions
+   - Handles both global and weak bindings
+   - Foundation for library mapping through DT_NEEDED analysis
+
+2. **Export Detection**: Extracts all globally visible defined symbols
+   - Filters out hidden (STV_HIDDEN) and internal (STV_INTERNAL) symbols
+   - Includes both strong and weak symbols
+   - Supports all relevant symbol types
+
+3. **Library Dependencies**: Extracts DT_NEEDED entries from the dynamic section
+   - Provides list of required shared libraries
+   - Foundation for future symbol-to-library mapping
 
 ### Implementation Details
 
@@ -39,6 +60,23 @@ impl ElfParser {
             ".data.rel.ro" => SectionType::ReadOnlyData,
             // ... more classifications
         }
+    }
+
+    fn extract_imports(&self, elf: &Elf) -> Vec<ImportInfo> {
+        // Extract undefined symbols from dynamic symbol table
+        // Supports STT_FUNC, STT_OBJECT, STT_TLS, STT_GNU_IFUNC, STT_NOTYPE
+        // Handles both STB_GLOBAL and STB_WEAK bindings
+    }
+
+    fn extract_exports(&self, elf: &Elf) -> Vec<ExportInfo> {
+        // Extract defined symbols with global/weak binding
+        // Filters out STV_HIDDEN and STV_INTERNAL symbols
+        // Includes all relevant symbol types
+    }
+
+    fn extract_needed_libraries(&self, elf: &Elf) -> Vec<String> {
+        // Parse DT_NEEDED entries from dynamic section
+        // Returns list of required shared library names
     }
 }
 ```
