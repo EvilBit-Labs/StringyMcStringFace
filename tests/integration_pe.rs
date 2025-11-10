@@ -1,3 +1,4 @@
+use insta::assert_snapshot;
 use std::fs;
 use stringy::container::{ContainerParser, PeParser};
 
@@ -112,6 +113,72 @@ fn test_pe_section_classification() {
             has_text || has_data,
             "Should find .text or .data/.rdata sections"
         );
+    } else {
+        panic!("PE fixture is not a valid PE file");
+    }
+}
+
+#[test]
+fn test_pe_symbol_extraction_snapshot() {
+    // Test with a fixed PE fixture to create a consistent snapshot
+    let fixture_path = get_fixture_path("test_binary_pe.exe");
+
+    let pe_data = fs::read(&fixture_path)
+        .expect("Failed to read PE fixture. Run the build script to generate fixtures.");
+
+    if PeParser::detect(&pe_data) {
+        let container_info = PeParser::new()
+            .parse(&pe_data)
+            .expect("Failed to parse PE fixture");
+        // Create a formatted output for snapshot testing
+        let mut output = String::new();
+
+        // Document imports
+        output.push_str("=== IMPORTS ===\n");
+        output.push_str(&format!("Total: {}\n\n", container_info.imports.len()));
+
+        // Take first 10 imports for snapshot (to keep it manageable)
+        for (i, import) in container_info.imports.iter().take(10).enumerate() {
+            output.push_str(&format!("Import {}: {}\n", i + 1, import.name));
+            if let Some(ref lib) = import.library {
+                output.push_str(&format!("  Library: {}\n", lib));
+            }
+            if let Some(addr) = import.address {
+                output.push_str(&format!("  Address: 0x{:x}\n", addr));
+            }
+            output.push('\n');
+        }
+
+        if container_info.imports.len() > 10 {
+            output.push_str(&format!(
+                "... and {} more imports\n\n",
+                container_info.imports.len() - 10
+            ));
+        }
+
+        // Document exports
+        output.push_str("=== EXPORTS ===\n");
+        output.push_str(&format!("Total: {}\n\n", container_info.exports.len()));
+
+        // Take first 10 exports for snapshot
+        for (i, export) in container_info.exports.iter().take(10).enumerate() {
+            output.push_str(&format!("Export {}: {}\n", i + 1, export.name));
+            output.push_str(&format!("  Address: 0x{:x}\n", export.address));
+            if let Some(ord) = export.ordinal {
+                output.push_str(&format!("  Ordinal: {}\n", ord));
+            }
+            output.push('\n');
+        }
+
+        if container_info.exports.len() > 10 {
+            output.push_str(&format!(
+                "... and {} more exports\n",
+                container_info.exports.len() - 10
+            ));
+        }
+
+        // Snapshot the output
+        assert_snapshot!("pe_symbol_extraction", output);
     } else {
         panic!("PE fixture is not a valid PE file");
     }

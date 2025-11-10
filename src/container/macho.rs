@@ -124,6 +124,7 @@ impl MachoParser {
                         name: name.to_string(),
                         library: None, // Mach-O doesn't directly specify library names in symbols
                         address: Some(nlist.n_value),
+                        ordinal: None, // Mach-O doesn't use ordinals
                     })
                 } else {
                     None

@@ -38,3 +38,7 @@ lto = "thin"
 [[bench]]
 name = "elf"
 harness = false
+
+[[bench]]
+name = "pe"
+harness = false

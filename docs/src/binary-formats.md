@@ -164,6 +164,23 @@ Used on Windows for executables, DLLs, and drivers.
 - **UTF-16 Prevalence**: Windows APIs favor wide strings
 - **Section Characteristics**: Use `IMAGE_SCN_*` flags for classification
 
+### Enhanced Import/Export Extraction
+
+The PE parser provides comprehensive import/export extraction:
+
+1. **Import Extraction**: Extracts from PE import directory using goblin's `pe.imports`
+
+   - Each import includes: function name, DLL name, and RVA
+   - Example: `printf` from `msvcrt.dll`
+   - Iterates through `pe.imports` to create `ImportInfo` with name, library (DLL), and address (RVA)
+
+2. **Export Extraction**: Extracts from PE export directory using goblin's `pe.exports`
+
+   - Each export includes: function name, address, and ordinal
+   - Note: PE executables typically don't export symbols (only DLLs do)
+   - Ordinal is derived from index since goblin doesn't expose it directly
+   - Handles unnamed exports with "ordinal\_{i}" naming
+
 ### Resource Extraction
 
 PE resources are particularly rich sources of strings:
@@ -191,8 +208,45 @@ impl PeParser {
             // ... more classifications
         }
     }
+
+    fn extract_imports(&self, pe: &PE) -> Vec<ImportInfo> {
+        // Iterates through pe.imports
+        // Creates ImportInfo with name, library (DLL), and address (RVA)
+    }
+
+    fn extract_exports(&self, pe: &PE) -> Vec<ExportInfo> {
+        // Iterates through pe.exports
+        // Creates ExportInfo with name, address, and ordinal
+        // Handles unnamed exports with "ordinal_{i}" naming
+    }
+
+    fn calculate_section_weight(section_type: SectionType, name: &str) -> f32 {
+        // Returns weight values based on section type and name
+        // Higher weights indicate higher string likelihood
+    }
 }
 ```
+
+### Section Weight Calculation
+
+The PE parser uses a weight-based system to prioritize sections for string extraction:
+
+| Section Type         | Weight | Rationale                     |
+| -------------------- | ------ | ----------------------------- |
+| StringData (.rdata)  | 10.0   | Primary string storage        |
+| Resources (.rsrc)    | 9.0    | Version info, string tables   |
+| ReadOnlyData         | 7.0    | May contain constants         |
+| WritableData (.data) | 5.0    | Runtime state, lower priority |
+| Code (.text)         | 1.0    | Unlikely to contain strings   |
+| Debug                | 2.0    | Internal metadata             |
+| Other                | 1.0    | Minimal priority              |
+
+### Limitations
+
+The current PE parser implementation focuses on import/export tables and section classification:
+
+- **Resource Extraction**: Resource extraction (VERSIONINFO, STRINGTABLE) is planned but not yet implemented
+- **Future Enhancements**: PE resource parsing will be added in future versions to extract strings from version blocks, string tables, and manifest resources
 
 ## Mach-O (Mach Object)
 

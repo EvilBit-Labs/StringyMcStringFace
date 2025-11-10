@@ -33,15 +33,19 @@
     - Add unit tests for symbol extraction
     - _Requirements: 4.2, 4.3_
 
-- [ ] 4. Implement PE section classification
+- [x] 4. Implement PE section classification
 
-  - Enhance PE parser to classify sections (.rdata, .data) by string likelihood
+  - Enhance PE parser to classify sections (.rdata, .data) by string likelihood ✅
 
-  - Add section weight assignment for PE-specific sections
+  - Add section weight assignment for PE-specific sections ✅
 
-  - Implement basic PE import/export table parsing
+  - Implement basic PE import/export table parsing ✅
+
+  - Add benchmarks and snapshot tests ✅
 
   - _Requirements: 1.2, 1.4_
+
+  - _Completed: Issue #3_
 
   - [ ] 4.1 Add PE resource extraction foundation
 

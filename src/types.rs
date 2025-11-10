@@ -126,6 +126,8 @@ pub struct ImportInfo {
     pub library: Option<String>,
     /// Address or ordinal
     pub address: Option<u64>,
+    /// Import ordinal (if available, for ordinal imports)
+    pub ordinal: Option<u16>,
 }
 
 /// Information about an export

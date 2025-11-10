@@ -112,6 +112,7 @@ impl ElfParser {
                     } else {
                         None
                     },
+                    ordinal: None, // ELF doesn't use ordinals
                 });
             }
         }
@@ -138,6 +139,7 @@ impl ElfParser {
                     } else {
                         None
                     },
+                    ordinal: None, // ELF doesn't use ordinals
                 });
             }
         }
