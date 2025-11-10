@@ -4,7 +4,7 @@ This guide will get you up and running with Stringy in minutes.
 
 ## Basic Usage
 
-**Note**: The CLI interface is currently under development. This guide shows the planned interface.
+**Current Status**: Basic CLI is implemented with advanced features in development. This guide shows both current and planned functionality.
 
 ### Analyze a Binary
 
@@ -12,13 +12,32 @@ This guide will get you up and running with Stringy in minutes.
 stringy /path/to/binary
 ```
 
-This performs a basic analysis with default settings:
+**Current Implementation**: Performs binary format detection and section analysis:
 
-- Extracts ASCII and UTF-16 strings
-- Applies semantic classification
-- Shows top results in human-readable format
+- Detects ELF, PE, or Mach-O format automatically
+- Classifies sections by string likelihood with weighted scoring
+- Extracts import/export symbol names
+- Shows basic analysis results
 
-### Example Output
+**Planned Features**: Full string extraction and classification:
+
+- Extract ASCII and UTF-16 strings from prioritized sections
+- Apply semantic classification (URLs, paths, GUIDs, etc.)
+- Show ranked results in human-readable format
+
+### Current Output
+
+```text
+Stringy - Binary string extraction tool
+Format: ELF
+Sections found: 12
+High-priority sections: .rodata (weight: 10.0), .comment (weight: 9.0)
+Imports: 45 symbols
+Exports: 12 symbols
+Implementation coming soon...
+```
+
+### Planned Output
 
 ```text
 Score  Offset    Section    Encoding  Tags           String
