@@ -1,0 +1,63 @@
+---
+source: tests/integration_elf.rs
+expression: output
+---
+=== IMPORTS ===
+Total: 134
+
+Import 1: __libc_start_main
+
+Import 2: __gmon_start__
+
+Import 3: _ITM_deregisterTMCloneTable
+
+Import 4: _ITM_registerTMCloneTable
+
+Import 5: __cxa_finalize
+
+Import 6: _Unwind_Resume
+
+Import 7: memcpy
+
+Import 8: memset
+
+Import 9: memcmp
+
+Import 10: bcmp
+
+... and 124 more imports
+
+=== EXPORTS ===
+Total: 7362
+
+Export 1: _start
+  Address: 0xed9e0
+
+Export 2: main
+  Address: 0xf7f90
+
+Export 3: _RNvCsj3IbkTTFM3W_7___rustc10rust_panic
+  Address: 0x363330
+
+Export 4: _RNvCsj3IbkTTFM3W_7___rustc17___rust_drop_panic
+  Address: 0x3634d0
+
+Export 5: _RNvCsj3IbkTTFM3W_7___rustc17rust_begin_unwind
+  Address: 0x3635a0
+
+Export 6: _RNvCsj3IbkTTFM3W_7___rustc24___rust_foreign_exception
+  Address: 0x363650
+
+Export 7: _ZN3std3sys4args4unix3imp15ARGV_INIT_ARRAY17h53e3ae54f15b3a00E
+  Address: 0x3c3030
+
+Export 8: rust_eh_personality
+  Address: 0x3a8060
+
+Export 9: _RNvCsj3IbkTTFM3W_7___rustc18___rust_start_panic
+  Address: 0x3a8620
+
+Export 10: _RNvCsj3IbkTTFM3W_7___rustc20___rust_panic_cleanup
+  Address: 0x3a86d0
+
+... and 7352 more exports

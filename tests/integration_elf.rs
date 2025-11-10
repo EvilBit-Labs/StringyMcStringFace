@@ -4,6 +4,7 @@ use std::io::Write;
 use std::process::Command;
 use stringy::container::{ContainerParser, ElfParser};
 use tempfile::TempDir;
+use insta::assert_snapshot;
 
 #[test]
 #[cfg(target_family = "unix")]
@@ -387,6 +388,78 @@ fn test_elf_library_dependencies() {
             }
             Err(e) => {
                 println!("Failed to parse binary: {}, skipping test", e);
+            }
+        }
+    }
+}
+
+#[test]
+#[cfg(target_family = "unix")]
+fn test_elf_symbol_extraction_snapshot() {
+    // Test with the current binary to create a snapshot of symbol extraction
+    let current_exe = std::env::current_exe().expect("Failed to get current executable path");
+
+    if let Ok(elf_data) = fs::read(&current_exe) {
+        if ElfParser::detect(&elf_data) {
+            let parser = ElfParser::new();
+            if let Ok(container_info) = parser.parse(&elf_data) {
+                // Create a formatted output for snapshot testing
+                let mut output = String::new();
+                
+                // Document imports
+                output.push_str("=== IMPORTS ===\n");
+                output.push_str(&format!("Total: {}\n\n", container_info.imports.len()));
+                
+                // Take first 10 imports for snapshot (to keep it manageable)
+                for (i, import) in container_info.imports.iter().take(10).enumerate() {
+                    output.push_str(&format!(
+                        "Import {}: {}\n",
+                        i + 1,
+                        import.name
+                    ));
+                    if let Some(ref lib) = import.library {
+                        output.push_str(&format!("  Library: {}\n", lib));
+                    }
+                    if let Some(addr) = import.address {
+                        output.push_str(&format!("  Address: 0x{:x}\n", addr));
+                    }
+                    output.push('\n');
+                }
+                
+                if container_info.imports.len() > 10 {
+                    output.push_str(&format!(
+                        "... and {} more imports\n\n",
+                        container_info.imports.len() - 10
+                    ));
+                }
+                
+                // Document exports
+                output.push_str("=== EXPORTS ===\n");
+                output.push_str(&format!("Total: {}\n\n", container_info.exports.len()));
+                
+                // Take first 10 exports for snapshot
+                for (i, export) in container_info.exports.iter().take(10).enumerate() {
+                    output.push_str(&format!(
+                        "Export {}: {}\n",
+                        i + 1,
+                        export.name
+                    ));
+                    output.push_str(&format!("  Address: 0x{:x}\n", export.address));
+                    if let Some(ord) = export.ordinal {
+                        output.push_str(&format!("  Ordinal: {}\n", ord));
+                    }
+                    output.push('\n');
+                }
+                
+                if container_info.exports.len() > 10 {
+                    output.push_str(&format!(
+                        "... and {} more exports\n",
+                        container_info.exports.len() - 10
+                    ));
+                }
+                
+                // Snapshot the output
+                assert_snapshot!("elf_symbol_extraction", output);
             }
         }
     }
