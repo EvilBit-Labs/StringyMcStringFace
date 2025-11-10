@@ -36,7 +36,7 @@ jobs:
         uses: jontze/action-mdbook@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          mdbook-version: latest
+          mdbook-version: 0.4.52
           use-mermaid: true
           use-toc: true
           use-admonish: true
@@ -47,16 +47,16 @@ jobs:
       - name: Install mdbook plugins
         run: cargo binstall mdbook-tabs mdbook-i18n-helpers mdbook-alerts mdbook-yml-header mdbook-image-size --no-confirm
 
-      - name: Build rustdoc
-        run: |
-          cargo doc --no-deps --document-private-items --target-dir target
-          mkdir -p docs/book/api
-          cp -r target/doc/* docs/book/api/
-
       - name: Build mdBook
         run: |
           cd docs
           mdbook build
+
+      - name: Build rustdoc
+        run: |
+          cargo doc --no-deps --document-private-items
+          mkdir -p docs/book/api
+          cp -r target/doc/* docs/book/api/
 
       - name: Setup Pages
         if: github.ref == 'refs/heads/main'
