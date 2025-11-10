@@ -39,6 +39,40 @@ impl MachoParser {
         Self
     }
 
+    /// Calculate section weight based on likelihood of containing meaningful strings
+    fn calculate_section_weight(
+        section_type: SectionType,
+        segment_name: &str,
+        section_name: &str,
+    ) -> f32 {
+        match section_type {
+            // String data sections get highest weight
+            SectionType::StringData => {
+                match (segment_name, section_name) {
+                    // __cstring is the primary string section in Mach-O
+                    ("__TEXT", "__cstring") => 10.0,
+                    // __const may contain string constants
+                    ("__TEXT", "__const") => 9.0,
+                    // Core Foundation strings
+                    ("__DATA_CONST", "__cfstring") => 8.5,
+                    _ => 8.0,
+                }
+            }
+            // Read-only data sections are likely to contain strings
+            SectionType::ReadOnlyData => 7.0,
+            // Writable data sections may contain strings but less likely
+            SectionType::WritableData => 5.0,
+            // Code sections unlikely to contain meaningful strings
+            SectionType::Code => 1.0,
+            // Debug sections may contain some strings but usually not user-facing
+            SectionType::Debug => 2.0,
+            // Resources (not applicable to Mach-O but included for completeness)
+            SectionType::Resources => 8.0,
+            // Other sections get minimal weight
+            SectionType::Other => 1.0,
+        }
+    }
+
     /// Classifies Mach-O section based on its segment and section name.
     ///
     /// Returns the appropriate `SectionType` for string extraction prioritization.
@@ -187,6 +221,7 @@ impl MachoParser {
 
         let section_name = section.name().unwrap_or("unknown");
         let section_type = Self::classify_section(segment_name, section_name);
+        let weight = Self::calculate_section_weight(section_type, segment_name, section_name);
         let full_name = Self::format_section_name(segment_name, section_name);
 
         Some(SectionInfo {
@@ -197,6 +232,7 @@ impl MachoParser {
             section_type,
             is_executable: Self::is_executable_section(segment_name, section_name),
             is_writable: Self::is_writable_section(segment_name),
+            weight,
         })
     }
 
@@ -429,5 +465,62 @@ mod tests {
         assert!(MachoParser::is_writable_section("__DATA_DIRTY"));
         assert!(!MachoParser::is_writable_section("__TEXT"));
         assert!(!MachoParser::is_writable_section("__DATA_CONST"));
+    }
+
+    #[test]
+    fn test_section_weight_calculation() {
+        // Test weight calculation for different section types and names
+
+        // String data sections should get highest weights
+        assert_eq!(
+            MachoParser::calculate_section_weight(SectionType::StringData, "__TEXT", "__cstring"),
+            10.0
+        );
+        assert_eq!(
+            MachoParser::calculate_section_weight(SectionType::StringData, "__TEXT", "__const"),
+            9.0
+        );
+        assert_eq!(
+            MachoParser::calculate_section_weight(
+                SectionType::StringData,
+                "__DATA_CONST",
+                "__cfstring"
+            ),
+            8.5
+        );
+
+        // Read-only data sections
+        assert_eq!(
+            MachoParser::calculate_section_weight(
+                SectionType::ReadOnlyData,
+                "__DATA_CONST",
+                "__const"
+            ),
+            7.0
+        );
+
+        // Writable data sections
+        assert_eq!(
+            MachoParser::calculate_section_weight(SectionType::WritableData, "__DATA", "__data"),
+            5.0
+        );
+
+        // Code sections should get low weight
+        assert_eq!(
+            MachoParser::calculate_section_weight(SectionType::Code, "__TEXT", "__text"),
+            1.0
+        );
+
+        // Debug sections
+        assert_eq!(
+            MachoParser::calculate_section_weight(SectionType::Debug, "__DWARF", "__debug_info"),
+            2.0
+        );
+
+        // Other sections
+        assert_eq!(
+            MachoParser::calculate_section_weight(SectionType::Other, "__UNKNOWN", "__unknown"),
+            1.0
+        );
     }
 }

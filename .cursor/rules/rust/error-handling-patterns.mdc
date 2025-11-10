@@ -1,0 +1,249 @@
+---
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Error Handling Patterns for Stringy
+
+## Error Handling Philosophy
+
+Stringy uses structured error handling with clear error boundaries:
+
+- **Structured Errors**: Use `thiserror` for all error types with derive macros
+- **Error Context**: Provide detailed context in error messages (offsets, section names, file paths)
+- **Error Boundaries**: Implement proper error boundaries for different components (parsing, extraction, classification)
+- **Recovery Strategies**: Continue processing when possible, provide partial results
+
+## Error Type Definition
+
+Define structured error types using thiserror:
+
+```rust
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum StringyError {
+    #[error("Unsupported file format")]
+    UnsupportedFormat,
+
+    #[error("File I/O error: {0}")]
+    IoError(#[from] std::io::Error),
+
+    #[error("Binary parsing error: {0}")]
+    ParseError(String),
+
+    #[error("Invalid encoding in string at offset {offset}")]
+    EncodingError { offset: u64 },
+
+    #[error("Configuration error: {0}")]
+    ConfigError(String),
+
+    #[error("Memory mapping error: {0}")]
+    MemoryMapError(String),
+}
+
+// Convert from goblin errors
+impl From<goblin::error::Error> for StringyError {
+    fn from(err: goblin::error::Error) -> Self {
+        StringyError::ParseError(err.to_string())
+    }
+}
+```
+
+## Error Context
+
+Provide detailed error context:
+
+```rust
+fn parse_elf_section(data: &[u8], section_name: &str) -> Result<SectionInfo> {
+    let section = goblin::elf::Elf::parse(data)
+        .map_err(|e| StringyError::ParseError(
+            format!("Failed to parse ELF section '{}': {}", section_name, e)
+        ))?;
+
+    // ... parsing logic
+    Ok(section_info)
+}
+```
+
+## Component-Specific Error Handling
+
+Implement error boundaries for different components:
+
+```rust
+// Container parsing errors
+#[derive(Debug, Error)]
+pub enum ContainerError {
+    #[error("Failed to detect binary format")]
+    FormatDetectionFailed,
+
+    #[error("Unsupported binary format: {format:?}")]
+    UnsupportedFormat { format: BinaryFormat },
+
+    #[error("Section parsing failed: {section}: {error}")]
+    SectionParseFailed { section: String, error: String },
+}
+
+// String extraction errors
+#[derive(Debug, Error)]
+pub enum ExtractionError {
+    #[error("Invalid encoding at offset {offset}")]
+    InvalidEncoding { offset: u64 },
+
+    #[error("String extraction failed: {0}")]
+    ExtractionFailed(String),
+}
+
+// Classification errors
+#[derive(Debug, Error)]
+pub enum ClassificationError {
+    #[error("Tagging failed: {0}")]
+    TaggingFailed(String),
+}
+```
+
+## Error Recovery Patterns
+
+Implement graceful degradation:
+
+```rust
+fn extract_strings_from_sections(
+    data: &[u8],
+    sections: &[SectionInfo]
+) -> Vec<FoundString> {
+    let mut found_strings = Vec::new();
+
+    for section in sections {
+        match extract_strings_from_section(data, section) {
+            Ok(strings) => found_strings.extend(strings),
+            Err(e) => {
+                eprintln!("Warning: Failed to extract strings from section '{}': {}",
+                    section.name, e);
+                // Continue with other sections
+            }
+        }
+    }
+
+    found_strings
+}
+```
+
+## Error Logging
+
+Implement structured error logging:
+
+```rust
+fn handle_parsing_error(error: StringyError, context: &str) {
+    match error {
+        StringyError::UnsupportedFormat => {
+            eprintln!("Error: {} - Unsupported binary format", context);
+        }
+        StringyError::ParseError(msg) => {
+            eprintln!("Error: {} - Parse error: {}", context, msg);
+        }
+        StringyError::EncodingError { offset } => {
+            eprintln!("Error: {} - Invalid encoding at offset 0x{:x}", context, offset);
+        }
+        StringyError::IoError(e) => {
+            eprintln!("Error: {} - I/O error: {}", context, e);
+        }
+        _ => {
+            eprintln!("Error: {} - {}", context, error);
+        }
+    }
+}
+```
+
+## Error Propagation
+
+Use proper error propagation patterns:
+
+```rust
+// Use ? operator for early returns
+fn parse_binary_file(path: &Path) -> Result<ContainerInfo> {
+    let data = std::fs::read(path)
+        .map_err(|e| StringyError::IoError(e))?;
+
+    let format = detect_format(&data);
+    let parser = create_parser(format)?;
+    let container_info = parser.parse(&data)?;
+
+    Ok(container_info)
+}
+
+// Use map_err for error transformation
+fn extract_from_section(data: &[u8], section: &SectionInfo) -> Result<Vec<FoundString>> {
+    let section_data = &data[section.offset as usize..(section.offset + section.size) as usize];
+
+    extract_strings(section_data)
+        .map_err(|e| StringyError::ExtractionError {
+            section: section.name.clone(),
+            error: e.to_string(),
+        })
+}
+```
+
+## Error Testing
+
+Test error conditions thoroughly:
+
+```rust
+#[test]
+fn test_unsupported_format() {
+    let data = b"NOT_A_BINARY_FORMAT";
+    let format = detect_format(data);
+    assert_eq!(format, BinaryFormat::Unknown);
+
+    let result = create_parser(format);
+    assert!(matches!(result, Err(StringyError::UnsupportedFormat)));
+}
+
+#[test]
+fn test_malformed_binary() {
+    let data = b"\x7fELF\x01\x01\x01"; // Invalid ELF header
+    let parser = ElfParser::new();
+    let result = parser.parse(data);
+
+    assert!(result.is_err());
+    if let Err(StringyError::ParseError(_)) = result {
+        // Expected
+    } else {
+        panic!("Expected ParseError");
+    }
+}
+
+#[test]
+fn test_error_recovery() {
+    // Test that errors in one section don't stop processing of others
+    let result = extract_strings_from_sections(&data, &sections);
+    // Should return partial results even if some sections fail
+    assert!(!result.is_empty());
+}
+```
+
+## Error Documentation
+
+Document error conditions in rustdoc:
+
+```rust
+/// Parses a binary file and extracts container information.
+///
+/// # Errors
+///
+/// Returns [`StringyError`] for:
+/// - Unsupported binary formats
+/// - I/O errors reading the file
+/// - Binary parsing errors (malformed headers, invalid structures)
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use stringy::container::parse_binary_file;
+///
+/// let info = parse_binary_file("binary.exe")?;
+/// println!("Format: {:?}", info.format);
+/// ```
+pub fn parse_binary_file(path: &Path) -> Result<ContainerInfo> {
+    // Implementation
+}
+```
