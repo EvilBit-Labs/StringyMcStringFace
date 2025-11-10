@@ -6,6 +6,7 @@ use stringy::container::{ContainerParser, ElfParser};
 use tempfile::TempDir;
 
 #[test]
+#[cfg(target_family = "unix")]
 fn test_elf_import_export_extraction_dynamic() {
     // Create a simple C program that we can compile to test with
     let c_code = r#"
@@ -135,6 +136,7 @@ int main() {
 }
 
 #[test]
+#[cfg(target_family = "unix")]
 fn test_elf_import_export_extraction_static() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let c_file = temp_dir.path().join("test_static.c");
@@ -257,6 +259,7 @@ fn test_elf_import_export_extraction_static() {
 }
 
 #[test]
+#[cfg(target_family = "unix")]
 fn test_elf_section_classification_integration() {
     // Test with the current binary (this test executable)
     let current_exe = std::env::current_exe().expect("Failed to get current executable path");
