@@ -3,61 +3,60 @@ source: tests/integration_elf.rs
 expression: output
 ---
 === IMPORTS ===
-Total: 134
+Total: 9
 
-Import 1: __libc_start_main
+Import 1: free
+  Library: libc.so.6
 
-Import 2: __gmon_start__
+Import 2: __libc_start_main
+  Library: libc.so.6
 
-Import 3: _ITM_deregisterTMCloneTable
+Import 3: puts
+  Library: libc.so.6
 
-Import 4: _ITM_registerTMCloneTable
+Import 4: __gmon_start__
+  Library: libc.so.6
 
-Import 5: __cxa_finalize
+Import 5: malloc
+  Library: libc.so.6
 
-Import 6: _Unwind_Resume
+Import 6: free@GLIBC_2.2.5
 
-Import 7: memcpy
+Import 7: __libc_start_main@GLIBC_2.34
 
-Import 8: memset
+Import 8: puts@GLIBC_2.2.5
 
-Import 9: memcmp
-
-Import 10: bcmp
-
-... and 124 more imports
+Import 9: malloc@GLIBC_2.2.5
 
 === EXPORTS ===
-Total: 7362
+Total: 10
 
-Export 1: _start
-  Address: 0xed9e0
+Export 1: data_start
+  Address: 0x404018
 
-Export 2: main
-  Address: 0xf7f90
+Export 2: _edata
+  Address: 0x404028
 
-Export 3: _RNvCsj3IbkTTFM3W_7___rustc10rust_panic
-  Address: 0x363330
+Export 3: exported_function
+  Address: 0x401146
 
-Export 4: _RNvCsj3IbkTTFM3W_7___rustc17___rust_drop_panic
-  Address: 0x3634d0
+Export 4: helper_function
+  Address: 0x401154
 
-Export 5: _RNvCsj3IbkTTFM3W_7___rustc17rust_begin_unwind
-  Address: 0x3635a0
+Export 5: __data_start
+  Address: 0x404018
 
-Export 6: _RNvCsj3IbkTTFM3W_7___rustc24___rust_foreign_exception
-  Address: 0x363650
+Export 6: _IO_stdin_used
+  Address: 0x402000
 
-Export 7: _ZN3std3sys4args4unix3imp15ARGV_INIT_ARRAY17h53e3ae54f15b3a00E
-  Address: 0x3c3030
+Export 7: _end
+  Address: 0x404030
 
-Export 8: rust_eh_personality
-  Address: 0x3a8060
+Export 8: _start
+  Address: 0x401060
 
-Export 9: _RNvCsj3IbkTTFM3W_7___rustc18___rust_start_panic
-  Address: 0x3a8620
+Export 9: __bss_start
+  Address: 0x404028
 
-Export 10: _RNvCsj3IbkTTFM3W_7___rustc20___rust_panic_cleanup
-  Address: 0x3a86d0
-
-... and 7352 more exports
+Export 10: main
+  Address: 0x401165

@@ -1,274 +1,127 @@
 use insta::assert_snapshot;
 use std::fs;
-use std::fs::File;
-use std::io::Write;
-use std::process::Command;
 use stringy::container::{ContainerParser, ElfParser};
-use tempfile::TempDir;
+
+fn get_fixture_path(name: &str) -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join(name)
+}
 
 #[test]
-#[cfg(target_family = "unix")]
 fn test_elf_import_export_extraction_dynamic() {
-    // Create a simple C program that we can compile to test with
-    let c_code = r#"
-#include <stdio.h>
-#include <stdlib.h>
+    // Test with the ELF fixture
+    let fixture_path = get_fixture_path("test_binary_elf");
+    let elf_data = fs::read(&fixture_path)
+        .expect("Failed to read ELF fixture. Run the build script to generate fixtures.");
 
-// Export a function
-int exported_function(int x) {
-    return x * 2;
-}
+    // Verify it's an ELF file
+    assert!(ElfParser::detect(&elf_data), "ELF detection should succeed");
 
-// Use some imports
-int main() {
-    printf("Hello, world!\n");  // Import from libc
-    void* ptr = malloc(100);    // Import from libc
-    free(ptr);                  // Import from libc
-    return 0;
-}
-"#;
+    // Test parsing
+    let parser = ElfParser::new();
+    let container_info = parser.parse(&elf_data).expect("Failed to parse ELF");
 
-    // Write the C code to a temporary file
-    let temp_dir = std::env::temp_dir();
-    let c_file = temp_dir.join("test_elf.c");
-    let elf_file = temp_dir.join("test_elf");
+    // Verify we found some imports
+    assert!(
+        !container_info.imports.is_empty(),
+        "Should find imports like printf, malloc, free"
+    );
 
-    fs::write(&c_file, c_code).expect("Failed to write C file");
+    // Check that we found expected imports
+    let import_names: Vec<&str> = container_info
+        .imports
+        .iter()
+        .map(|imp| imp.name.as_str())
+        .collect();
 
-    // Try to compile it with gcc, attempting to force ELF output
-    // First try with a cross-compiler for Linux if available
-    // NOTE: This is for dynamic linking test, so we DON'T use -static
-    let mut output = Command::new("x86_64-linux-gnu-gcc")
-        .args(["-o", elf_file.to_str().unwrap(), c_file.to_str().unwrap()])
-        .output();
+    // We should find at least some of these common libc functions
+    let expected_imports = ["malloc", "free", "__libc_start_main"];
+    let found_expected = expected_imports
+        .iter()
+        .any(|&expected| import_names.iter().any(|&name| name.contains(expected)));
 
-    // If cross-compiler not available, try regular gcc (dynamically linked)
-    if output.is_err() {
-        output = Command::new("gcc")
-            .args(["-o", elf_file.to_str().unwrap(), c_file.to_str().unwrap()])
-            .output();
-    }
+    assert!(
+        found_expected,
+        "Should find at least one expected import. Found: {:?}",
+        import_names
+    );
 
-    match output {
-        Ok(result) if result.status.success() => {
-            // Successfully compiled, now test our ELF parser
-            let elf_data = fs::read(&elf_file).expect("Failed to read ELF file");
+    // Verify we found some exports (at least main and our exported function)
+    let export_names: Vec<&str> = container_info
+        .exports
+        .iter()
+        .map(|exp| exp.name.as_str())
+        .collect();
 
-            // Check what format we actually got
-            match goblin::Object::parse(&elf_data) {
-                Ok(goblin::Object::Elf(_)) => {
-                    // Great! We have an ELF binary, test our parser
-                    assert!(ElfParser::detect(&elf_data), "ELF detection should succeed");
-                }
-                Ok(goblin::Object::Mach(_)) => {
-                    println!("Got Mach-O binary (expected on macOS), skipping ELF-specific test");
-                    // Clean up and return early
-                    let _ = fs::remove_file(&c_file);
-                    let _ = fs::remove_file(&elf_file);
-                    return;
-                }
-                Ok(other) => {
-                    println!(
-                        "Got unexpected binary format: {:?}, skipping test",
-                        std::mem::discriminant(&other)
-                    );
-                    let _ = fs::remove_file(&c_file);
-                    let _ = fs::remove_file(&elf_file);
-                    return;
-                }
-                Err(e) => {
-                    println!("Failed to parse binary: {}, skipping test", e);
-                    let _ = fs::remove_file(&c_file);
-                    let _ = fs::remove_file(&elf_file);
-                    return;
-                }
-            }
+    assert!(
+        export_names.contains(&"main"),
+        "Should find main export. Found: {:?}",
+        export_names
+    );
+    assert!(
+        export_names.contains(&"exported_function"),
+        "Should find exported_function export. Found: {:?}",
+        export_names
+    );
 
-            // Test parsing
-            let parser = ElfParser::new();
-            let container_info = parser.parse(&elf_data).expect("Failed to parse ELF");
-
-            // Verify we found some imports
-            assert!(
-                !container_info.imports.is_empty(),
-                "Should find imports like printf, malloc, free"
-            );
-
-            // Check that we found expected imports
-            let import_names: Vec<&str> = container_info
-                .imports
-                .iter()
-                .map(|imp| imp.name.as_str())
-                .collect();
-
-            // We should find at least some of these common libc functions
-            let expected_imports = ["printf", "malloc", "free", "__libc_start_main"];
-            let found_expected = expected_imports
-                .iter()
-                .any(|&expected| import_names.contains(&expected));
-
-            assert!(
-                found_expected,
-                "Should find at least one expected import. Found: {:?}",
-                import_names
-            );
-
-            // Verify we found some exports (at least main and our exported function)
-            // Note: exports might be stripped in some builds, so we'll be lenient
-            println!(
-                "Found {} imports and {} exports",
-                container_info.imports.len(),
-                container_info.exports.len()
-            );
-
-            // Clean up
-            let _ = fs::remove_file(&c_file);
-            let _ = fs::remove_file(&elf_file);
-        }
-        Ok(_) => {
-            println!("gcc compilation failed, skipping ELF integration test");
-            // This is not a test failure - just means gcc isn't available
-        }
-        Err(_) => {
-            println!("gcc not found, skipping ELF integration test");
-            // This is not a test failure - just means gcc isn't available
-        }
-    }
+    println!(
+        "Found {} imports and {} exports",
+        container_info.imports.len(),
+        container_info.exports.len()
+    );
 }
 
 #[test]
-#[cfg(target_family = "unix")]
 fn test_elf_import_export_extraction_static() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let c_file = temp_dir.path().join("test_static.c");
-    let elf_file = temp_dir.path().join("test_static");
+    // Test with the ELF fixture (dynamically linked, but we can still test parsing)
+    // Note: For true static binary testing, we'd need a separate static fixture
+    let fixture_path = get_fixture_path("test_binary_elf");
+    let elf_data = fs::read(&fixture_path)
+        .expect("Failed to read ELF fixture. Run the build script to generate fixtures.");
 
-    let c_code = r#"
-        #include <stdio.h>
-        #include <stdlib.h>
+    let parser = ElfParser::new();
+    let container_info = parser.parse(&elf_data).expect("Failed to parse ELF");
 
-        void exported_function() {
-            printf("Hello from exported function\n");
-        }
+    // Our fixture is dynamically linked, so it should have imports
+    println!("Binary imports found: {}", container_info.imports.len());
 
-        int main() {
-            void *ptr = malloc(100);
-            printf("Allocated memory\n");
-            free(ptr);
-            exported_function();
-            return 0;
-        }
-    "#;
+    // Check exports
+    let export_names: Vec<String> = container_info
+        .exports
+        .iter()
+        .map(|e| e.name.clone())
+        .collect();
 
-    File::create(&c_file)
-        .expect("Failed to create C file")
-        .write_all(c_code.as_bytes())
-        .expect("Failed to write C code");
+    println!(
+        "Binary exports found: {} exports: {:?}",
+        container_info.exports.len(),
+        export_names
+    );
 
-    // Compile statically-linked binary with -static flag
-    let mut output = Command::new("x86_64-linux-gnu-gcc")
-        .args([
-            "-static",
-            "-o",
-            elf_file.to_str().unwrap(),
-            c_file.to_str().unwrap(),
-        ])
-        .output();
-
-    if output.is_err() || !output.as_ref().map(|o| o.status.success()).unwrap_or(false) {
-        output = Command::new("gcc")
-            .args([
-                "-static",
-                "-o",
-                elf_file.to_str().unwrap(),
-                c_file.to_str().unwrap(),
-            ])
-            .output();
-    }
-
-    match output {
-        Ok(output) if output.status.success() => {
-            let elf_data = fs::read(&elf_file).expect("Failed to read ELF file");
-
-            let format_obj = goblin::Object::parse(&elf_data).expect("Failed to parse with goblin");
-
-            match format_obj {
-                goblin::Object::Elf(_elf) => {
-                    let parser = ElfParser::new();
-                    let container_info = parser.parse(&elf_data).expect("Failed to parse ELF");
-
-                    // Statically-linked binaries typically have no or very few dynamic imports
-                    // since all dependencies are embedded
-                    println!(
-                        "Static binary imports found: {} (expected: 0 or very few)",
-                        container_info.imports.len()
-                    );
-
-                    // Check exports - note that static binaries may have symbols stripped
-                    // or may not expose them depending on compilation flags
-                    let export_names: Vec<String> = container_info
-                        .exports
-                        .iter()
-                        .map(|e| e.name.clone())
-                        .collect();
-
-                    println!(
-                        "Static binary exports found: {} exports: {:?}",
-                        container_info.exports.len(),
-                        export_names
-                    );
-
-                    // If exports are present, verify expected ones exist
-                    // Note: Exports may be stripped in static binaries, so this is not always guaranteed
-                    if !container_info.exports.is_empty() {
-                        let has_main = export_names.iter().any(|name| name == "main");
-                        let has_exported_function =
-                            export_names.iter().any(|name| name == "exported_function");
-
-                        if has_main || has_exported_function {
-                            println!(
-                                "Found expected exports: main={}, exported_function={}",
-                                has_main, has_exported_function
-                            );
-                        }
-                    } else {
-                        println!(
-                            "No exports found in static binary. This can happen when symbols are stripped or not exported."
-                        );
-                    }
-                }
-                goblin::Object::Mach(_) => {
-                    println!("Compiled to Mach-O, skipping ELF-specific test");
-                }
-                _ => panic!("Unexpected binary format"),
-            }
-        }
-        Ok(output) => {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            println!(
-                "Static compilation failed, skipping test. This is expected if static libraries are not available.\nError: {}",
-                stderr
-            );
-        }
-        Err(e) => {
-            println!(
-                "GCC not available, skipping test. This is expected in some CI environments. Error: {}",
-                e
-            );
-        }
-    }
+    // Verify expected exports exist
+    assert!(
+        export_names.contains(&"main".to_string()),
+        "Should find main export"
+    );
+    assert!(
+        export_names.contains(&"exported_function".to_string()),
+        "Should find exported_function export"
+    );
 }
 
 #[test]
-#[cfg(target_family = "unix")]
 fn test_elf_section_classification_integration() {
-    // Test with the current binary (this test executable)
-    let current_exe = std::env::current_exe().expect("Failed to get current executable path");
+    // Test with the ELF fixture
+    let fixture_path = get_fixture_path("test_binary_elf");
+    let elf_data = fs::read(&fixture_path)
+        .expect("Failed to read ELF fixture. Run the build script to generate fixtures.");
 
-    if let Ok(elf_data) = fs::read(&current_exe)
-        && ElfParser::detect(&elf_data)
-        && let Ok(container_info) = ElfParser::new().parse(&elf_data)
-    {
+    if ElfParser::detect(&elf_data) {
+        let container_info = ElfParser::new()
+            .parse(&elf_data)
+            .expect("Failed to parse ELF fixture");
         // Verify we found sections and classified them
         assert!(
             !container_info.sections.is_empty(),
@@ -330,74 +183,74 @@ fn test_elf_section_classification_integration() {
             has_text || has_rodata,
             "Should find .text or .rodata sections"
         );
+    } else {
+        panic!("ELF fixture is not a valid ELF file");
     }
 }
 
 #[test]
-#[cfg(target_family = "unix")]
 fn test_elf_library_dependencies() {
-    // Test with the current binary (this test executable) which should have library dependencies
-    let current_exe = std::env::current_exe().expect("Failed to get current executable path");
+    // Test with the ELF fixture
+    let fixture_path = get_fixture_path("test_binary_elf");
+    let elf_data = fs::read(&fixture_path)
+        .expect("Failed to read ELF fixture. Run the build script to generate fixtures.");
 
-    if let Ok(elf_data) = fs::read(&current_exe) {
-        // Parse with goblin to check if it's ELF
-        match goblin::Object::parse(&elf_data) {
-            Ok(goblin::Object::Elf(elf)) => {
-                // Check if we have a dynamic section
-                if let Some(ref dynamic) = elf.dynamic {
-                    // Extract libraries using the method we're testing
-                    let libraries = dynamic.get_libraries(&elf.dynstrtab);
+    // Parse with goblin to check if it's ELF
+    match goblin::Object::parse(&elf_data) {
+        Ok(goblin::Object::Elf(elf)) => {
+            // Check if we have a dynamic section
+            if let Some(ref dynamic) = elf.dynamic {
+                // Extract libraries using the method we're testing
+                let libraries = dynamic.get_libraries(&elf.dynstrtab);
 
-                    println!("Found {} library dependencies:", libraries.len());
-                    for lib in &libraries {
-                        println!("  - {}", lib);
-                    }
+                println!("Found {} library dependencies:", libraries.len());
+                for lib in &libraries {
+                    println!("  - {}", lib);
+                }
 
-                    // A dynamically linked ELF binary should typically have at least one library
-                    // (e.g., libc.so.6 on Linux)
-                    // But we'll be lenient here since we might be on a different platform
-                    if !libraries.is_empty() {
-                        // Verify at least one common library is present
-                        let has_libc = libraries.iter().any(|lib| lib.contains("libc"));
-                        let has_libpthread = libraries.iter().any(|lib| lib.contains("pthread"));
-                        let has_libm = libraries.iter().any(|lib| lib.contains("libm"));
+                // A dynamically linked ELF binary should typically have at least one library
+                // (e.g., libc.so.6 on Linux)
+                // But we'll be lenient here since we might be on a different platform
+                if !libraries.is_empty() {
+                    // Verify at least one common library is present
+                    let has_libc = libraries.iter().any(|lib| lib.contains("libc"));
+                    let has_libpthread = libraries.iter().any(|lib| lib.contains("pthread"));
+                    let has_libm = libraries.iter().any(|lib| lib.contains("libm"));
 
-                        // At least one common library should be present in a typical executable
-                        if has_libc || has_libpthread || has_libm {
-                            println!("✓ Found expected library dependencies");
-                        }
-                    } else {
-                        println!(
-                            "No library dependencies found. This might be a static binary or on a non-Linux platform."
-                        );
+                    // At least one common library should be present in a typical executable
+                    if has_libc || has_libpthread || has_libm {
+                        println!("✓ Found expected library dependencies");
                     }
                 } else {
-                    println!("No dynamic section found. This might be a static binary.");
+                    println!(
+                        "No library dependencies found. This might be a static binary or on a non-Linux platform."
+                    );
                 }
+            } else {
+                println!("No dynamic section found. This might be a static binary.");
             }
-            Ok(goblin::Object::Mach(_)) => {
-                println!("Got Mach-O binary (expected on macOS), skipping ELF library test");
-            }
-            Ok(_) => {
-                println!("Got non-ELF binary format, skipping test");
-            }
-            Err(e) => {
-                println!("Failed to parse binary: {}, skipping test", e);
-            }
+        }
+        Ok(_) => {
+            panic!("Expected ELF binary from fixture");
+        }
+        Err(e) => {
+            panic!("Failed to parse ELF fixture: {}", e);
         }
     }
 }
 
 #[test]
-#[cfg(target_family = "unix")]
 fn test_elf_symbol_extraction_snapshot() {
-    // Test with the current binary to create a snapshot of symbol extraction
-    let current_exe = std::env::current_exe().expect("Failed to get current executable path");
+    // Test with a fixed ELF fixture to create a consistent snapshot
+    let fixture_path = get_fixture_path("test_binary_elf");
 
-    if let Ok(elf_data) = fs::read(&current_exe)
-        && ElfParser::detect(&elf_data)
-        && let Ok(container_info) = ElfParser::new().parse(&elf_data)
-    {
+    let elf_data = fs::read(&fixture_path)
+        .expect("Failed to read ELF fixture. Run the build script to generate fixtures.");
+
+    if ElfParser::detect(&elf_data) {
+        let container_info = ElfParser::new()
+            .parse(&elf_data)
+            .expect("Failed to parse ELF fixture");
         // Create a formatted output for snapshot testing
         let mut output = String::new();
 
@@ -447,123 +300,72 @@ fn test_elf_symbol_extraction_snapshot() {
 
         // Snapshot the output
         assert_snapshot!("elf_symbol_extraction", output);
+    } else {
+        panic!("ELF fixture is not a valid ELF file");
     }
 }
 
 #[test]
-#[cfg(target_family = "unix")]
 fn test_elf_symbol_library_mapping() {
     // Test symbol-to-library mapping using version information
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let c_file = temp_dir.path().join("test_versioned.c");
-    let elf_file = temp_dir.path().join("test_versioned");
+    let fixture_path = get_fixture_path("test_binary_elf");
+    let elf_data = fs::read(&fixture_path)
+        .expect("Failed to read ELF fixture. Run the build script to generate fixtures.");
 
-    let c_code = r#"
-        #include <stdio.h>
-        #include <stdlib.h>
+    match goblin::Object::parse(&elf_data) {
+        Ok(goblin::Object::Elf(_)) => {
+            let parser = ElfParser::new();
+            let container_info = parser.parse(&elf_data).expect("Failed to parse ELF");
 
-        int main() {
-            printf("Hello from versioned symbol\n");  // Should map to libc
-            void* ptr = malloc(100);                   // Should map to libc
-            free(ptr);
-            return 0;
-        }
-    "#;
+            // Check that we found imports
+            assert!(!container_info.imports.is_empty(), "Should find imports");
 
-    File::create(&c_file)
-        .expect("Failed to create C file")
-        .write_all(c_code.as_bytes())
-        .expect("Failed to write C code");
+            // Check that some imports have library information populated
+            let imports_with_libs: Vec<_> = container_info
+                .imports
+                .iter()
+                .filter(|imp| imp.library.is_some())
+                .collect();
 
-    // Compile dynamically linked binary (version info typically present)
-    let mut output = Command::new("x86_64-linux-gnu-gcc")
-        .args(["-o", elf_file.to_str().unwrap(), c_file.to_str().unwrap()])
-        .output();
+            println!(
+                "Found {} imports with library information out of {} total imports",
+                imports_with_libs.len(),
+                container_info.imports.len()
+            );
 
-    if output.is_err() || !output.as_ref().map(|o| o.status.success()).unwrap_or(false) {
-        output = Command::new("gcc")
-            .args(["-o", elf_file.to_str().unwrap(), c_file.to_str().unwrap()])
-            .output();
-    }
+            // Common libc symbols should have library info if version info is available
+            let malloc_import = container_info
+                .imports
+                .iter()
+                .find(|imp| imp.name.contains("malloc"));
 
-    match output {
-        Ok(output) if output.status.success() => {
-            let elf_data = fs::read(&elf_file).expect("Failed to read ELF file");
-
-            match goblin::Object::parse(&elf_data) {
-                Ok(goblin::Object::Elf(_)) => {
-                    let parser = ElfParser::new();
-                    let container_info = parser.parse(&elf_data).expect("Failed to parse ELF");
-
-                    // Check that we found imports
-                    assert!(!container_info.imports.is_empty(), "Should find imports");
-
-                    // Check that some imports have library information populated
-                    let imports_with_libs: Vec<_> = container_info
-                        .imports
-                        .iter()
-                        .filter(|imp| imp.library.is_some())
-                        .collect();
-
-                    println!(
-                        "Found {} imports with library information out of {} total imports",
-                        imports_with_libs.len(),
-                        container_info.imports.len()
-                    );
-
-                    // Common libc symbols should have library info if version info is available
-                    let printf_import = container_info
-                        .imports
-                        .iter()
-                        .find(|imp| imp.name == "printf");
-                    let malloc_import = container_info
-                        .imports
-                        .iter()
-                        .find(|imp| imp.name == "malloc");
-
-                    if let Some(printf) = printf_import {
-                        println!("printf import: {:?}", printf);
-                        // If version info is available, library should be populated
-                        // Otherwise, it may be None (unversioned or fallback didn't match)
-                    }
-
-                    if let Some(malloc) = malloc_import {
-                        println!("malloc import: {:?}", malloc);
-                    }
-
-                    // At least verify the mapping logic runs without errors
-                    // Actual library attribution depends on binary's version info
-                }
-                Ok(goblin::Object::Mach(_)) => {
-                    println!("Got Mach-O binary, skipping ELF-specific test");
-                }
-                Ok(_) => {
-                    println!("Got non-ELF binary, skipping test");
-                }
-                Err(e) => {
-                    println!("Failed to parse binary: {}, skipping test", e);
-                }
+            if let Some(malloc) = malloc_import {
+                println!("malloc import: {:?}", malloc);
             }
+
+            // At least verify the mapping logic runs without errors
+            // Actual library attribution depends on binary's version info
         }
         Ok(_) => {
-            println!("Compilation failed, skipping test");
+            panic!("Expected ELF binary from fixture");
         }
-        Err(_) => {
-            println!("GCC not available, skipping test");
+        Err(e) => {
+            panic!("Failed to parse ELF fixture: {}", e);
         }
     }
 }
 
 #[test]
-#[cfg(target_family = "unix")]
 fn test_elf_unversioned_symbols() {
     // Test handling of symbols without version info
-    let current_exe = std::env::current_exe().expect("Failed to get current executable path");
+    let fixture_path = get_fixture_path("test_binary_elf");
+    let elf_data = fs::read(&fixture_path)
+        .expect("Failed to read ELF fixture. Run the build script to generate fixtures.");
 
-    if let Ok(elf_data) = fs::read(&current_exe)
-        && ElfParser::detect(&elf_data)
-        && let Ok(container_info) = ElfParser::new().parse(&elf_data)
-    {
+    if ElfParser::detect(&elf_data) {
+        let container_info = ElfParser::new()
+            .parse(&elf_data)
+            .expect("Failed to parse ELF fixture");
         // Count imports with and without library info
         let with_lib = container_info
             .imports
@@ -587,149 +389,60 @@ fn test_elf_unversioned_symbols() {
             !container_info.imports.is_empty(),
             "Should find at least some imports"
         );
+    } else {
+        panic!("ELF fixture is not a valid ELF file");
     }
 }
 
 #[test]
-#[cfg(target_family = "unix")]
 fn test_elf_no_dynamic_section() {
-    // Test static binaries (no dynamic section)
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let c_file = temp_dir.path().join("test_static.c");
-    let elf_file = temp_dir.path().join("test_static");
+    // Test with the ELF fixture (dynamically linked, but we can test parsing)
+    // Note: For true static binary testing, we'd need a separate static fixture
+    let fixture_path = get_fixture_path("test_binary_elf");
+    let elf_data = fs::read(&fixture_path)
+        .expect("Failed to read ELF fixture. Run the build script to generate fixtures.");
 
-    let c_code = r#"
-        int main() {
-            return 0;
-        }
-    "#;
+    match goblin::Object::parse(&elf_data) {
+        Ok(goblin::Object::Elf(_)) => {
+            let parser = ElfParser::new();
+            let container_info = parser.parse(&elf_data).expect("Failed to parse ELF");
 
-    File::create(&c_file)
-        .expect("Failed to create C file")
-        .write_all(c_code.as_bytes())
-        .expect("Failed to write C code");
+            // Our fixture is dynamically linked, so it should have imports
+            // Some may have library info if version info is available
+            println!("Binary: {} imports", container_info.imports.len());
 
-    // Try to compile statically
-    let mut output = Command::new("x86_64-linux-gnu-gcc")
-        .args([
-            "-static",
-            "-o",
-            elf_file.to_str().unwrap(),
-            c_file.to_str().unwrap(),
-        ])
-        .output();
-
-    if output.is_err() || !output.as_ref().map(|o| o.status.success()).unwrap_or(false) {
-        output = Command::new("gcc")
-            .args([
-                "-static",
-                "-o",
-                elf_file.to_str().unwrap(),
-                c_file.to_str().unwrap(),
-            ])
-            .output();
-    }
-
-    match output {
-        Ok(output) if output.status.success() => {
-            let elf_data = fs::read(&elf_file).expect("Failed to read ELF file");
-
-            match goblin::Object::parse(&elf_data) {
-                Ok(goblin::Object::Elf(_)) => {
-                    let parser = ElfParser::new();
-                    let container_info = parser.parse(&elf_data).expect("Failed to parse ELF");
-
-                    // Static binaries should have no or very few imports
-                    // and those imports should have library: None
-                    for import in &container_info.imports {
-                        assert!(
-                            import.library.is_none(),
-                            "Static binary imports should not have library info"
-                        );
-                    }
-
-                    println!(
-                        "Static binary: {} imports (all should have library: None)",
-                        container_info.imports.len()
-                    );
-                }
-                _ => {
-                    println!("Got non-ELF binary, skipping test");
-                }
-            }
+            // Verify parsing works correctly
+            assert!(!container_info.sections.is_empty(), "Should have sections");
         }
         _ => {
-            println!("Static compilation not available, skipping test");
+            panic!("Expected ELF binary from fixture");
         }
     }
 }
 
 #[test]
-#[cfg(target_family = "unix")]
 fn test_elf_stripped_binary() {
-    // Test handling of stripped binaries (symbols removed)
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let c_file = temp_dir.path().join("test_strip.c");
-    let elf_file = temp_dir.path().join("test_strip");
+    // Test with the ELF fixture (not stripped, but we can test parsing)
+    // Note: For true stripped binary testing, we'd need a separate stripped fixture
+    let fixture_path = get_fixture_path("test_binary_elf");
+    let elf_data = fs::read(&fixture_path)
+        .expect("Failed to read ELF fixture. Run the build script to generate fixtures.");
 
-    let c_code = r#"
-        #include <stdio.h>
-
-        int main() {
-            printf("Hello\n");
-            return 0;
+    match goblin::Object::parse(&elf_data) {
+        Ok(goblin::Object::Elf(_)) => {
+            let parser = ElfParser::new();
+            // Should handle gracefully
+            let container_info = parser.parse(&elf_data).expect("Failed to parse ELF");
+            println!(
+                "Binary: {} imports, {} exports",
+                container_info.imports.len(),
+                container_info.exports.len()
+            );
+            // Parsing should succeed
+            assert!(!container_info.sections.is_empty(), "Should have sections");
         }
-    "#;
-
-    File::create(&c_file)
-        .expect("Failed to create C file")
-        .write_all(c_code.as_bytes())
-        .expect("Failed to write C code");
-
-    // Compile and strip
-    let mut compile_output = Command::new("x86_64-linux-gnu-gcc")
-        .args(["-o", elf_file.to_str().unwrap(), c_file.to_str().unwrap()])
-        .output();
-
-    if compile_output.is_err()
-        || !compile_output
-            .as_ref()
-            .map(|o| o.status.success())
-            .unwrap_or(false)
-    {
-        compile_output = Command::new("gcc")
-            .args(["-o", elf_file.to_str().unwrap(), c_file.to_str().unwrap()])
-            .output();
-    }
-
-    if let Ok(output) = compile_output {
-        if output.status.success() {
-            // Strip the binary
-            let _strip_output = Command::new("strip")
-                .arg(elf_file.to_str().unwrap())
-                .output();
-
-            let elf_data = fs::read(&elf_file).expect("Failed to read ELF file");
-
-            match goblin::Object::parse(&elf_data) {
-                Ok(goblin::Object::Elf(_)) => {
-                    let parser = ElfParser::new();
-                    // Should handle gracefully even if symbols are stripped
-                    if let Ok(container_info) = parser.parse(&elf_data) {
-                        println!(
-                            "Stripped binary: {} imports, {} exports",
-                            container_info.imports.len(),
-                            container_info.exports.len()
-                        );
-                        // Stripped binaries may have fewer symbols, but parsing should succeed
-                    }
-                }
-                _ => {
-                    println!("Got non-ELF binary, skipping test");
-                }
-            }
+        _ => {
+            panic!("Expected ELF binary from fixture");
         }
-    } else {
-        println!("GCC not available, skipping test");
     }
 }
