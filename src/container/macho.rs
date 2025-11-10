@@ -184,12 +184,13 @@ impl MachoParser {
         let imports = self.extract_imports(macho);
         let exports = self.extract_exports(macho);
 
-        Ok(ContainerInfo {
-            format: BinaryFormat::MachO,
+        Ok(ContainerInfo::new(
+            BinaryFormat::MachO,
             sections,
             imports,
             exports,
-        })
+            None,
+        ))
     }
 
     /// Extracts section information from all segments in the Mach-O binary.

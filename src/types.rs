@@ -75,6 +75,10 @@ pub enum StringSource {
 }
 
 /// Information about a container (binary file)
+///
+/// This struct is marked `#[non_exhaustive]` to allow adding new fields without breaking
+/// downstream code. Use `ContainerInfo::new()` to construct instances.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct ContainerInfo {
     /// The binary format detected
@@ -85,6 +89,30 @@ pub struct ContainerInfo {
     pub imports: Vec<ImportInfo>,
     /// Export information
     pub exports: Vec<ExportInfo>,
+    /// Resource metadata (PE format only)
+    pub resources: Option<Vec<ResourceMetadata>>,
+}
+
+impl ContainerInfo {
+    /// Create a new `ContainerInfo` instance
+    ///
+    /// This constructor should be used instead of struct literals to ensure
+    /// all fields are properly initialized, especially when new fields are added.
+    pub fn new(
+        format: BinaryFormat,
+        sections: Vec<SectionInfo>,
+        imports: Vec<ImportInfo>,
+        exports: Vec<ExportInfo>,
+        resources: Option<Vec<ResourceMetadata>>,
+    ) -> Self {
+        Self {
+            format,
+            sections,
+            imports,
+            exports,
+            resources,
+        }
+    }
 }
 
 /// Binary format types
@@ -141,6 +169,50 @@ pub struct ExportInfo {
     pub ordinal: Option<u16>,
 }
 
+/// Type of PE resource
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResourceType {
+    /// RT_VERSION resources (VERSIONINFO)
+    VersionInfo,
+    /// RT_STRING resources (STRINGTABLE)
+    StringTable,
+    /// RT_MANIFEST resources
+    Manifest,
+    /// Other resource types (for future expansion)
+    Other(String),
+}
+
+/// Metadata about a PE resource
+#[derive(Debug, Clone)]
+pub struct ResourceMetadata {
+    /// Type of resource
+    pub resource_type: ResourceType,
+    /// Language/locale identifier
+    pub language: u32,
+    /// Size of resource data in bytes
+    pub data_size: usize,
+    /// File offset if available
+    pub offset: Option<u64>,
+}
+
+/// String table resource containing multiple string entries
+#[derive(Debug, Clone)]
+pub struct ResourceStringTable {
+    /// Language identifier
+    pub language: u32,
+    /// String entries in this table
+    pub entries: Vec<ResourceStringEntry>,
+}
+
+/// Individual string entry in a resource string table
+#[derive(Debug, Clone)]
+pub struct ResourceStringEntry {
+    /// String resource ID
+    pub id: u32,
+    /// The actual string content
+    pub value: String,
+}
+
 /// A string found in the binary with metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FoundString {
@@ -192,5 +264,17 @@ pub type Result<T> = std::result::Result<T, StringyError>;
 impl From<goblin::error::Error> for StringyError {
     fn from(err: goblin::error::Error) -> Self {
         StringyError::ParseError(err.to_string())
+    }
+}
+
+impl From<pelite::Error> for StringyError {
+    fn from(err: pelite::Error) -> Self {
+        StringyError::ParseError(err.to_string())
+    }
+}
+
+impl From<pelite::resources::FindError> for StringyError {
+    fn from(err: pelite::resources::FindError) -> Self {
+        StringyError::ParseError(format!("Resource lookup error: {}", err))
     }
 }

@@ -49,6 +49,7 @@ pub mod types;
 
 // Re-export commonly used types
 pub use types::{
-    BinaryFormat, ContainerInfo, Encoding, ExportInfo, FoundString, ImportInfo, Result,
-    SectionInfo, SectionType, StringSource, StringyError, Tag,
+    BinaryFormat, ContainerInfo, Encoding, ExportInfo, FoundString, ImportInfo, ResourceMetadata,
+    ResourceStringEntry, ResourceStringTable, ResourceType, Result, SectionInfo, SectionType,
+    StringSource, StringyError, Tag,
 };

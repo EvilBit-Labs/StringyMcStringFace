@@ -1,4 +1,5 @@
 use crate::container::ContainerParser;
+use crate::extraction::pe_resources;
 use crate::types::{
     BinaryFormat, ContainerInfo, ExportInfo, ImportInfo, Result, SectionInfo, SectionType,
     StringyError,
@@ -332,12 +333,23 @@ impl ContainerParser for PeParser {
         let imports = self.extract_imports(&pe);
         let exports = self.extract_exports(&pe);
 
-        Ok(ContainerInfo {
-            format: BinaryFormat::Pe,
+        // Use pelite for resource extraction while goblin handles sections/imports/exports
+        let resources = {
+            let resource_metadata = pe_resources::extract_resources(data);
+            if !resource_metadata.is_empty() {
+                Some(resource_metadata)
+            } else {
+                None // Empty vector - no resources found
+            }
+        };
+
+        Ok(ContainerInfo::new(
+            BinaryFormat::Pe,
             sections,
             imports,
             exports,
-        })
+            resources,
+        ))
     }
 }
 
