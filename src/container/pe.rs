@@ -20,6 +20,32 @@ impl PeParser {
         Self
     }
 
+    /// Calculate section weight based on likelihood of containing meaningful strings
+    fn calculate_section_weight(section_type: SectionType, name: &str) -> f32 {
+        match section_type {
+            // String data sections get highest weight
+            SectionType::StringData => {
+                match name {
+                    // .rdata is the primary string section in PE
+                    ".rdata" | ".rodata" => 10.0,
+                    _ => 8.0,
+                }
+            }
+            // Resources often contain strings
+            SectionType::Resources => 9.0,
+            // Read-only data sections are likely to contain strings
+            SectionType::ReadOnlyData => 7.0,
+            // Writable data sections may contain strings but less likely
+            SectionType::WritableData => 5.0,
+            // Code sections unlikely to contain meaningful strings
+            SectionType::Code => 1.0,
+            // Debug sections may contain some strings but usually not user-facing
+            SectionType::Debug => 2.0,
+            // Other sections get minimal weight
+            SectionType::Other => 1.0,
+        }
+    }
+
     /// Classify PE section based on its name and characteristics
     fn classify_section(section: &SectionTable) -> SectionType {
         let name_bytes = String::from_utf8_lossy(&section.name);
@@ -119,6 +145,7 @@ impl ContainerParser for PeParser {
             }
 
             let section_type = Self::classify_section(section);
+            let weight = Self::calculate_section_weight(section_type, &name);
 
             sections.push(SectionInfo {
                 name,
@@ -132,6 +159,7 @@ impl ContainerParser for PeParser {
                 is_writable: section.characteristics
                     & goblin::pe::section_table::IMAGE_SCN_MEM_WRITE
                     != 0,
+                weight,
             });
         }
 
@@ -244,5 +272,56 @@ mod tests {
         let _parser = PeParser::new();
         // Just verify we can create the parser
         // Test passes - basic functionality verified
+    }
+
+    #[test]
+    fn test_section_weight_calculation() {
+        // Test weight calculation for different section types and names
+
+        // String data sections should get highest weights
+        assert_eq!(
+            PeParser::calculate_section_weight(SectionType::StringData, ".rdata"),
+            10.0
+        );
+        assert_eq!(
+            PeParser::calculate_section_weight(SectionType::StringData, ".rodata"),
+            10.0
+        );
+
+        // Resources get high weight
+        assert_eq!(
+            PeParser::calculate_section_weight(SectionType::Resources, ".rsrc"),
+            9.0
+        );
+
+        // Read-only data sections
+        assert_eq!(
+            PeParser::calculate_section_weight(SectionType::ReadOnlyData, ".data"),
+            7.0
+        );
+
+        // Writable data sections
+        assert_eq!(
+            PeParser::calculate_section_weight(SectionType::WritableData, ".data"),
+            5.0
+        );
+
+        // Code sections should get low weight
+        assert_eq!(
+            PeParser::calculate_section_weight(SectionType::Code, ".text"),
+            1.0
+        );
+
+        // Debug sections
+        assert_eq!(
+            PeParser::calculate_section_weight(SectionType::Debug, ".debug"),
+            2.0
+        );
+
+        // Other sections
+        assert_eq!(
+            PeParser::calculate_section_weight(SectionType::Other, ".unknown"),
+            1.0
+        );
     }
 }

@@ -134,7 +134,6 @@ format: fmt format-json-yaml format-docs fmt-justfile
 format-json-yaml:
     npx prettier --write "**/*.{json,yaml,yml}"
 
-
 [windows]
 format-docs:
     @if (Get-Command mdformat -ErrorAction SilentlyContinue) { Get-ChildItem -Recurse -Filter "*.md" | Where-Object { $_.FullName -notmatch "\\target\\" -and $_.FullName -notmatch "\\node_modules\\" } | ForEach-Object { mdformat $_.FullName } } else { Write-Host "mdformat not found. Run 'just mdformat-install' first." }

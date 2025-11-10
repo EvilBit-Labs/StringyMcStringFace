@@ -96,24 +96,24 @@ cargo run -- --help
 stringy target_binary
 ```
 
-### Planned CLI Interface
+### Current CLI Interface
 
-The following features are being implemented:
+Basic functionality is implemented with the full interface in development:
 
 ```bash
-# Basic analysis (coming soon)
+# Current: Basic analysis
 stringy target_binary
 
-# Focused extraction (planned)
+# In Development: Advanced features
 stringy --only url,filepath target_binary
 stringy --min-len 8 --enc ascii,utf16 target_binary
 stringy --top 50 --json target_binary
 
-# PE-specific features (planned)
+# Planned: Format-specific features
 stringy --pe-version --pe-manifest target.exe
 stringy --utf16-only target.exe
 
-# Pipeline integration (planned)
+# Planned: Pipeline integration
 stringy --json target_binary | jq '.[] | select(.tags[] | contains("url"))'
 stringy --yara candidates.txt target_binary
 ```
@@ -167,23 +167,37 @@ Score  Offset    Section    Tags           String
 
 This project is in active development. Current implementation status:
 
-- ✅ **Core Infrastructure**: Project structure, data types, error handling
+- ✅ **Core Infrastructure**: Complete project structure, comprehensive data types, robust error handling
 - ✅ **Format Detection**: ELF, PE, Mach-O binary format detection via `goblin`
-- ✅ **Container Parsers**: Section classification, import/export extraction
-- 🚧 **String Extraction**: ASCII/UTF-8 and UTF-16 extraction engines
-- 🚧 **Semantic Classification**: URL, domain, path, GUID pattern matching
-- 🚧 **Ranking System**: Section-aware scoring and relevance calculation
-- 🚧 **Output Formats**: JSONL, human-readable, and YARA-friendly output
-- 🚧 **CLI Interface**: Command-line argument parsing and main pipeline
+- ✅ **Container Parsers**: Full section classification with weight-based prioritization
+- ✅ **Import/Export Extraction**: Symbol extraction from all supported formats
+- ✅ **Section Analysis**: Smart classification of string-rich sections
+- 🚧 **String Extraction**: ASCII/UTF-8 and UTF-16 extraction engines (framework ready)
+- 🚧 **Semantic Classification**: URL, domain, path, GUID pattern matching (types defined)
+- 🚧 **Ranking System**: Section-aware scoring algorithm (framework in place)
+- 🚧 **Output Formats**: JSONL, human-readable, and YARA-friendly output (types ready)
+- 🚧 **CLI Interface**: Basic argument parsing implemented, main pipeline in progress
 
 ### Current Capabilities
 
-The foundation is solid with working binary format parsers that can:
+The foundation is robust with fully implemented binary format parsers that can:
 
-- Detect ELF, PE, and Mach-O formats
-- Classify sections by string likelihood (`.rodata`, `.rdata`, `__cstring`, etc.)
-- Extract import/export symbol names
-- Handle cross-platform section characteristics
+- **Format Detection**: Automatically detect ELF, PE, and Mach-O formats using `goblin`
+- **Section Classification**: Intelligently classify sections by string likelihood with weighted scoring:
+  - ELF: `.rodata` (10.0), `.comment` (9.0), `.data.rel.ro` (7.0)
+  - PE: `.rdata` (10.0), `.rsrc` (9.0), read-only `.data` (7.0)
+  - Mach-O: `__TEXT,__cstring` (10.0), `__TEXT,__const` (9.0), `__DATA_CONST` (7.0)
+- **Symbol Processing**: Extract and classify import/export names from symbol tables
+- **Cross-Platform Support**: Handle platform-specific section characteristics and naming
+- **Comprehensive Metadata**: Track section offsets, sizes, RVAs, and permissions
+
+### Architecture Highlights
+
+- **Trait-Based Design**: `ContainerParser` trait enables easy format extension
+- **Type Safety**: Comprehensive error handling with `StringyError` enum
+- **Performance Ready**: Section weighting system prioritizes high-value areas
+- **Extensible Classification**: `Tag` enum supports semantic string categorization
+- **Multiple Sources**: Handles strings from section data, imports, exports, and resources
 
 See the [implementation plan](.kiro/specs/stringy-binary-analyzer/tasks.md) for detailed progress tracking.
 
