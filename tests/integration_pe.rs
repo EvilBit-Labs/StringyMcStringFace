@@ -197,40 +197,33 @@ fn test_pe_resource_enumeration() {
 
 #[test]
 fn test_pe_resource_extraction_with_resources() {
+    // Phase 1: Verify resource enumeration and metadata extraction
+    // Phase 2 will add actual string content extraction
     // Test resource extraction from PE binary with embedded resources
     let fixture_path = get_fixture_path("test_binary_with_resources.exe");
 
-    let pe_data = match fs::read(&fixture_path) {
-        Ok(data) => data,
-        Err(_) => {
-            println!(
-                "Resource-enabled PE fixture not found at {:?}, skipping test",
-                fixture_path
-            );
-            println!(
-                "Build it using: docker run --rm -v \"$(pwd):/work\" -w /work mcr.microsoft.com/devcontainers/cpp:latest bash -c \"apt-get update -qq && apt-get install -y -qq mingw-w64 && x86_64-w64-mingw32-windres --input-format=rc --output-format=coff -o test_binary_with_resources.res test_binary_with_resources.rc && x86_64-w64-mingw32-gcc -o test_binary_with_resources.exe test_binary_with_resources.c test_binary_with_resources.res\""
-            );
-            return;
-        }
-    };
+    // Assert fixture presence - fail clearly if missing rather than silently skipping
+    assert!(
+        fixture_path.exists(),
+        "Fixture test_binary_with_resources.exe not found at {:?}. Build it using: docker run --rm -v \"$(pwd):/work\" -w /work mcr.microsoft.com/devcontainers/cpp:latest bash -c \"apt-get update -qq && apt-get install -y -qq mingw-w64 && x86_64-w64-mingw32-windres --input-format=rc --output-format=coff -o test_binary_with_resources.res test_binary_with_resources.rc && x86_64-w64-mingw32-gcc -o test_binary_with_resources.exe test_binary_with_resources.c test_binary_with_resources.res\"",
+        fixture_path
+    );
 
-    if !PeParser::detect(&pe_data) {
-        println!("Resource-enabled PE fixture is not a valid PE file, skipping test");
-        return;
-    }
+    let pe_data = fs::read(&fixture_path).expect("Failed to read resource-enabled PE fixture");
 
-    let container_info = match PeParser::new().parse(&pe_data) {
-        Ok(info) => info,
-        Err(e) => {
-            println!(
-                "Failed to parse resource-enabled PE fixture: {:?}, skipping test",
-                e
-            );
-            return;
-        }
-    };
+    assert!(
+        PeParser::detect(&pe_data),
+        "Resource-enabled PE fixture is not a valid PE file"
+    );
+
+    let container_info = PeParser::new()
+        .parse(&pe_data)
+        .expect("Failed to parse resource-enabled PE fixture");
 
     // This binary should have resources
+    // test_binary_with_resources.rc has:
+    // - 1 VERSIONINFO block
+    // - 2 STRINGTABLE blocks (lines 34-39 and 41-45)
     match &container_info.resources {
         Some(resources) => {
             println!("Found {} resources", resources.len());
@@ -243,21 +236,64 @@ fn test_pe_resource_extraction_with_resources() {
                     resource.data_size
                 );
             }
-            // The binary with resources should have at least VERSIONINFO
-            // Note: Phase 1 only detects presence, not full extraction
+
+            // The test_binary_with_resources.exe should have:
+            // - At least 1 VERSIONINFO resource (RT_VERSION)
+            // - At least 1 STRINGTABLE resource (RT_STRING)
+            let has_version_info = resources
+                .iter()
+                .any(|r| matches!(r.resource_type, stringy::types::ResourceType::VersionInfo));
+            let has_string_table = resources
+                .iter()
+                .any(|r| matches!(r.resource_type, stringy::types::ResourceType::StringTable));
+
+            assert!(has_version_info, "Should find VERSIONINFO resource");
+            assert!(has_string_table, "Should find STRINGTABLE resource");
+
+            // Add count expectations based on the .rc file
+            let version_count = resources
+                .iter()
+                .filter(|r| matches!(r.resource_type, stringy::types::ResourceType::VersionInfo))
+                .count();
+            let string_table_count = resources
+                .iter()
+                .filter(|r| matches!(r.resource_type, stringy::types::ResourceType::StringTable))
+                .count();
+
+            assert!(version_count >= 1, "Should find at least 1 VERSIONINFO");
             assert!(
-                !resources.is_empty() || resources.is_empty(), // Accept both for now
-                "Resource-enabled binary should ideally have resources detected"
+                string_table_count >= 1,
+                "Should find at least 1 STRINGTABLE"
             );
+
+            // test_binary_with_resources.rc does not include MANIFEST resources
+            // Assert that no manifests are present if fixture definition is stable
+            let manifest_count = resources
+                .iter()
+                .filter(|r| matches!(r.resource_type, stringy::types::ResourceType::Manifest))
+                .count();
+            assert_eq!(
+                manifest_count, 0,
+                "test_binary_with_resources.exe fixture should not have MANIFEST resources"
+            );
+
+            // Verify all resources have valid metadata
+            for resource in resources {
+                assert!(resource.data_size > 0, "Resource should have non-zero size");
+                // Language can be 0 or any valid LCID
+                assert!(resource.language <= 0xFFFF, "Language ID should be valid");
+            }
         }
         None => {
-            println!("No resources found in resource-enabled binary (may be Phase 1 limitation)");
+            panic!(
+                "No resources found in resource-enabled binary - Phase 1 should detect resources"
+            );
         }
     }
 
     // Verify the structure is correct
     assert!(
-        container_info.resources.is_some() || container_info.resources.is_none(),
+        container_info.resources.is_some(),
         "Resources field should exist in ContainerInfo"
     );
 }

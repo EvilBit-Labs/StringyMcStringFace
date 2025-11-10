@@ -47,12 +47,14 @@
 
   - _Completed: Issue #3_
 
-  - [ ] 4.1 Add PE resource extraction foundation
+  - [x] 4.1 Add PE resource extraction foundation
 
-    - Add pelite dependency to Cargo.toml
-    - Implement basic PE resource enumeration
-    - Create framework for extracting VERSIONINFO and STRINGTABLE resources
+    - Add pelite dependency to Cargo.toml ✅
+    - Implement basic PE resource enumeration ✅
+    - Create framework for extracting VERSIONINFO and STRINGTABLE resources ✅
+    - Add comprehensive unit tests covering edge cases ✅
     - _Requirements: 1.2_
+    - _Completed: Issue #4 - Phase 1 Foundation_
 
   - [ ] 4.2 Implement PE resource string extraction
 
