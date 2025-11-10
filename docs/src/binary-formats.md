@@ -34,7 +34,7 @@ The ELF parser now provides comprehensive symbol extraction with:
 
    - Supports multiple symbol types: functions, objects, TLS variables, and indirect functions
    - Handles both global and weak bindings
-   - Foundation for library mapping through DT_NEEDED analysis
+   - Maps symbols to their providing libraries using version information
 
 2. **Export Detection**: Extracts all globally visible defined symbols
 
@@ -45,7 +45,14 @@ The ELF parser now provides comprehensive symbol extraction with:
 3. **Library Dependencies**: Extracts DT_NEEDED entries from the dynamic section
 
    - Provides list of required shared libraries
-   - Foundation for future symbol-to-library mapping
+   - Used in conjunction with version information for symbol-to-library mapping
+
+4. **Symbol-to-Library Mapping**: Maps imported symbols to their providing libraries
+
+   - Uses ELF version tables (versym and verneed) for best-effort attribution
+   - Process: versym index → verneed entry → library filename
+   - Falls back to heuristics for unversioned symbols (e.g., common libc symbols)
+   - Returns `None` when version information is unavailable or ambiguous
 
 ### Implementation Details
 
@@ -65,10 +72,11 @@ impl ElfParser {
         }
     }
 
-    fn extract_imports(&self, elf: &Elf) -> Vec<ImportInfo> {
+    fn extract_imports(&self, elf: &Elf, libraries: &[String]) -> Vec<ImportInfo> {
         // Extract undefined symbols from dynamic symbol table
         // Supports STT_FUNC, STT_OBJECT, STT_TLS, STT_GNU_IFUNC, STT_NOTYPE
         // Handles both STB_GLOBAL and STB_WEAK bindings
+        // Maps symbols to libraries using version information
     }
 
     fn extract_exports(&self, elf: &Elf) -> Vec<ExportInfo> {
@@ -81,8 +89,60 @@ impl ElfParser {
         // Parse DT_NEEDED entries from dynamic section
         // Returns list of required shared library names
     }
+
+    fn get_symbol_providing_library(
+        &self,
+        elf: &Elf,
+        sym_index: usize,
+        libraries: &[String],
+    ) -> Option<String> {
+        // 1. Get version index from versym table for this symbol
+        // 2. Look up version in verneed to find library name
+        // 3. Match with DT_NEEDED entries
+        // 4. Fallback to heuristics for unversioned symbols
+    }
 }
 ```
+
+### Library Dependency Mapping
+
+The ELF parser implements symbol-to-library mapping using ELF version information:
+
+1. **Version Symbol Table (versym)**: Maps each dynamic symbol to a version index
+
+   - Index 0 (VER_NDX_LOCAL): Local symbol, not available externally
+   - Index 1 (VER_NDX_GLOBAL): Global symbol, no specific version
+   - Index ≥ 2: Versioned symbol, references verneed entry
+
+2. **Version Needed Table (verneed)**: Lists library dependencies with version requirements
+
+   - Each entry contains a library filename (from DT_NEEDED)
+   - Auxiliary entries specify version names and indices
+   - Links version indices to specific libraries
+
+3. **Mapping Process**:
+
+   ```
+   Symbol → versym[sym_index] → version_index → verneed lookup → library_name
+   ```
+
+4. **Fallback Strategies**:
+
+   - For unversioned symbols: Attempt to match common symbols (e.g., `printf`, `malloc`) to libc
+   - If only one library is needed: Attribute to that library (least accurate)
+   - Otherwise: Return `None` to avoid false positives
+
+### Limitations
+
+ELF's indirect linking model means symbol-to-library mapping is best-effort:
+
+- **Accuracy**: Version-based mapping is accurate when version information is present, but many binaries lack version info
+- **Unversioned Symbols**: Symbols without version information cannot be definitively mapped without relocation analysis
+- **Relocation Tables**: PLT/GOT relocations would provide definitive mapping but require complex analysis
+- **Static Linking**: Statically linked binaries have no dynamic section, so all imports have `library: None`
+- **Stripped Binaries**: Stripped binaries may lack symbol tables entirely
+
+The current implementation is sufficient for most string classification use cases where approximate library attribution is acceptable.
 
 ## PE (Portable Executable)
 

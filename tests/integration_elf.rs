@@ -265,75 +265,71 @@ fn test_elf_section_classification_integration() {
     // Test with the current binary (this test executable)
     let current_exe = std::env::current_exe().expect("Failed to get current executable path");
 
-    if let Ok(elf_data) = fs::read(&current_exe) {
-        if ElfParser::detect(&elf_data) {
-            let parser = ElfParser::new();
-            if let Ok(container_info) = parser.parse(&elf_data) {
-                // Verify we found sections and classified them
-                assert!(
-                    !container_info.sections.is_empty(),
-                    "Should find sections in ELF binary"
-                );
+    if let Ok(elf_data) = fs::read(&current_exe)
+        && ElfParser::detect(&elf_data)
+        && let Ok(container_info) = ElfParser::new().parse(&elf_data)
+    {
+        // Verify we found sections and classified them
+        assert!(
+            !container_info.sections.is_empty(),
+            "Should find sections in ELF binary"
+        );
 
-                // Look for common ELF sections and verify weights are assigned
-                let section_names: Vec<&str> = container_info
-                    .sections
-                    .iter()
-                    .map(|sec| sec.name.as_str())
-                    .collect();
+        // Look for common ELF sections and verify weights are assigned
+        let section_names: Vec<&str> = container_info
+            .sections
+            .iter()
+            .map(|sec| sec.name.as_str())
+            .collect();
 
-                println!("Found sections: {:?}", section_names);
+        println!("Found sections: {:?}", section_names);
 
-                // Verify that all sections have weights assigned
-                for section in &container_info.sections {
-                    assert!(
-                        section.weight > 0.0,
-                        "Section {} should have a positive weight, got {}",
-                        section.name,
-                        section.weight
-                    );
-                }
-
-                // Check that string data sections get higher weights than code sections
-                let string_sections: Vec<_> = container_info
-                    .sections
-                    .iter()
-                    .filter(|sec| {
-                        matches!(sec.section_type, stringy::types::SectionType::StringData)
-                    })
-                    .collect();
-                let code_sections: Vec<_> = container_info
-                    .sections
-                    .iter()
-                    .filter(|sec| matches!(sec.section_type, stringy::types::SectionType::Code))
-                    .collect();
-
-                if !string_sections.is_empty() && !code_sections.is_empty() {
-                    let max_string_weight = string_sections
-                        .iter()
-                        .map(|s| s.weight)
-                        .fold(0.0f32, f32::max);
-                    let max_code_weight = code_sections
-                        .iter()
-                        .map(|s| s.weight)
-                        .fold(0.0f32, f32::max);
-                    assert!(
-                        max_string_weight > max_code_weight,
-                        "String sections should have higher weight than code sections"
-                    );
-                }
-
-                // We should find at least some standard sections
-                let has_text = section_names.iter().any(|&name| name.contains(".text"));
-                let has_rodata = section_names.iter().any(|&name| name.contains(".rodata"));
-
-                // At least one of these should be present in a typical ELF
-                assert!(
-                    has_text || has_rodata,
-                    "Should find .text or .rodata sections"
-                );
-            }
+        // Verify that all sections have weights assigned
+        for section in &container_info.sections {
+            assert!(
+                section.weight > 0.0,
+                "Section {} should have a positive weight, got {}",
+                section.name,
+                section.weight
+            );
         }
+
+        // Check that string data sections get higher weights than code sections
+        let string_sections: Vec<_> = container_info
+            .sections
+            .iter()
+            .filter(|sec| matches!(sec.section_type, stringy::types::SectionType::StringData))
+            .collect();
+        let code_sections: Vec<_> = container_info
+            .sections
+            .iter()
+            .filter(|sec| matches!(sec.section_type, stringy::types::SectionType::Code))
+            .collect();
+
+        if !string_sections.is_empty() && !code_sections.is_empty() {
+            let max_string_weight = string_sections
+                .iter()
+                .map(|s| s.weight)
+                .fold(0.0f32, f32::max);
+            let max_code_weight = code_sections
+                .iter()
+                .map(|s| s.weight)
+                .fold(0.0f32, f32::max);
+            assert!(
+                max_string_weight > max_code_weight,
+                "String sections should have higher weight than code sections"
+            );
+        }
+
+        // We should find at least some standard sections
+        let has_text = section_names.iter().any(|&name| name.contains(".text"));
+        let has_rodata = section_names.iter().any(|&name| name.contains(".rodata"));
+
+        // At least one of these should be present in a typical ELF
+        assert!(
+            has_text || has_rodata,
+            "Should find .text or .rodata sections"
+        );
     }
 }
 
@@ -398,60 +394,342 @@ fn test_elf_symbol_extraction_snapshot() {
     // Test with the current binary to create a snapshot of symbol extraction
     let current_exe = std::env::current_exe().expect("Failed to get current executable path");
 
-    if let Ok(elf_data) = fs::read(&current_exe) {
-        if ElfParser::detect(&elf_data) {
-            let parser = ElfParser::new();
-            if let Ok(container_info) = parser.parse(&elf_data) {
-                // Create a formatted output for snapshot testing
-                let mut output = String::new();
+    if let Ok(elf_data) = fs::read(&current_exe)
+        && ElfParser::detect(&elf_data)
+        && let Ok(container_info) = ElfParser::new().parse(&elf_data)
+    {
+        // Create a formatted output for snapshot testing
+        let mut output = String::new();
 
-                // Document imports
-                output.push_str("=== IMPORTS ===\n");
-                output.push_str(&format!("Total: {}\n\n", container_info.imports.len()));
+        // Document imports
+        output.push_str("=== IMPORTS ===\n");
+        output.push_str(&format!("Total: {}\n\n", container_info.imports.len()));
 
-                // Take first 10 imports for snapshot (to keep it manageable)
-                for (i, import) in container_info.imports.iter().take(10).enumerate() {
-                    output.push_str(&format!("Import {}: {}\n", i + 1, import.name));
-                    if let Some(ref lib) = import.library {
-                        output.push_str(&format!("  Library: {}\n", lib));
+        // Take first 10 imports for snapshot (to keep it manageable)
+        for (i, import) in container_info.imports.iter().take(10).enumerate() {
+            output.push_str(&format!("Import {}: {}\n", i + 1, import.name));
+            if let Some(ref lib) = import.library {
+                output.push_str(&format!("  Library: {}\n", lib));
+            }
+            if let Some(addr) = import.address {
+                output.push_str(&format!("  Address: 0x{:x}\n", addr));
+            }
+            output.push('\n');
+        }
+
+        if container_info.imports.len() > 10 {
+            output.push_str(&format!(
+                "... and {} more imports\n\n",
+                container_info.imports.len() - 10
+            ));
+        }
+
+        // Document exports
+        output.push_str("=== EXPORTS ===\n");
+        output.push_str(&format!("Total: {}\n\n", container_info.exports.len()));
+
+        // Take first 10 exports for snapshot
+        for (i, export) in container_info.exports.iter().take(10).enumerate() {
+            output.push_str(&format!("Export {}: {}\n", i + 1, export.name));
+            output.push_str(&format!("  Address: 0x{:x}\n", export.address));
+            if let Some(ord) = export.ordinal {
+                output.push_str(&format!("  Ordinal: {}\n", ord));
+            }
+            output.push('\n');
+        }
+
+        if container_info.exports.len() > 10 {
+            output.push_str(&format!(
+                "... and {} more exports\n",
+                container_info.exports.len() - 10
+            ));
+        }
+
+        // Snapshot the output
+        assert_snapshot!("elf_symbol_extraction", output);
+    }
+}
+
+#[test]
+#[cfg(target_family = "unix")]
+fn test_elf_symbol_library_mapping() {
+    // Test symbol-to-library mapping using version information
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let c_file = temp_dir.path().join("test_versioned.c");
+    let elf_file = temp_dir.path().join("test_versioned");
+
+    let c_code = r#"
+        #include <stdio.h>
+        #include <stdlib.h>
+
+        int main() {
+            printf("Hello from versioned symbol\n");  // Should map to libc
+            void* ptr = malloc(100);                   // Should map to libc
+            free(ptr);
+            return 0;
+        }
+    "#;
+
+    File::create(&c_file)
+        .expect("Failed to create C file")
+        .write_all(c_code.as_bytes())
+        .expect("Failed to write C code");
+
+    // Compile dynamically linked binary (version info typically present)
+    let mut output = Command::new("x86_64-linux-gnu-gcc")
+        .args(["-o", elf_file.to_str().unwrap(), c_file.to_str().unwrap()])
+        .output();
+
+    if output.is_err() || !output.as_ref().map(|o| o.status.success()).unwrap_or(false) {
+        output = Command::new("gcc")
+            .args(["-o", elf_file.to_str().unwrap(), c_file.to_str().unwrap()])
+            .output();
+    }
+
+    match output {
+        Ok(output) if output.status.success() => {
+            let elf_data = fs::read(&elf_file).expect("Failed to read ELF file");
+
+            match goblin::Object::parse(&elf_data) {
+                Ok(goblin::Object::Elf(_)) => {
+                    let parser = ElfParser::new();
+                    let container_info = parser.parse(&elf_data).expect("Failed to parse ELF");
+
+                    // Check that we found imports
+                    assert!(!container_info.imports.is_empty(), "Should find imports");
+
+                    // Check that some imports have library information populated
+                    let imports_with_libs: Vec<_> = container_info
+                        .imports
+                        .iter()
+                        .filter(|imp| imp.library.is_some())
+                        .collect();
+
+                    println!(
+                        "Found {} imports with library information out of {} total imports",
+                        imports_with_libs.len(),
+                        container_info.imports.len()
+                    );
+
+                    // Common libc symbols should have library info if version info is available
+                    let printf_import = container_info
+                        .imports
+                        .iter()
+                        .find(|imp| imp.name == "printf");
+                    let malloc_import = container_info
+                        .imports
+                        .iter()
+                        .find(|imp| imp.name == "malloc");
+
+                    if let Some(printf) = printf_import {
+                        println!("printf import: {:?}", printf);
+                        // If version info is available, library should be populated
+                        // Otherwise, it may be None (unversioned or fallback didn't match)
                     }
-                    if let Some(addr) = import.address {
-                        output.push_str(&format!("  Address: 0x{:x}\n", addr));
+
+                    if let Some(malloc) = malloc_import {
+                        println!("malloc import: {:?}", malloc);
                     }
-                    output.push('\n');
+
+                    // At least verify the mapping logic runs without errors
+                    // Actual library attribution depends on binary's version info
                 }
-
-                if container_info.imports.len() > 10 {
-                    output.push_str(&format!(
-                        "... and {} more imports\n\n",
-                        container_info.imports.len() - 10
-                    ));
+                Ok(goblin::Object::Mach(_)) => {
+                    println!("Got Mach-O binary, skipping ELF-specific test");
                 }
-
-                // Document exports
-                output.push_str("=== EXPORTS ===\n");
-                output.push_str(&format!("Total: {}\n\n", container_info.exports.len()));
-
-                // Take first 10 exports for snapshot
-                for (i, export) in container_info.exports.iter().take(10).enumerate() {
-                    output.push_str(&format!("Export {}: {}\n", i + 1, export.name));
-                    output.push_str(&format!("  Address: 0x{:x}\n", export.address));
-                    if let Some(ord) = export.ordinal {
-                        output.push_str(&format!("  Ordinal: {}\n", ord));
-                    }
-                    output.push('\n');
+                Ok(_) => {
+                    println!("Got non-ELF binary, skipping test");
                 }
-
-                if container_info.exports.len() > 10 {
-                    output.push_str(&format!(
-                        "... and {} more exports\n",
-                        container_info.exports.len() - 10
-                    ));
+                Err(e) => {
+                    println!("Failed to parse binary: {}, skipping test", e);
                 }
-
-                // Snapshot the output
-                assert_snapshot!("elf_symbol_extraction", output);
             }
         }
+        Ok(_) => {
+            println!("Compilation failed, skipping test");
+        }
+        Err(_) => {
+            println!("GCC not available, skipping test");
+        }
+    }
+}
+
+#[test]
+#[cfg(target_family = "unix")]
+fn test_elf_unversioned_symbols() {
+    // Test handling of symbols without version info
+    let current_exe = std::env::current_exe().expect("Failed to get current executable path");
+
+    if let Ok(elf_data) = fs::read(&current_exe)
+        && ElfParser::detect(&elf_data)
+        && let Ok(container_info) = ElfParser::new().parse(&elf_data)
+    {
+        // Count imports with and without library info
+        let with_lib = container_info
+            .imports
+            .iter()
+            .filter(|imp| imp.library.is_some())
+            .count();
+        let without_lib = container_info
+            .imports
+            .iter()
+            .filter(|imp| imp.library.is_none())
+            .count();
+
+        println!(
+            "Imports with library: {}, without library: {}",
+            with_lib, without_lib
+        );
+
+        // Both cases are valid - versioned symbols get libraries,
+        // unversioned symbols may not
+        assert!(
+            !container_info.imports.is_empty(),
+            "Should find at least some imports"
+        );
+    }
+}
+
+#[test]
+#[cfg(target_family = "unix")]
+fn test_elf_no_dynamic_section() {
+    // Test static binaries (no dynamic section)
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let c_file = temp_dir.path().join("test_static.c");
+    let elf_file = temp_dir.path().join("test_static");
+
+    let c_code = r#"
+        int main() {
+            return 0;
+        }
+    "#;
+
+    File::create(&c_file)
+        .expect("Failed to create C file")
+        .write_all(c_code.as_bytes())
+        .expect("Failed to write C code");
+
+    // Try to compile statically
+    let mut output = Command::new("x86_64-linux-gnu-gcc")
+        .args([
+            "-static",
+            "-o",
+            elf_file.to_str().unwrap(),
+            c_file.to_str().unwrap(),
+        ])
+        .output();
+
+    if output.is_err() || !output.as_ref().map(|o| o.status.success()).unwrap_or(false) {
+        output = Command::new("gcc")
+            .args([
+                "-static",
+                "-o",
+                elf_file.to_str().unwrap(),
+                c_file.to_str().unwrap(),
+            ])
+            .output();
+    }
+
+    match output {
+        Ok(output) if output.status.success() => {
+            let elf_data = fs::read(&elf_file).expect("Failed to read ELF file");
+
+            match goblin::Object::parse(&elf_data) {
+                Ok(goblin::Object::Elf(_)) => {
+                    let parser = ElfParser::new();
+                    let container_info = parser.parse(&elf_data).expect("Failed to parse ELF");
+
+                    // Static binaries should have no or very few imports
+                    // and those imports should have library: None
+                    for import in &container_info.imports {
+                        assert!(
+                            import.library.is_none(),
+                            "Static binary imports should not have library info"
+                        );
+                    }
+
+                    println!(
+                        "Static binary: {} imports (all should have library: None)",
+                        container_info.imports.len()
+                    );
+                }
+                _ => {
+                    println!("Got non-ELF binary, skipping test");
+                }
+            }
+        }
+        _ => {
+            println!("Static compilation not available, skipping test");
+        }
+    }
+}
+
+#[test]
+#[cfg(target_family = "unix")]
+fn test_elf_stripped_binary() {
+    // Test handling of stripped binaries (symbols removed)
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let c_file = temp_dir.path().join("test_strip.c");
+    let elf_file = temp_dir.path().join("test_strip");
+
+    let c_code = r#"
+        #include <stdio.h>
+
+        int main() {
+            printf("Hello\n");
+            return 0;
+        }
+    "#;
+
+    File::create(&c_file)
+        .expect("Failed to create C file")
+        .write_all(c_code.as_bytes())
+        .expect("Failed to write C code");
+
+    // Compile and strip
+    let mut compile_output = Command::new("x86_64-linux-gnu-gcc")
+        .args(["-o", elf_file.to_str().unwrap(), c_file.to_str().unwrap()])
+        .output();
+
+    if compile_output.is_err()
+        || !compile_output
+            .as_ref()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    {
+        compile_output = Command::new("gcc")
+            .args(["-o", elf_file.to_str().unwrap(), c_file.to_str().unwrap()])
+            .output();
+    }
+
+    if let Ok(output) = compile_output {
+        if output.status.success() {
+            // Strip the binary
+            let _strip_output = Command::new("strip")
+                .arg(elf_file.to_str().unwrap())
+                .output();
+
+            let elf_data = fs::read(&elf_file).expect("Failed to read ELF file");
+
+            match goblin::Object::parse(&elf_data) {
+                Ok(goblin::Object::Elf(_)) => {
+                    let parser = ElfParser::new();
+                    // Should handle gracefully even if symbols are stripped
+                    if let Ok(container_info) = parser.parse(&elf_data) {
+                        println!(
+                            "Stripped binary: {} imports, {} exports",
+                            container_info.imports.len(),
+                            container_info.exports.len()
+                        );
+                        // Stripped binaries may have fewer symbols, but parsing should succeed
+                    }
+                }
+                _ => {
+                    println!("Got non-ELF binary, skipping test");
+                }
+            }
+        }
+    } else {
+        println!("GCC not available, skipping test");
     }
 }

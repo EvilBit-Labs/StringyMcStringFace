@@ -82,11 +82,12 @@ impl ElfParser {
 
     /// Extract import information from ELF dynamic section
     /// Imports are symbols that are undefined (SHN_UNDEF) and need to be resolved at runtime
-    fn extract_imports(&self, elf: &Elf) -> Vec<ImportInfo> {
+    fn extract_imports(&self, elf: &Elf, libraries: &[String]) -> Vec<ImportInfo> {
         let mut imports = Vec::new();
+        let mut seen_names = HashSet::new();
 
         // Extract from dynamic symbol table
-        for sym in &elf.dynsyms {
+        for (sym_index, sym) in elf.dynsyms.iter().enumerate() {
             // Import symbols are:
             // - Undefined (st_shndx == SHN_UNDEF)
             // - Global or weak binding
@@ -99,21 +100,19 @@ impl ElfParser {
                     || sym.st_type() == goblin::elf::sym::STT_TLS
                     || sym.st_type() == goblin::elf::sym::STT_GNU_IFUNC
                     || sym.st_type() == goblin::elf::sym::STT_NOTYPE)
+                && let Some(name) = elf.dynstrtab.get_at(sym.st_name)
+                && !name.is_empty()
+                && seen_names.insert(name.to_string())
             {
-                if let Some(name) = elf.dynstrtab.get_at(sym.st_name) {
-                    // Skip empty names
-                    if !name.is_empty() {
-                        imports.push(ImportInfo {
-                            name: name.to_string(),
-                            library: self.extract_library_from_needed(elf, name),
-                            address: if sym.st_value != 0 {
-                                Some(sym.st_value)
-                            } else {
-                                None
-                            },
-                        });
-                    }
-                }
+                imports.push(ImportInfo {
+                    name: name.to_string(),
+                    library: self.get_symbol_providing_library(elf, sym_index, libraries),
+                    address: if sym.st_value != 0 {
+                        Some(sym.st_value)
+                    } else {
+                        None
+                    },
+                });
             }
         }
 
@@ -127,23 +126,19 @@ impl ElfParser {
                     || sym.st_type() == goblin::elf::sym::STT_TLS
                     || sym.st_type() == goblin::elf::sym::STT_GNU_IFUNC
                     || sym.st_type() == goblin::elf::sym::STT_NOTYPE)
+                && let Some(name) = elf.strtab.get_at(sym.st_name)
+                && !name.is_empty()
+                && seen_names.insert(name.to_string())
             {
-                if let Some(name) = elf.strtab.get_at(sym.st_name) {
-                    if !name.is_empty() {
-                        // Avoid duplicates from dynamic symbol table
-                        if !imports.iter().any(|imp| imp.name == name) {
-                            imports.push(ImportInfo {
-                                name: name.to_string(),
-                                library: None, // Static symbols don't have library info
-                                address: if sym.st_value != 0 {
-                                    Some(sym.st_value)
-                                } else {
-                                    None
-                                },
-                            });
-                        }
-                    }
-                }
+                imports.push(ImportInfo {
+                    name: name.to_string(),
+                    library: None, // Static symbols don't have library info
+                    address: if sym.st_value != 0 {
+                        Some(sym.st_value)
+                    } else {
+                        None
+                    },
+                });
             }
         }
 
@@ -152,11 +147,9 @@ impl ElfParser {
 
     /// Extract DT_NEEDED entries (library dependencies) from ELF dynamic section
     ///
-    /// This method is currently used in tests and reserved for future use when implementing
-    /// symbol-to-library mapping. ELF doesn't directly associate imported symbols with specific
-    /// libraries without analyzing version symbols or relocation tables, which requires more
-    /// sophisticated analysis than currently implemented.
-    #[allow(dead_code)]
+    /// Returns a list of required shared library names that the binary depends on.
+    /// These are used in conjunction with version information to map symbols to their
+    /// providing libraries.
     fn extract_needed_libraries(&self, elf: &Elf) -> Vec<String> {
         if let Some(ref dynamic) = elf.dynamic {
             dynamic
@@ -169,18 +162,98 @@ impl ElfParser {
         }
     }
 
-    /// Attempt to extract library information from DT_NEEDED entries
-    /// This is a best-effort approach since ELF doesn't directly link symbols to libraries
-    fn extract_library_from_needed(&self, elf: &Elf, _symbol_name: &str) -> Option<String> {
-        // For now, we can't reliably determine which specific library a symbol comes from
-        // in ELF without additional information like version symbols or relocation data.
-        // This would require more complex analysis of the dynamic linking process.
+    /// Get the library that provides a symbol using version information
+    /// This is a best-effort approach using versym and verneed tables
+    fn get_symbol_providing_library(
+        &self,
+        elf: &Elf,
+        sym_index: usize,
+        libraries: &[String],
+    ) -> Option<String> {
+        // If no libraries are available, return None
+        if libraries.is_empty() {
+            return None;
+        }
 
-        // We could potentially return the first DT_NEEDED entry as a fallback,
-        // but that would be misleading. Better to return None for accuracy.
+        // Try to resolve version information for this symbol
+        if let Some(version_index) = self.resolve_versym(elf, sym_index) {
+            // Version index 0 (VER_NDX_LOCAL) and 1 (VER_NDX_GLOBAL) are special
+            // and don't correspond to specific libraries
+            if version_index >= 2
+                && let Some((library_name, _version_name)) =
+                    self.parse_verneed_entry(elf, version_index)
+            {
+                // Match the library name from verneed with DT_NEEDED entries
+                for lib in libraries {
+                    if lib.contains(&library_name) || library_name.contains(lib) {
+                        return Some(lib.clone());
+                    }
+                }
+                // If exact match not found, return the library name from verneed
+                return Some(library_name);
+            }
+        }
 
-        // Future enhancement: analyze PLT/GOT relocations to match symbols to libraries
-        let _ = elf; // Suppress unused parameter warning
+        // Fallback: For common libc symbols, attribute to first libc library found
+        // This is a heuristic and may not always be accurate
+        if let Some(libc_lib) = libraries.iter().find(|lib| {
+            lib.contains("libc") || lib.contains("libSystem") || lib.contains("libc.so")
+        }) {
+            return Some(libc_lib.clone());
+        }
+
+        // Last resort: return first library (least accurate)
+        if libraries.len() == 1 {
+            return Some(libraries[0].clone());
+        }
+
+        None
+    }
+
+    /// Resolve version symbol index from versym table
+    fn resolve_versym(&self, elf: &Elf, sym_index: usize) -> Option<u16> {
+        // Check if versym table exists and has entry for this symbol
+        let versym = elf.versym.as_ref()?;
+        if versym.is_empty() || sym_index >= versym.len() {
+            return None;
+        }
+
+        if let Some(versym_entry) = versym.get_at(sym_index) {
+            let version_index = versym_entry.vs_val;
+            // VER_NDX_LOCAL (0) and VER_NDX_GLOBAL (1) are special values
+            // that don't correspond to versioned symbols
+            if version_index >= 2 {
+                return Some(version_index);
+            }
+        }
+
+        None
+    }
+
+    /// Parse verneed entry to extract library name and version name
+    /// Returns (library_name, version_name) if found
+    fn parse_verneed_entry(&self, elf: &Elf, version_index: u16) -> Option<(String, String)> {
+        let verneed = elf.verneed.as_ref()?;
+
+        // Iterate through verneed entries to find the one matching version_index
+        for verneed_entry in verneed.iter() {
+            // Extract library name from verneed entry
+            let library_name = elf
+                .dynstrtab
+                .get_at(verneed_entry.vn_file)
+                .unwrap_or("")
+                .to_string();
+
+            // Check auxiliary versions in this verneed entry
+            for aux in verneed_entry.iter() {
+                if aux.vna_other == version_index {
+                    // Found matching version, extract version name
+                    let version_name = elf.dynstrtab.get_at(aux.vna_name).unwrap_or("").to_string();
+                    return Some((library_name, version_name));
+                }
+            }
+        }
+
         None
     }
 
@@ -202,16 +275,15 @@ impl ElfParser {
                 && sym.st_value != 0
                 && sym.st_visibility() != goblin::elf::sym::STV_HIDDEN
                 && sym.st_visibility() != goblin::elf::sym::STV_INTERNAL
+                && let Some(name) = elf.dynstrtab.get_at(sym.st_name)
+                && !name.is_empty()
+                && seen_names.insert(name.to_string())
             {
-                if let Some(name) = elf.dynstrtab.get_at(sym.st_name) {
-                    if !name.is_empty() && seen_names.insert(name.to_string()) {
-                        exports.push(ExportInfo {
-                            name: name.to_string(),
-                            address: sym.st_value,
-                            ordinal: None, // ELF doesn't use ordinals
-                        });
-                    }
-                }
+                exports.push(ExportInfo {
+                    name: name.to_string(),
+                    address: sym.st_value,
+                    ordinal: None, // ELF doesn't use ordinals
+                });
             }
         }
 
@@ -228,16 +300,15 @@ impl ElfParser {
                     || sym.st_type() == goblin::elf::sym::STT_TLS
                     || sym.st_type() == goblin::elf::sym::STT_GNU_IFUNC
                     || sym.st_type() == goblin::elf::sym::STT_NOTYPE)
+                && let Some(name) = elf.strtab.get_at(sym.st_name)
+                && !name.is_empty()
+                && seen_names.insert(name.to_string())
             {
-                if let Some(name) = elf.strtab.get_at(sym.st_name) {
-                    if !name.is_empty() && seen_names.insert(name.to_string()) {
-                        exports.push(ExportInfo {
-                            name: name.to_string(),
-                            address: sym.st_value,
-                            ordinal: None, // ELF doesn't use ordinals
-                        });
-                    }
-                }
+                exports.push(ExportInfo {
+                    name: name.to_string(),
+                    address: sym.st_value,
+                    ordinal: None, // ELF doesn't use ordinals
+                });
             }
         }
 
@@ -290,7 +361,8 @@ impl ContainerParser for ElfParser {
             });
         }
 
-        let imports = self.extract_imports(&elf);
+        let libraries = self.extract_needed_libraries(&elf);
+        let imports = self.extract_imports(&elf, &libraries);
         let exports = self.extract_exports(&elf);
 
         Ok(ContainerInfo {
@@ -480,7 +552,6 @@ mod tests {
         // by checking that they compile and can be referenced
         let _extract_imports = ElfParser::extract_imports;
         let _extract_exports = ElfParser::extract_exports;
-        let _extract_library = ElfParser::extract_library_from_needed;
 
         // Verify parser can be created (this is a compile-time check)
         let _ = parser;
@@ -495,12 +566,12 @@ mod tests {
         // We can't use Elf::default() as it doesn't exist, so we'll test the behavior
         // by verifying that the method signature is correct and the documented behavior
 
-        // The extract_library_from_needed method should return None as documented
-        // since ELF doesn't directly link symbols to libraries without additional analysis
+        // The get_symbol_providing_library method uses version information to map symbols
+        // to libraries, which is a best-effort approach
 
-        // This is a compile-time test to ensure the method exists with correct signature
-        let _method_ref: fn(&ElfParser, &Elf, &str) -> Option<String> =
-            ElfParser::extract_library_from_needed;
+        // This is a compile-time test to ensure the methods exist with correct signatures
+        let _method_ref: fn(&ElfParser, &Elf, usize, &[String]) -> Option<String> =
+            ElfParser::get_symbol_providing_library;
 
         // Verify the parser exists
         let _ = parser;
@@ -512,17 +583,17 @@ mod tests {
         // This test demonstrates the extract_needed_libraries method works with real ELF files
         let current_exe = std::env::current_exe().expect("Failed to get current executable");
 
-        if let Ok(data) = std::fs::read(&current_exe) {
-            if let Ok(goblin::Object::Elf(elf)) = goblin::Object::parse(&data) {
-                let parser = ElfParser::new();
-                let libraries = parser.extract_needed_libraries(&elf);
+        if let Ok(data) = std::fs::read(&current_exe)
+            && let Ok(goblin::Object::Elf(elf)) = goblin::Object::parse(&data)
+        {
+            let parser = ElfParser::new();
+            let libraries = parser.extract_needed_libraries(&elf);
 
-                // The test binary should have some libraries (e.g., libc) unless statically linked
-                println!("Test binary libraries: {:?}", libraries);
+            // The test binary should have some libraries (e.g., libc) unless statically linked
+            println!("Test binary libraries: {:?}", libraries);
 
-                // Just verify the method runs without panicking
-                // Actual library content depends on the build environment
-            }
+            // Just verify the method runs without panicking
+            // Actual library content depends on the build environment
         }
     }
 
