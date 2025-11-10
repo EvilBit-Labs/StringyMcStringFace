@@ -10,97 +10,235 @@ Binary File → Format Detection → Container Parsing → String Extraction →
 
 ## Core Components
 
-### 1. Container Module (`src/container/`)
+### 1. Container Module (`src/container/`) ✅ **Implemented**
 
-Handles binary format detection and parsing using the `goblin` crate.
+Handles binary format detection and parsing using the `goblin` crate with comprehensive section analysis.
 
-- **Format Detection**: Automatically identifies ELF, PE, and Mach-O formats
-- **Section Classification**: Categorizes sections by string likelihood
-- **Metadata Extraction**: Collects imports, exports, and structural information
+- **Format Detection**: Automatically identifies ELF, PE, and Mach-O formats via `goblin::Object::parse()`
+- **Section Classification**: Categorizes sections by string likelihood with weighted scoring
+- **Metadata Extraction**: Collects imports, exports, and detailed structural information
+- **Cross-Platform Support**: Handles platform-specific section characteristics and naming conventions
 
 #### Supported Formats
 
-| Format | Parser        | Key Sections                          |
-| ------ | ------------- | ------------------------------------- |
-| ELF    | `ElfParser`   | `.rodata`, `.data.rel.ro`, `.comment` |
-| PE     | `PeParser`    | `.rdata`, `.rsrc`, version info       |
-| Mach-O | `MachoParser` | `__TEXT,__cstring`, `__DATA_CONST`    |
+| Format | Parser        | Key Sections (Weight)                                    | Import/Export Support   |
+| ------ | ------------- | -------------------------------------------------------- | ----------------------- |
+| ELF    | `ElfParser`   | `.rodata` (10.0), `.comment` (9.0), `.data.rel.ro` (7.0) | ✅ Dynamic & Static     |
+| PE     | `PeParser`    | `.rdata` (10.0), `.rsrc` (9.0), read-only `.data` (7.0)  | ✅ Import/Export Tables |
+| Mach-O | `MachoParser` | `__TEXT,__cstring` (10.0), `__TEXT,__const` (9.0)        | ✅ Symbol Tables        |
 
-### 2. Extraction Module (`src/extraction/`)
+#### Section Weight System
 
-Implements encoding-aware string extraction algorithms.
+The parsers implement intelligent section prioritization:
 
-- **ASCII/UTF-8**: Scans for printable character sequences
-- **UTF-16**: Detects little-endian and big-endian wide strings
-- **Deduplication**: Canonicalizes strings while preserving metadata
+```rust
+// Example: ELF section weights
+".rodata" | ".rodata.str1.*" => 10.0  // Highest priority
+".comment" | ".note.*"       => 9.0   // Build info, very likely strings  
+".data.rel.ro"              => 7.0   // Read-only data
+".data"                     => 5.0   // Writable data
+".text"                     => 1.0   // Code sections (low priority)
+```
 
-### 3. Classification Module (`src/classification/`)
+### 2. Extraction Module (`src/extraction/`) 🚧 **Framework Ready**
 
-Applies semantic analysis to extracted strings.
+Implements encoding-aware string extraction algorithms with configurable parameters.
 
-- **Pattern Matching**: Uses regex to identify URLs, IPs, paths, etc.
+- **ASCII/UTF-8**: Scans for printable character sequences with noise filtering
+- **UTF-16**: Detects little-endian and big-endian wide strings with confidence scoring
+- **Deduplication**: Canonicalizes strings while preserving complete metadata
+- **Section-Aware**: Uses container parser weights to prioritize extraction areas
+
+### 3. Classification Module (`src/classification/`) 🚧 **Types Defined**
+
+Applies semantic analysis to extracted strings with comprehensive tagging system.
+
+- **Pattern Matching**: Uses regex to identify URLs, IPs, paths, GUIDs, etc.
 - **Symbol Processing**: Demangles Rust symbols and processes imports/exports
-- **Context Analysis**: Considers section context for classification
+- **Context Analysis**: Considers section context and source type for classification
+- **Extensible Tags**: Supports 15+ semantic categories from network indicators to code artifacts
 
-### 4. Ranking Module (`src/classification/ranking.rs`)
+#### Supported Classification Tags
 
-Implements the scoring algorithm to prioritize relevant strings.
+| Category    | Tags                              | Examples                                        |
+| ----------- | --------------------------------- | ----------------------------------------------- |
+| Network     | `url`, `domain`, `ipv4`, `ipv6`   | `https://api.com`, `example.com`, `192.168.1.1` |
+| Filesystem  | `filepath`, `regpath`             | `/usr/bin/app`, `HKEY_LOCAL_MACHINE\...`        |
+| Identifiers | `guid`, `email`, `user-agent`     | `{12345678-...}`, `user@domain.com`             |
+| Code        | `fmt`, `b64`, `import`, `export`  | `Error: %s`, `SGVsbG8=`, `CreateFileW`          |
+| Resources   | `version`, `manifest`, `resource` | `v1.2.3`, XML config, UI strings                |
+
+### 4. Ranking Module (`src/classification/ranking.rs`) 🚧 **Algorithm Designed**
+
+Implements the scoring algorithm to prioritize relevant strings using multiple factors.
 
 ```text
 Score = SectionWeight + EncodingConfidence + SemanticBoost - NoisePenalty
 ```
 
-### 5. Output Module (`src/output/`)
+**Scoring Components:**
 
-Formats results for different use cases.
+- **Section Weight**: 1.0-10.0 based on section classification
+- **Encoding Confidence**: Higher for clean UTF-8/ASCII vs. noisy UTF-16
+- **Semantic Boost**: +20-50 points for URLs, GUIDs, imports/exports
+- **Noise Penalty**: -10 to -30 for high entropy, excessive length, repeated patterns
 
-- **Human-readable**: Sorted tables for interactive analysis
-- **JSONL**: Structured data for automation
-- **YARA**: Escaped strings for rule creation
+### 5. Output Module (`src/output/`) 🚧 **Interfaces Defined**
+
+Formats results for different use cases with consistent data structures.
+
+- **Human-readable**: Sorted tables with score, offset, section, tags, and truncated strings
+- **JSONL**: Complete structured data including all metadata fields
+- **YARA**: Properly escaped strings with hex alternatives and confidence grouping
 
 ## Data Flow
 
-### 1. Binary Analysis Phase
+### 1. Binary Analysis Phase ✅ **Implemented**
 
 ```rust
-// Format detection
-let format = detect_format(&data);
-let parser = create_parser(format)?;
+// Format detection using goblin
+let format = detect_format(&data);  // Returns BinaryFormat enum
+let parser = create_parser(format)?; // Creates appropriate parser
 
-// Container parsing
+// Container parsing with full metadata extraction
 let container_info = parser.parse(&data)?;
+// Returns: sections with weights, imports, exports, format info
 ```
 
-### 2. String Extraction Phase
+**Current Implementation:**
+
+- Automatic format detection via `goblin::Object::parse()`
+- Trait-based parser creation with `Box<dyn ContainerParser>`
+- Comprehensive section analysis with classification and weighting
+- Complete import/export symbol extraction
+
+### 2. String Extraction Phase 🚧 **Framework Ready**
 
 ```rust
-// Extract strings from prioritized sections
-for section in container_info.sections {
-    let strings = extract_strings(&data, &section)?;
+// Extract strings from prioritized sections (by weight)
+let mut all_strings = Vec::new();
+for section in container_info.sections.iter().filter(|s| s.weight > 5.0) {
+    let strings = extract_strings(&data, &section, &config)?;
     all_strings.extend(strings);
 }
 
-// Deduplicate while preserving metadata
+// Include import/export names as high-value strings
+all_strings.extend(extract_symbol_strings(&container_info));
+
+// Deduplicate while preserving all metadata
 let unique_strings = deduplicate(all_strings);
 ```
 
-### 3. Classification Phase
+### 3. Classification Phase 🚧 **Types Ready**
 
 ```rust
-// Apply semantic classification
+// Apply semantic classification with context awareness
 for string in &mut unique_strings {
-    string.tags = classify_string(&string.text, &string.context);
-    string.score = calculate_score(&string);
+    let context = StringContext {
+        section_type: string.section_type,
+        source: string.source,
+        encoding: string.encoding,
+    };
+    
+    string.tags = classify_string(&string.text, &context);
+    string.score = calculate_score(&string, &context);
 }
 ```
 
-### 4. Output Phase
+### 4. Output Phase 🚧 **Interfaces Defined**
 
 ```rust
-// Sort by relevance and format output
-unique_strings.sort_by_key(|s| -s.score);
-let output = format_output(&unique_strings, &config);
+// Sort by relevance score (descending)
+unique_strings.sort_by_key(|s| std::cmp::Reverse(s.score));
+
+// Apply user filters and limits
+let filtered = apply_filters(&unique_strings, &config);
+
+// Format according to requested output type
+let output = match config.format {
+    OutputFormat::Human => format_human_readable(&filtered),
+    OutputFormat::Json => format_jsonl(&filtered),
+    OutputFormat::Yara => format_yara_rules(&filtered),
+};
 ```
+
+## Current Implementation Details
+
+### Container Parser Architecture
+
+The container parsing system is fully implemented with a trait-based design:
+
+```rust
+pub trait ContainerParser {
+    fn detect(data: &[u8]) -> bool
+    where
+        Self: Sized;
+    fn parse(&self, data: &[u8]) -> Result<ContainerInfo>;
+}
+```
+
+**Format Detection Pipeline:**
+
+1. `detect_format()` uses `goblin::Object::parse()` to identify format
+2. `create_parser()` returns appropriate `Box<dyn ContainerParser>`
+3. Parser extracts sections, imports, exports with full metadata
+
+### Section Classification System
+
+Each parser implements intelligent section classification:
+
+```rust
+// ELF Example
+fn classify_section(section: &SectionHeader, name: &str) -> SectionType {
+    if section.sh_flags & SHF_EXECINSTR != 0 {
+        return SectionType::Code;
+    }
+
+    match name {
+        ".rodata" | ".rodata.str1.*" => SectionType::StringData,
+        ".comment" | ".note.*" => SectionType::StringData,
+        ".data.rel.ro" => SectionType::ReadOnlyData,
+        // ... more classifications
+    }
+}
+```
+
+**Weight Calculation:**
+
+- String data sections: 8.0-10.0 (highest priority)
+- Read-only data: 7.0
+- Resources: 8.0-9.0
+- Writable data: 5.0
+- Code: 1.0 (lowest priority)
+
+### Symbol Extraction
+
+All parsers extract import/export information:
+
+- **ELF**: Dynamic symbol table (`dynsyms`) and static symbols (`syms`)
+- **PE**: Import/export tables with library names and ordinals
+- **Mach-O**: Symbol tables with undefined/defined symbol filtering
+
+### Data Structures
+
+Core types are fully defined and serializable:
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FoundString {
+    pub text: String,
+    pub encoding: Encoding,
+    pub offset: u64,
+    pub rva: Option<u64>,
+    pub section: Option<String>,
+    pub length: u32,
+    pub tags: Vec<Tag>,
+    pub score: i32,
+    pub source: StringSource,
+}
+```
+
+**Tag System**: 15+ semantic categories ready for classification **Error Handling**: Comprehensive `StringyError` enum with context **Cross-Platform**: Handles platform-specific binary characteristics
 
 ## Key Design Decisions
 
