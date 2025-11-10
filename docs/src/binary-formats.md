@@ -31,16 +31,19 @@ Used primarily on Linux and other Unix-like systems.
 The ELF parser now provides comprehensive symbol extraction with:
 
 1. **Import Detection**: Identifies all undefined symbols (SHN_UNDEF) that need runtime resolution
+
    - Supports multiple symbol types: functions, objects, TLS variables, and indirect functions
    - Handles both global and weak bindings
    - Foundation for library mapping through DT_NEEDED analysis
 
 2. **Export Detection**: Extracts all globally visible defined symbols
+
    - Filters out hidden (STV_HIDDEN) and internal (STV_INTERNAL) symbols
    - Includes both strong and weak symbols
    - Supports all relevant symbol types
 
 3. **Library Dependencies**: Extracts DT_NEEDED entries from the dynamic section
+
    - Provides list of required shared libraries
    - Foundation for future symbol-to-library mapping
 

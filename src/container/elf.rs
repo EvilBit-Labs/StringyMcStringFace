@@ -151,7 +151,7 @@ impl ElfParser {
     }
 
     /// Extract DT_NEEDED entries (library dependencies) from ELF dynamic section
-    /// 
+    ///
     /// This method is currently used in tests and reserved for future use when implementing
     /// symbol-to-library mapping. ELF doesn't directly associate imported symbols with specific
     /// libraries without analyzing version symbols or relocation tables, which requires more
@@ -511,15 +511,15 @@ mod tests {
         // Test library extraction with the current test binary
         // This test demonstrates the extract_needed_libraries method works with real ELF files
         let current_exe = std::env::current_exe().expect("Failed to get current executable");
-        
+
         if let Ok(data) = std::fs::read(&current_exe) {
             if let Ok(goblin::Object::Elf(elf)) = goblin::Object::parse(&data) {
                 let parser = ElfParser::new();
                 let libraries = parser.extract_needed_libraries(&elf);
-                
+
                 // The test binary should have some libraries (e.g., libc) unless statically linked
                 println!("Test binary libraries: {:?}", libraries);
-                
+
                 // Just verify the method runs without panicking
                 // Actual library content depends on the build environment
             }
