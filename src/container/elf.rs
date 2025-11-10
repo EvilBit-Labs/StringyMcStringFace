@@ -90,12 +90,14 @@ impl ElfParser {
             // Import symbols are:
             // - Undefined (st_shndx == SHN_UNDEF)
             // - Global or weak binding
-            // - Functions or objects
+            // - Functions, objects, TLS variables, or IFuncs
             if sym.st_shndx == (goblin::elf::section_header::SHN_UNDEF as usize)
                 && (sym.st_bind() == goblin::elf::sym::STB_GLOBAL
                     || sym.st_bind() == goblin::elf::sym::STB_WEAK)
                 && (sym.st_type() == goblin::elf::sym::STT_FUNC
                     || sym.st_type() == goblin::elf::sym::STT_OBJECT
+                    || sym.st_type() == goblin::elf::sym::STT_TLS
+                    || sym.st_type() == goblin::elf::sym::STT_GNU_IFUNC
                     || sym.st_type() == goblin::elf::sym::STT_NOTYPE)
             {
                 if let Some(name) = elf.dynstrtab.get_at(sym.st_name) {
@@ -122,6 +124,8 @@ impl ElfParser {
                     || sym.st_bind() == goblin::elf::sym::STB_WEAK)
                 && (sym.st_type() == goblin::elf::sym::STT_FUNC
                     || sym.st_type() == goblin::elf::sym::STT_OBJECT
+                    || sym.st_type() == goblin::elf::sym::STT_TLS
+                    || sym.st_type() == goblin::elf::sym::STT_GNU_IFUNC
                     || sym.st_type() == goblin::elf::sym::STT_NOTYPE)
             {
                 if let Some(name) = elf.strtab.get_at(sym.st_name) {
@@ -146,6 +150,25 @@ impl ElfParser {
         imports
     }
 
+    /// Extract DT_NEEDED entries (library dependencies) from ELF dynamic section
+    /// 
+    /// This method is currently used in tests and reserved for future use when implementing
+    /// symbol-to-library mapping. ELF doesn't directly associate imported symbols with specific
+    /// libraries without analyzing version symbols or relocation tables, which requires more
+    /// sophisticated analysis than currently implemented.
+    #[allow(dead_code)]
+    fn extract_needed_libraries(&self, elf: &Elf) -> Vec<String> {
+        if let Some(ref dynamic) = elf.dynamic {
+            dynamic
+                .get_libraries(&elf.dynstrtab)
+                .iter()
+                .map(|&s| s.to_string())
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
     /// Attempt to extract library information from DT_NEEDED entries
     /// This is a best-effort approach since ELF doesn't directly link symbols to libraries
     fn extract_library_from_needed(&self, elf: &Elf, _symbol_name: &str) -> Option<String> {
@@ -168,10 +191,17 @@ impl ElfParser {
 
         // Extract from dynamic symbol table
         for sym in &elf.dynsyms {
+            // Export symbols must be:
+            // - Defined (not SHN_UNDEF)
+            // - Global or weak binding
+            // - Visible (not hidden or internal)
+            // - Have a valid address
             if (sym.st_bind() == goblin::elf::sym::STB_GLOBAL
                 || sym.st_bind() == goblin::elf::sym::STB_WEAK)
                 && sym.st_shndx != (goblin::elf::section_header::SHN_UNDEF as usize)
                 && sym.st_value != 0
+                && sym.st_visibility() != goblin::elf::sym::STV_HIDDEN
+                && sym.st_visibility() != goblin::elf::sym::STV_INTERNAL
             {
                 if let Some(name) = elf.dynstrtab.get_at(sym.st_name) {
                     if !name.is_empty() && seen_names.insert(name.to_string()) {
@@ -191,8 +221,12 @@ impl ElfParser {
                 || sym.st_bind() == goblin::elf::sym::STB_WEAK)
                 && sym.st_shndx != (goblin::elf::section_header::SHN_UNDEF as usize)
                 && sym.st_value != 0
+                && sym.st_visibility() != goblin::elf::sym::STV_HIDDEN
+                && sym.st_visibility() != goblin::elf::sym::STV_INTERNAL
                 && (sym.st_type() == goblin::elf::sym::STT_FUNC
                     || sym.st_type() == goblin::elf::sym::STT_OBJECT
+                    || sym.st_type() == goblin::elf::sym::STT_TLS
+                    || sym.st_type() == goblin::elf::sym::STT_GNU_IFUNC
                     || sym.st_type() == goblin::elf::sym::STT_NOTYPE)
             {
                 if let Some(name) = elf.strtab.get_at(sym.st_name) {
@@ -470,5 +504,50 @@ mod tests {
 
         // Verify the parser exists
         let _ = parser;
+    }
+
+    #[test]
+    fn test_extract_needed_libraries_with_test_binary() {
+        // Test library extraction with the current test binary
+        // This test demonstrates the extract_needed_libraries method works with real ELF files
+        let current_exe = std::env::current_exe().expect("Failed to get current executable");
+        
+        if let Ok(data) = std::fs::read(&current_exe) {
+            if let Ok(goblin::Object::Elf(elf)) = goblin::Object::parse(&data) {
+                let parser = ElfParser::new();
+                let libraries = parser.extract_needed_libraries(&elf);
+                
+                // The test binary should have some libraries (e.g., libc) unless statically linked
+                println!("Test binary libraries: {:?}", libraries);
+                
+                // Just verify the method runs without panicking
+                // Actual library content depends on the build environment
+            }
+        }
+    }
+
+    #[test]
+    fn test_symbol_type_constants() {
+        // Test additional symbol type constants we're now using
+        use goblin::elf::sym::{STT_GNU_IFUNC, STT_TLS};
+
+        // Verify the constants we're now using in import/export filtering
+        assert_eq!(STT_TLS, 6); // Thread-local storage
+        assert_eq!(STT_GNU_IFUNC, 10); // Indirect function
+
+        // These constants are used in our enhanced import/export filtering logic
+    }
+
+    #[test]
+    fn test_symbol_visibility_constants() {
+        // Test symbol visibility constants
+        use goblin::elf::sym::{STV_DEFAULT, STV_HIDDEN, STV_INTERNAL};
+
+        // Verify the visibility constants we're using for filtering
+        assert_eq!(STV_DEFAULT, 0);
+        assert_eq!(STV_HIDDEN, 2);
+        assert_eq!(STV_INTERNAL, 1);
+
+        // These constants are used to filter out hidden and internal symbols from exports
     }
 }

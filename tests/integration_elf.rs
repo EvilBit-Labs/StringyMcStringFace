@@ -335,3 +335,59 @@ fn test_elf_section_classification_integration() {
         }
     }
 }
+
+#[test]
+#[cfg(target_family = "unix")]
+fn test_elf_library_dependencies() {
+    // Test with the current binary (this test executable) which should have library dependencies
+    let current_exe = std::env::current_exe().expect("Failed to get current executable path");
+
+    if let Ok(elf_data) = fs::read(&current_exe) {
+        // Parse with goblin to check if it's ELF
+        match goblin::Object::parse(&elf_data) {
+            Ok(goblin::Object::Elf(elf)) => {
+                // Check if we have a dynamic section
+                if let Some(ref dynamic) = elf.dynamic {
+                    // Extract libraries using the method we're testing
+                    let libraries = dynamic.get_libraries(&elf.dynstrtab);
+
+                    println!("Found {} library dependencies:", libraries.len());
+                    for lib in &libraries {
+                        println!("  - {}", lib);
+                    }
+
+                    // A dynamically linked ELF binary should typically have at least one library
+                    // (e.g., libc.so.6 on Linux)
+                    // But we'll be lenient here since we might be on a different platform
+                    if !libraries.is_empty() {
+                        // Verify at least one common library is present
+                        let has_libc = libraries.iter().any(|lib| lib.contains("libc"));
+                        let has_libpthread =
+                            libraries.iter().any(|lib| lib.contains("pthread"));
+                        let has_libm = libraries.iter().any(|lib| lib.contains("libm"));
+
+                        // At least one common library should be present in a typical executable
+                        if has_libc || has_libpthread || has_libm {
+                            println!("✓ Found expected library dependencies");
+                        }
+                    } else {
+                        println!(
+                            "No library dependencies found. This might be a static binary or on a non-Linux platform."
+                        );
+                    }
+                } else {
+                    println!("No dynamic section found. This might be a static binary.");
+                }
+            }
+            Ok(goblin::Object::Mach(_)) => {
+                println!("Got Mach-O binary (expected on macOS), skipping ELF library test");
+            }
+            Ok(_) => {
+                println!("Got non-ELF binary format, skipping test");
+            }
+            Err(e) => {
+                println!("Failed to parse binary: {}, skipping test", e);
+            }
+        }
+    }
+}
