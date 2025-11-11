@@ -33,29 +33,48 @@
     - Add unit tests for symbol extraction
     - _Requirements: 4.2, 4.3_
 
-- [ ] 4. Implement PE section classification
+- [x] 4. Implement PE section classification
 
-  - Enhance PE parser to classify sections (.rdata, .data) by string likelihood
+  - Enhance PE parser to classify sections (.rdata, .data) by string likelihood ✅
 
-  - Add section weight assignment for PE-specific sections
+  - Add section weight assignment for PE-specific sections ✅
 
-  - Implement basic PE import/export table parsing
+  - Implement basic PE import/export table parsing ✅
+
+  - Add benchmarks and snapshot tests ✅
 
   - _Requirements: 1.2, 1.4_
 
-  - [ ] 4.1 Add PE resource extraction foundation
+  - _Completed: Issue #3_
 
-    - Add pelite dependency to Cargo.toml
-    - Implement basic PE resource enumeration
-    - Create framework for extracting VERSIONINFO and STRINGTABLE resources
+  - [x] 4.1 Add PE resource extraction foundation
+
+    - Add pelite dependency to Cargo.toml ✅
+    - Implement basic PE resource enumeration ✅
+    - Create framework for extracting VERSIONINFO and STRINGTABLE resources ✅
+    - Add comprehensive unit tests covering edge cases ✅
     - _Requirements: 1.2_
+    - _Completed: Issue #4 - Phase 1 Foundation_
 
-  - [ ] 4.2 Implement PE resource string extraction
+  - [x] 4.2 Implement PE resource string extraction
 
-    - Extract strings from VERSIONINFO resources
-    - Extract strings from STRINGTABLE resources
-    - Add manifest resource string extraction
+    - Extract strings from VERSIONINFO resources ✅
+    - Extract strings from STRINGTABLE resources ✅
+    - Add manifest resource string extraction ✅
+    - Implement UTF-16LE decoding utilities ✅
+    - Add comprehensive unit tests ✅
+    - Add integration tests with fixtures ✅
     - _Requirements: 1.2_
+    - _Completed: Issue #5 - Phase 2 String Extraction_
+
+    **Implementation Notes:**
+
+    - VERSIONINFO: Uses pelite's `version_info()` API to extract all StringFileInfo key-value pairs
+    - STRINGTABLE: Manual parsing of RT_STRING blocks (16 strings per block, UTF-16LE)
+    - MANIFEST: Encoding detection (UTF-8/UTF-16LE/UTF-16BE) and XML extraction
+    - All strings tagged appropriately (`Tag::Version`, `Tag::Manifest`, `Tag::Resource`)
+    - Graceful error handling throughout (returns empty Vec on errors)
+    - Test coverage includes both unit tests and integration tests with real fixtures
 
 - [ ] 5. Implement Mach-O section classification
 

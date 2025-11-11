@@ -1,0 +1,46 @@
+#include <windows.h>
+
+// Version information resource
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     1,0,0,0
+PRODUCTVERSION  1,0,0,0
+FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+FILEFLAGS       0x0L
+FILEOS          VOS__WINDOWS32
+FILETYPE        VFT_APP
+FILESUBTYPE     VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"  // English (US), Unicode
+        BEGIN
+            VALUE "CompanyName", "Stringy Test\0"
+            VALUE "FileDescription", "Test binary with resources for stringy\0"
+            VALUE "FileVersion", "1.0.0.0\0"
+            VALUE "InternalName", "test_binary_with_resources\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025\0"
+            VALUE "OriginalFilename", "test_binary_with_resources.exe\0"
+            VALUE "ProductName", "Stringy Test Binary\0"
+            VALUE "ProductVersion", "1.0.0.0\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200  // English (US), Unicode
+    END
+END
+
+// String table resources (RT_STRING)
+STRINGTABLE
+BEGIN
+    1, "Test String 1"
+    2, "Test String 2"
+    3, "Hello from String Table"
+END
+
+STRINGTABLE
+BEGIN
+    4, "Another test string"
+    5, "Resource extraction test"
+END
+

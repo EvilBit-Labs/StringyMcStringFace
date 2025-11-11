@@ -164,14 +164,90 @@ Used on Windows for executables, DLLs, and drivers.
 - **UTF-16 Prevalence**: Windows APIs favor wide strings
 - **Section Characteristics**: Use `IMAGE_SCN_*` flags for classification
 
-### Resource Extraction
+### Enhanced Import/Export Extraction
 
-PE resources are particularly rich sources of strings:
+The PE parser provides comprehensive import/export extraction:
 
-- **VERSIONINFO**: Product names, descriptions, copyright
-- **STRINGTABLE**: Localized UI strings
-- **RT_MANIFEST**: Application manifests with metadata
-- **RT_VERSION**: Version information blocks
+1. **Import Extraction**: Extracts from PE import directory using goblin's `pe.imports`
+
+   - Each import includes: function name, DLL name, and RVA
+   - Example: `printf` from `msvcrt.dll`
+   - Iterates through `pe.imports` to create `ImportInfo` with name, library (DLL), and address (RVA)
+
+2. **Export Extraction**: Extracts from PE export directory using goblin's `pe.exports`
+
+   - Each export includes: function name, address, and ordinal
+   - Note: PE executables typically don't export symbols (only DLLs do)
+   - Ordinal is derived from index since goblin doesn't expose it directly
+   - Handles unnamed exports with "ordinal\_{i}" naming
+
+### Resource Extraction (Phase 2 Complete)
+
+PE resources are particularly rich sources of strings. The PE parser now provides comprehensive resource string extraction:
+
+#### VERSIONINFO Extraction
+
+- Extracts all StringFileInfo key-value pairs from VS_VERSIONINFO structures
+- Supports multiple language variants via translation table
+- Common extracted fields:
+  - `CompanyName`: Company or organization name
+  - `FileDescription`: File purpose and description
+  - `FileVersion`: File version string (e.g., "1.0.0.0")
+  - `ProductName`: Product name
+  - `ProductVersion`: Product version string
+  - `LegalCopyright`: Copyright information
+  - `InternalName`: Internal file identifier
+  - `OriginalFilename`: Original filename
+- Uses pelite's high-level `version_info()` API for reliable parsing
+- All strings are UTF-16LE encoded in the resource
+- Tagged with `Tag::Version` and `Tag::Resource`
+
+#### STRINGTABLE Extraction
+
+- Parses RT_STRING resources (type 6) containing localized UI strings
+- Handles block structure: strings grouped in blocks of 16
+- Block ID calculation: `(StringID >> 4) + 1`
+- String format: u16 length (in UTF-16 code units) + UTF-16LE string data
+- Supports multiple language variants
+- Extracts all non-empty strings from all blocks
+- Tagged with `Tag::Resource`
+- Common use cases: UI labels, error messages, dialog text
+
+#### MANIFEST Extraction
+
+- Extracts RT_MANIFEST resources (type 24) containing application manifests
+- Automatic encoding detection:
+  - UTF-8 with BOM (EF BB BF)
+  - UTF-16LE with BOM (FF FE)
+  - UTF-16BE with BOM (FE FF)
+  - Fallback: byte pattern analysis
+- Returns full XML manifest content
+- Tagged with `Tag::Manifest` and `Tag::Resource`
+- Manifest contains:
+  - Assembly identity (name, version, architecture)
+  - Dependency information
+  - Compatibility settings
+  - Security settings (requestedExecutionLevel)
+
+#### Usage Example
+
+```rust
+use stringy::extraction::extract_resource_strings;
+use stringy::types::Tag;
+
+let pe_data = std::fs::read("example.exe")?;
+let strings = extract_resource_strings(&pe_data);
+
+// Filter version info strings
+let version_strings: Vec<_> = strings.iter()
+    .filter(|s| s.tags.contains(&Tag::Version))
+    .collect();
+
+// Filter string table entries
+let ui_strings: Vec<_> = strings.iter()
+    .filter(|s| s.tags.contains(&Tag::Resource) && !s.tags.contains(&Tag::Version))
+    .collect();
+```
 
 ### Implementation Details
 
@@ -191,8 +267,56 @@ impl PeParser {
             // ... more classifications
         }
     }
+
+    fn extract_imports(&self, pe: &PE) -> Vec<ImportInfo> {
+        // Iterates through pe.imports
+        // Creates ImportInfo with name, library (DLL), and address (RVA)
+    }
+
+    fn extract_exports(&self, pe: &PE) -> Vec<ExportInfo> {
+        // Iterates through pe.exports
+        // Creates ExportInfo with name, address, and ordinal
+        // Handles unnamed exports with "ordinal_{i}" naming
+    }
+
+    fn calculate_section_weight(section_type: SectionType, name: &str) -> f32 {
+        // Returns weight values based on section type and name
+        // Higher weights indicate higher string likelihood
+    }
 }
 ```
+
+### Section Weight Calculation
+
+The PE parser uses a weight-based system to prioritize sections for string extraction:
+
+| Section Type         | Weight | Rationale                     |
+| -------------------- | ------ | ----------------------------- |
+| StringData (.rdata)  | 10.0   | Primary string storage        |
+| Resources (.rsrc)    | 9.0    | Version info, string tables   |
+| ReadOnlyData         | 7.0    | May contain constants         |
+| WritableData (.data) | 5.0    | Runtime state, lower priority |
+| Code (.text)         | 1.0    | Unlikely to contain strings   |
+| Debug                | 2.0    | Internal metadata             |
+| Other                | 1.0    | Minimal priority              |
+
+### Limitations
+
+The current PE parser implementation provides comprehensive resource string extraction:
+
+- ✅ **VERSIONINFO**: Complete extraction of all StringFileInfo fields
+- ✅ **STRINGTABLE**: Full parsing of RT_STRING blocks with language support
+- ✅ **MANIFEST**: Encoding detection and XML extraction
+- ⚠️ **Dialog Resources**: RT_DIALOG parsing not yet implemented (future enhancement)
+- ⚠️ **Menu Resources**: RT_MENU parsing not yet implemented (future enhancement)
+- ⚠️ **Icon Strings**: RT_ICON metadata extraction not yet implemented
+
+**Future Enhancements:**
+
+- Dialog resource parsing for control text and window titles
+- Menu resource parsing for menu item text
+- Icon and cursor resource metadata
+- Accelerator table string extraction
 
 ## Mach-O (Mach Object)
 

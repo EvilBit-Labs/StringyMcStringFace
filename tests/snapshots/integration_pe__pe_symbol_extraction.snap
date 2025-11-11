@@ -1,0 +1,52 @@
+---
+source: tests/integration_pe.rs
+assertion_line: 181
+expression: output
+---
+=== IMPORTS ===
+Total: 47
+
+Import 1: DeleteCriticalSection
+  Library: KERNEL32.dll
+  Address: 0xd350
+
+Import 2: EnterCriticalSection
+  Library: KERNEL32.dll
+  Address: 0xd368
+
+Import 3: GetLastError
+  Library: KERNEL32.dll
+  Address: 0xd380
+
+Import 4: InitializeCriticalSection
+  Library: KERNEL32.dll
+  Address: 0xd390
+
+Import 5: IsDBCSLeadByteEx
+  Library: KERNEL32.dll
+  Address: 0xd3ac
+
+Import 6: LeaveCriticalSection
+  Library: KERNEL32.dll
+  Address: 0xd3c0
+
+Import 7: MultiByteToWideChar
+  Library: KERNEL32.dll
+  Address: 0xd3d8
+
+Import 8: SetUnhandledExceptionFilter
+  Library: KERNEL32.dll
+  Address: 0xd3ee
+
+Import 9: Sleep
+  Library: KERNEL32.dll
+  Address: 0xd40c
+
+Import 10: TlsGetValue
+  Library: KERNEL32.dll
+  Address: 0xd414
+
+... and 37 more imports
+
+=== EXPORTS ===
+Total: 0

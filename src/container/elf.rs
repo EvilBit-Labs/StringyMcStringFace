@@ -112,6 +112,7 @@ impl ElfParser {
                     } else {
                         None
                     },
+                    ordinal: None, // ELF doesn't use ordinals
                 });
             }
         }
@@ -138,6 +139,7 @@ impl ElfParser {
                     } else {
                         None
                     },
+                    ordinal: None, // ELF doesn't use ordinals
                 });
             }
         }
@@ -365,12 +367,13 @@ impl ContainerParser for ElfParser {
         let imports = self.extract_imports(&elf, &libraries);
         let exports = self.extract_exports(&elf);
 
-        Ok(ContainerInfo {
-            format: BinaryFormat::Elf,
+        Ok(ContainerInfo::new(
+            BinaryFormat::Elf,
             sections,
             imports,
             exports,
-        })
+            None,
+        ))
     }
 }
 

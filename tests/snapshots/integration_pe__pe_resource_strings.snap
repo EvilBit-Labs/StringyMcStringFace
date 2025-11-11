@@ -1,0 +1,27 @@
+---
+source: tests/integration_pe.rs
+expression: output
+---
+=== VERSION INFO STRINGS ===
+Total: 8
+
+Version String 1: Stringy Test
+Version String 2: Test binary with resources for stringy
+Version String 3: 1.0.0.0
+Version String 4: test_binary_with_resources
+Version String 5: Copyright (C) 2025
+Version String 6: test_binary_with_resources.exe
+Version String 7: Stringy Test Binary
+Version String 8: 1.0.0.0
+
+=== STRING TABLE STRINGS ===
+Total: 5
+
+String Table Entry 1: Test String 1
+String Table Entry 2: Test String 2
+String Table Entry 3: Hello from String Table
+String Table Entry 4: Another test string
+String Table Entry 5: Resource extraction test
+
+=== MANIFEST STRINGS ===
+Total: 0

@@ -172,6 +172,7 @@ This project is in active development. Current implementation status:
 - ✅ **Container Parsers**: Full section classification with weight-based prioritization
 - ✅ **Import/Export Extraction**: Symbol extraction from all supported formats
 - ✅ **Section Analysis**: Smart classification of string-rich sections
+- ✅ **PE Resource Enumeration**: VERSIONINFO, STRINGTABLE, and MANIFEST resource detection (Phase 1 complete)
 - 🚧 **String Extraction**: ASCII/UTF-8 and UTF-16 extraction engines (framework ready)
 - 🚧 **Semantic Classification**: URL, domain, path, GUID pattern matching (types defined)
 - 🚧 **Ranking System**: Section-aware scoring algorithm (framework in place)
@@ -188,6 +189,11 @@ The foundation is robust with fully implemented binary format parsers that can:
   - PE: `.rdata` (10.0), `.rsrc` (9.0), read-only `.data` (7.0)
   - Mach-O: `__TEXT,__cstring` (10.0), `__TEXT,__const` (9.0), `__DATA_CONST` (7.0)
 - **Symbol Processing**: Extract and classify import/export names from symbol tables
+- **PE Resource Extraction (Phase 1 complete)**:
+  - VERSIONINFO resource detection
+  - STRINGTABLE resource detection
+  - MANIFEST resource detection
+  - Metadata extraction (type, language, size)
 - **Cross-Platform Support**: Handle platform-specific section characteristics and naming
 - **Comprehensive Metadata**: Track section offsets, sizes, RVAs, and permissions
 
