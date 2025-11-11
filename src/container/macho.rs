@@ -195,6 +195,8 @@ impl MachoParser {
         let sections = self.extract_sections(macho)?;
         let imports = self.extract_imports(macho);
         let exports = self.extract_exports(macho);
+        // TODO: Load command strings will be integrated into the main extraction pipeline
+        // once it's built. Use `stringy::extraction::extract_load_command_strings()` when ready.
 
         Ok(ContainerInfo::new(
             BinaryFormat::MachO,

@@ -10,6 +10,7 @@ pub enum Encoding {
 }
 
 /// Semantic tags for classifying strings
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Tag {
     Url,
@@ -36,6 +37,14 @@ pub enum Tag {
     Version,
     Manifest,
     Resource,
+    #[serde(rename = "dylib-path")]
+    DylibPath,
+    #[serde(rename = "rpath")]
+    Rpath,
+    #[serde(rename = "rpath-var")]
+    RpathVariable,
+    #[serde(rename = "framework-path")]
+    FrameworkPath,
 }
 
 /// Type of section based on its purpose and likelihood of containing strings
