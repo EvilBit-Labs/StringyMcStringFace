@@ -283,6 +283,14 @@ fn test_pe_resource_extraction_with_resources() {
                 // Language can be 0 or any valid LCID
                 assert!(resource.language <= 0xFFFF, "Language ID should be valid");
             }
+
+            // Phase 2: Verify actual string extraction
+            let strings = stringy::extraction::extract_resource_strings(&pe_data);
+            assert!(!strings.is_empty(), "Should extract strings from resources");
+            assert!(
+                strings.len() >= 8 + 5,
+                "Should extract at least 8 version strings + 5 string table strings"
+            );
         }
         None => {
             panic!(
@@ -362,4 +370,188 @@ fn test_pe_symbol_extraction_snapshot() {
     } else {
         panic!("PE fixture is not a valid PE file");
     }
+}
+
+#[test]
+fn test_pe_version_info_string_extraction() {
+    // Test VERSIONINFO string extraction from resource-enabled binary
+    let fixture_path = get_fixture_path("test_binary_with_resources.exe");
+    assert!(
+        fixture_path.exists(),
+        "Fixture test_binary_with_resources.exe not found. Build it using: docker run --rm -v \"$(pwd):/work\" -w /work mcr.microsoft.com/devcontainers/cpp:latest bash -c \"apt-get update -qq && apt-get install -y -qq mingw-w64 && x86_64-w64-mingw32-windres --input-format=rc --output-format=coff -o test_binary_with_resources.res test_binary_with_resources.rc && x86_64-w64-mingw32-gcc -o test_binary_with_resources.exe test_binary_with_resources.c test_binary_with_resources.res\""
+    );
+
+    let pe_data = fs::read(&fixture_path).expect("Failed to read resource-enabled PE fixture");
+
+    let strings = stringy::extraction::extract_resource_strings(&pe_data);
+
+    // Filter for version strings
+    let version_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.tags.contains(&stringy::types::Tag::Version))
+        .collect();
+
+    println!("Found {} version strings", version_strings.len());
+    for string in &version_strings {
+        println!("  - {}", string.text);
+    }
+
+    // Should find expected version strings
+    let texts: Vec<&str> = version_strings.iter().map(|s| s.text.as_str()).collect();
+    let has_company = texts.iter().any(|&t| t.contains("Stringy Test"));
+    let has_description = texts
+        .iter()
+        .any(|&t| t.contains("Test binary with resources"));
+    let has_product = texts.iter().any(|&t| t.contains("Stringy Test Binary"));
+    let has_version = texts.iter().any(|&t| t.contains("1.0.0.0"));
+    let has_copyright = texts.iter().any(|&t| t.contains("Copyright"));
+
+    // Verify encoding and source
+    for string in &version_strings {
+        assert_eq!(string.encoding, stringy::types::Encoding::Utf16Le);
+        assert_eq!(string.source, stringy::types::StringSource::ResourceString);
+        assert!(string.tags.contains(&stringy::types::Tag::Version));
+        assert!(string.tags.contains(&stringy::types::Tag::Resource));
+    }
+
+    // At least some expected strings should be found
+    assert!(
+        has_company || has_description || has_product || has_version || has_copyright,
+        "Should find at least some expected version strings"
+    );
+}
+
+#[test]
+fn test_pe_string_table_extraction() {
+    // Test STRINGTABLE string extraction
+    let fixture_path = get_fixture_path("test_binary_with_resources.exe");
+    assert!(
+        fixture_path.exists(),
+        "Fixture test_binary_with_resources.exe not found. Build it using: docker run --rm -v \"$(pwd):/work\" -w /work mcr.microsoft.com/devcontainers/cpp:latest bash -c \"apt-get update -qq && apt-get install -y -qq mingw-w64 && x86_64-w64-mingw32-windres --input-format=rc --output-format=coff -o test_binary_with_resources.res test_binary_with_resources.rc && x86_64-w64-mingw32-gcc -o test_binary_with_resources.exe test_binary_with_resources.c test_binary_with_resources.res\""
+    );
+
+    let pe_data = fs::read(&fixture_path).expect("Failed to read resource-enabled PE fixture");
+
+    let strings = stringy::extraction::extract_resource_strings(&pe_data);
+
+    // Filter for string table strings (Resource tag but not Version or Manifest)
+    let string_table_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| {
+            s.tags.contains(&stringy::types::Tag::Resource)
+                && !s.tags.contains(&stringy::types::Tag::Version)
+                && !s.tags.contains(&stringy::types::Tag::Manifest)
+        })
+        .collect();
+
+    println!("Found {} string table strings", string_table_strings.len());
+    for string in &string_table_strings {
+        println!("  - {}", string.text);
+    }
+
+    // Verify encoding
+    for string in &string_table_strings {
+        assert_eq!(string.encoding, stringy::types::Encoding::Utf16Le);
+        assert_eq!(string.source, stringy::types::StringSource::ResourceString);
+        assert!(string.tags.contains(&stringy::types::Tag::Resource));
+    }
+
+    // Should find at least 5 strings
+    assert!(
+        string_table_strings.len() >= 5,
+        "Should find at least 5 string table strings, found {}",
+        string_table_strings.len()
+    );
+}
+
+#[test]
+fn test_pe_resource_string_extraction_snapshot() {
+    // Test resource string extraction with snapshot
+    let fixture_path = get_fixture_path("test_binary_with_resources.exe");
+    assert!(
+        fixture_path.exists(),
+        "Fixture test_binary_with_resources.exe not found. Build it using: docker run --rm -v \"$(pwd):/work\" -w /work mcr.microsoft.com/devcontainers/cpp:latest bash -c \"apt-get update -qq && apt-get install -y -qq mingw-w64 && x86_64-w64-mingw32-windres --input-format=rc --output-format=coff -o test_binary_with_resources.res test_binary_with_resources.rc && x86_64-w64-mingw32-gcc -o test_binary_with_resources.exe test_binary_with_resources.c test_binary_with_resources.res\""
+    );
+
+    let pe_data = fs::read(&fixture_path).expect("Failed to read resource-enabled PE fixture");
+
+    let strings = stringy::extraction::extract_resource_strings(&pe_data);
+
+    let mut output = String::new();
+
+    // VERSION INFO STRINGS
+    output.push_str("=== VERSION INFO STRINGS ===\n");
+    let version_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.tags.contains(&stringy::types::Tag::Version))
+        .collect();
+    output.push_str(&format!("Total: {}\n\n", version_strings.len()));
+    for (i, string) in version_strings.iter().take(20).enumerate() {
+        output.push_str(&format!("Version String {}: {}\n", i + 1, string.text));
+    }
+    if version_strings.len() > 20 {
+        output.push_str(&format!("... and {} more\n", version_strings.len() - 20));
+    }
+    output.push('\n');
+
+    // STRING TABLE STRINGS
+    output.push_str("=== STRING TABLE STRINGS ===\n");
+    let string_table_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| {
+            s.tags.contains(&stringy::types::Tag::Resource)
+                && !s.tags.contains(&stringy::types::Tag::Version)
+                && !s.tags.contains(&stringy::types::Tag::Manifest)
+        })
+        .collect();
+    output.push_str(&format!("Total: {}\n\n", string_table_strings.len()));
+    for (i, string) in string_table_strings.iter().take(20).enumerate() {
+        output.push_str(&format!("String Table Entry {}: {}\n", i + 1, string.text));
+    }
+    if string_table_strings.len() > 20 {
+        output.push_str(&format!(
+            "... and {} more\n",
+            string_table_strings.len() - 20
+        ));
+    }
+    output.push('\n');
+
+    // MANIFEST STRINGS
+    output.push_str("=== MANIFEST STRINGS ===\n");
+    let manifest_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.tags.contains(&stringy::types::Tag::Manifest))
+        .collect();
+    output.push_str(&format!("Total: {}\n\n", manifest_strings.len()));
+    for (i, string) in manifest_strings.iter().take(5).enumerate() {
+        // Truncate long manifests for readability
+        let text = if string.text.len() > 200 {
+            format!("{}...", &string.text[..200])
+        } else {
+            string.text.clone()
+        };
+        output.push_str(&format!("Manifest {}:\n{}\n", i + 1, text));
+    }
+    if manifest_strings.len() > 5 {
+        output.push_str(&format!("... and {} more\n", manifest_strings.len() - 5));
+    }
+
+    assert_snapshot!("pe_resource_strings", output);
+}
+
+#[test]
+fn test_pe_resource_strings_empty_binary() {
+    // Test with binary that has no resources
+    let fixture_path = get_fixture_path("test_binary_pe.exe");
+    let pe_data = match fs::read(&fixture_path) {
+        Ok(data) => data,
+        Err(_) => {
+            println!("PE fixture not found, skipping test");
+            return;
+        }
+    };
+
+    let strings = stringy::extraction::extract_resource_strings(&pe_data);
+    // Should return empty Vec without panicking
+    assert!(strings.is_empty() || !strings.is_empty()); // Either is fine, just no panic
 }

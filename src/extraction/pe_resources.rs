@@ -13,11 +13,11 @@
 //! - Returns ResourceMetadata structures for discovered resources
 //! - Phase 1 implementation complete as of Issue #4
 //!
-//! **Phase 2 (Future)**: Actual string extraction from resources
-//! - Parse VERSIONINFO structures to extract version strings
-//! - Extract strings from STRINGTABLE resources
-//! - Parse XML manifest content
-//! - Return FoundString entries with proper encoding and tags
+//! **Phase 2 (Complete)**: Actual string extraction from resources
+//! - Parse VERSIONINFO structures to extract version strings ✅
+//! - Extract strings from STRINGTABLE resources ✅
+//! - Parse XML manifest content ✅
+//! - Return FoundString entries with proper encoding and tags ✅
 //!
 //! # Testing
 //!
@@ -32,13 +32,14 @@
 //! All error paths are tested to ensure graceful degradation (returning empty Vec
 //! rather than panicking or propagating errors).
 //!
-//! # Known Limitations (Phase 1)
+//! # Known Limitations
 //!
-//! - Resource metadata extraction only (no string parsing yet)
 //! - Offset field in ResourceMetadata is always None (pelite API limitation)
-//! - Phase 2 will implement actual string extraction from resource data
+//! - Dialog and menu resource parsing not yet implemented (future enhancement)
 //!
-//! # Example
+//! # Examples
+//!
+//! ## Phase 1: Resource Metadata Extraction
 //!
 //! ```rust
 //! use stringy::extraction::pe_resources::extract_resources;
@@ -60,8 +61,30 @@
 //!     }
 //! }
 //! ```
+//!
+//! ## Phase 2: Resource String Extraction
+//!
+//! ```rust
+//! use stringy::extraction::pe_resources::extract_resource_strings;
+//! use stringy::types::Tag;
+//!
+//! let pe_data = std::fs::read("example.exe")?;
+//! let strings = extract_resource_strings(&pe_data);
+//!
+//! // Filter version info strings
+//! let version_strings: Vec<_> = strings.iter()
+//!     .filter(|s| s.tags.contains(&Tag::Version))
+//!     .collect();
+//!
+//! // Filter string table entries
+//! let ui_strings: Vec<_> = strings.iter()
+//!     .filter(|s| s.tags.contains(&Tag::Resource) && !s.tags.contains(&Tag::Version))
+//!     .collect();
+//! ```
 
-use crate::types::{ResourceMetadata, ResourceType, Result};
+use crate::types::{
+    Encoding, FoundString, ResourceMetadata, ResourceType, Result, StringSource, Tag,
+};
 use pelite::PeFile;
 use pelite::resources::{Name, Resources};
 
@@ -332,6 +355,471 @@ fn detect_manifests(root: &pelite::resources::Directory) -> Result<Vec<ResourceM
     }
 
     Ok(manifests)
+}
+
+/// Decode UTF-16LE byte slice to UTF-8 String
+///
+/// Handles odd-length inputs gracefully by truncating the last byte.
+/// Strips trailing null terminators.
+///
+/// # Arguments
+///
+/// * `bytes` - UTF-16LE encoded byte slice
+///
+/// # Returns
+///
+/// Decoded UTF-8 string, or error if decoding fails
+fn decode_utf16le(bytes: &[u8]) -> Result<String> {
+    // Handle odd-length input by truncating last byte
+    let even_bytes = if bytes.len() % 2 == 1 {
+        &bytes[..bytes.len() - 1]
+    } else {
+        bytes
+    };
+
+    // Convert to u16 slice
+    let u16_slice: Vec<u16> = even_bytes
+        .chunks_exact(2)
+        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+        .collect();
+
+    // Decode UTF-16 to String
+    String::from_utf16(&u16_slice)
+        .map(|s| s.trim_end_matches('\0').to_string())
+        .map_err(|_| crate::types::StringyError::EncodingError { offset: 0 })
+}
+
+/// Extract strings from VERSIONINFO resources
+///
+/// Uses pelite's high-level `version_info()` API to extract all StringFileInfo
+/// key-value pairs. Supports multiple language variants via translation table.
+///
+/// # Arguments
+///
+/// * `data` - Raw PE binary data
+///
+/// # Returns
+///
+/// Vector of FoundString entries with version information
+pub fn extract_version_info_strings(data: &[u8]) -> Vec<FoundString> {
+    let pe = match PeFile::from_bytes(data) {
+        Ok(pe) => pe,
+        Err(_) => return Vec::new(),
+    };
+
+    let resources = match pe.resources() {
+        Ok(resources) => resources,
+        Err(_) => return Vec::new(),
+    };
+
+    let version_info = match resources.version_info() {
+        Ok(vi) => vi,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut strings = Vec::new();
+
+    // Get all translations (languages)
+    let translations = version_info.translation();
+
+    // Iterate through each language variant
+    for translation in translations {
+        // Extract all string key-value pairs for this language
+        // Note: We intentionally do not include the key name (e.g., "CompanyName") in the
+        // extracted string text to maintain consistency with other extractors and avoid
+        // breaking the API. The key information is available via pelite's API if needed,
+        // but including it would change the semantic meaning of the `text` field from
+        // "the actual string value" to "key: value pair", which could break downstream
+        // consumers expecting just the value.
+        version_info.strings(*translation, |_key, value| {
+            let text = value.to_string();
+            // Length is based on decoded string bytes (String::len() returns byte length)
+            let length = text.len() as u32;
+            let found_string = FoundString {
+                text,
+                encoding: Encoding::Utf16Le,
+                offset: 0, // pelite doesn't provide offsets easily
+                rva: None,
+                section: Some(".rsrc".to_string()),
+                length,
+                tags: vec![Tag::Version, Tag::Resource],
+                score: 0,
+                source: StringSource::ResourceString,
+            };
+            strings.push(found_string);
+        });
+    }
+
+    strings
+}
+
+/// Parse a STRINGTABLE block structure
+///
+/// STRINGTABLE blocks contain 16 string entries. Each entry is prefixed with
+/// a u16 length (in UTF-16 code units, not bytes), followed by UTF-16LE string data.
+///
+/// # Arguments
+///
+/// * `bytes` - Raw block data
+///
+/// # Returns
+///
+/// Vector of Option<String>, where Some contains the decoded string and None
+/// indicates an empty entry
+fn parse_string_table_block(bytes: &[u8]) -> Vec<Option<String>> {
+    let mut strings = Vec::new();
+    let mut offset = 0;
+
+    // Each block contains 16 entries
+    for _ in 0..16 {
+        if offset + 2 > bytes.len() {
+            // Not enough data for length field
+            strings.push(None);
+            continue;
+        }
+
+        // Read u16 length (in UTF-16 code units)
+        let length = u16::from_le_bytes([bytes[offset], bytes[offset + 1]]) as usize;
+        offset += 2;
+
+        if length == 0 {
+            // Empty entry
+            strings.push(None);
+            continue;
+        }
+
+        // Calculate byte length (length * 2 for UTF-16)
+        let byte_length = length * 2;
+        if offset + byte_length > bytes.len() {
+            // Not enough data for string
+            strings.push(None);
+            continue;
+        }
+
+        // Extract string bytes and decode
+        let string_bytes = &bytes[offset..offset + byte_length];
+        match decode_utf16le(string_bytes) {
+            Ok(s) if !s.is_empty() => strings.push(Some(s)),
+            _ => strings.push(None),
+        }
+
+        offset += byte_length;
+    }
+
+    strings
+}
+
+/// Extract strings from STRINGTABLE resources
+///
+/// Parses RT_STRING resources (type 6) containing localized UI strings.
+/// Handles block structure: strings grouped in blocks of 16.
+///
+/// # Arguments
+///
+/// * `data` - Raw PE binary data
+///
+/// # Returns
+///
+/// Vector of FoundString entries from string tables
+pub fn extract_string_table_strings(data: &[u8]) -> Vec<FoundString> {
+    let pe = match PeFile::from_bytes(data) {
+        Ok(pe) => pe,
+        Err(_) => return Vec::new(),
+    };
+
+    let resources = match pe.resources() {
+        Ok(resources) => resources,
+        Err(_) => return Vec::new(),
+    };
+
+    let root = match resources.root() {
+        Ok(root) => root,
+        Err(_) => return Vec::new(),
+    };
+
+    let string_type_name = Name::Id(RT_STRING);
+    let string_type_dir = match root.get_dir(string_type_name) {
+        Ok(dir) => dir,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut strings = Vec::new();
+
+    // Iterate over all block IDs
+    for entry in string_type_dir.id_entries() {
+        let _block_id = match entry.name() {
+            Ok(Name::Id(id)) => id,
+            _ => continue,
+        };
+
+        let block_dir = match entry.entry() {
+            Ok(pelite::resources::Entry::Directory(dir)) => dir,
+            _ => continue,
+        };
+
+        // Iterate over all languages for this block
+        for lang_entry in block_dir.id_entries() {
+            let _language_id = match lang_entry.name() {
+                Ok(Name::Id(id)) => id,
+                _ => continue,
+            };
+
+            // Get block data
+            let data_entry = match lang_entry.entry() {
+                Ok(pelite::resources::Entry::DataEntry(data)) => data,
+                _ => continue,
+            };
+
+            let block_bytes = match data_entry.bytes() {
+                Ok(bytes) => bytes,
+                Err(_) => continue,
+            };
+
+            // Best-effort RVA retrieval from pelite DataEntry
+            // Note: pelite's DataEntry API doesn't directly expose RVA, so we set to None
+            // If RVA mapping is needed, it would require parsing section headers separately
+            let rva = None;
+
+            // Parse the block
+            let parsed_strings = parse_string_table_block(block_bytes);
+
+            // Create FoundString for each non-empty string
+            for text in parsed_strings.into_iter().flatten() {
+                // String ID calculation: ((block_id - 1) << 4) | index
+                // (stored for potential future use but not currently needed)
+                // Length is based on decoded string bytes (String::len() returns byte length)
+                let text_len = text.len() as u32;
+
+                let found_string = FoundString {
+                    text,
+                    encoding: Encoding::Utf16Le,
+                    offset: 0, // File offset not easily available from pelite DataEntry
+                    rva,
+                    section: Some(".rsrc".to_string()),
+                    length: text_len,
+                    tags: vec![Tag::Resource],
+                    score: 0,
+                    source: StringSource::ResourceString,
+                };
+                strings.push(found_string);
+            }
+        }
+    }
+
+    strings
+}
+
+/// Detect manifest encoding from byte content
+///
+/// Checks for BOM markers and byte patterns to determine encoding.
+///
+/// # Arguments
+///
+/// * `bytes` - Manifest byte data
+///
+/// # Returns
+///
+/// Detected encoding
+fn detect_manifest_encoding(bytes: &[u8]) -> Encoding {
+    if bytes.len() < 2 {
+        return Encoding::Utf8; // Default fallback
+    }
+
+    // Check for UTF-8 BOM (EF BB BF)
+    if bytes.len() >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF {
+        return Encoding::Utf8;
+    }
+
+    // Check for UTF-16LE BOM (FF FE)
+    if bytes[0] == 0xFF && bytes[1] == 0xFE {
+        return Encoding::Utf16Le;
+    }
+
+    // Check for UTF-16BE BOM (FE FF)
+    if bytes[0] == 0xFE && bytes[1] == 0xFF {
+        return Encoding::Utf16Be;
+    }
+
+    // Fallback: check byte patterns
+    if bytes.len() >= 4 {
+        // Check for "<?xm" (UTF-8 XML declaration)
+        if bytes[0] == b'<' && bytes[1] == b'?' && bytes[2] == b'x' && bytes[3] == b'm' {
+            return Encoding::Utf8;
+        }
+        // Check for "<\0?\0" (UTF-16LE XML declaration)
+        if bytes[0] == b'<' && bytes[1] == 0 && bytes[2] == b'?' && bytes[3] == 0 {
+            return Encoding::Utf16Le;
+        }
+    }
+
+    // Default to UTF-8
+    Encoding::Utf8
+}
+
+/// Decode manifest bytes based on detected encoding
+///
+/// # Arguments
+///
+/// * `bytes` - Manifest byte data
+///
+/// # Returns
+///
+/// Decoded manifest string
+fn decode_manifest(bytes: &[u8]) -> Result<String> {
+    let encoding = detect_manifest_encoding(bytes);
+    let mut data = bytes;
+
+    // Strip BOM if present
+    if bytes.len() >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF {
+        data = &bytes[3..]; // UTF-8 BOM
+    } else if bytes.len() >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE {
+        data = &bytes[2..]; // UTF-16LE BOM
+    } else if bytes.len() >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF {
+        data = &bytes[2..]; // UTF-16BE BOM
+    }
+
+    match encoding {
+        Encoding::Utf8 => String::from_utf8(data.to_vec())
+            .map_err(|_| crate::types::StringyError::EncodingError { offset: 0 }),
+        Encoding::Utf16Le => decode_utf16le(data),
+        Encoding::Utf16Be => {
+            // Convert UTF-16BE to UTF-16LE for decoding
+            let u16_slice: Vec<u16> = data
+                .chunks_exact(2)
+                .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
+                .collect();
+            String::from_utf16(&u16_slice)
+                .map(|s| s.trim_end_matches('\0').to_string())
+                .map_err(|_| crate::types::StringyError::EncodingError { offset: 0 })
+        }
+        _ => String::from_utf8(data.to_vec())
+            .map_err(|_| crate::types::StringyError::EncodingError { offset: 0 }),
+    }
+}
+
+/// Extract strings from MANIFEST resources
+///
+/// Extracts RT_MANIFEST resources (type 24) containing application manifests.
+/// Performs automatic encoding detection and returns full XML manifest content.
+///
+/// # Arguments
+///
+/// * `data` - Raw PE binary data
+///
+/// # Returns
+///
+/// Vector of FoundString entries with manifest content
+pub fn extract_manifest_strings(data: &[u8]) -> Vec<FoundString> {
+    let pe = match PeFile::from_bytes(data) {
+        Ok(pe) => pe,
+        Err(_) => return Vec::new(),
+    };
+
+    let resources = match pe.resources() {
+        Ok(resources) => resources,
+        Err(_) => return Vec::new(),
+    };
+
+    let root = match resources.root() {
+        Ok(root) => root,
+        Err(_) => return Vec::new(),
+    };
+
+    let manifest_type_name = Name::Id(RT_MANIFEST);
+    let manifest_type_dir = match root.get_dir(manifest_type_name) {
+        Ok(dir) => dir,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut strings = Vec::new();
+
+    // Iterate over all manifest IDs (typically ID 1)
+    for entry in manifest_type_dir.id_entries() {
+        let _manifest_id = match entry.name() {
+            Ok(Name::Id(_id)) => _id,
+            _ => continue,
+        };
+
+        let manifest_dir = match entry.entry() {
+            Ok(pelite::resources::Entry::Directory(dir)) => dir,
+            _ => continue,
+        };
+
+        // Iterate over all languages (typically 0 for manifests)
+        for lang_entry in manifest_dir.id_entries() {
+            let _language_id = match lang_entry.name() {
+                Ok(Name::Id(_id)) => _id,
+                _ => continue,
+            };
+
+            let data_entry = match lang_entry.entry() {
+                Ok(pelite::resources::Entry::DataEntry(data)) => data,
+                _ => continue,
+            };
+
+            let manifest_bytes = match data_entry.bytes() {
+                Ok(bytes) => bytes,
+                Err(_) => continue,
+            };
+
+            // Decode manifest
+            let manifest_text = match decode_manifest(manifest_bytes) {
+                Ok(text) => text,
+                Err(_) => continue,
+            };
+
+            let encoding = detect_manifest_encoding(manifest_bytes);
+
+            // Best-effort RVA retrieval from pelite DataEntry
+            // Note: pelite's DataEntry API doesn't directly expose RVA, so we set to None
+            // If RVA mapping is needed, it would require parsing section headers separately
+            let rva = None;
+
+            // Length is based on decoded string bytes (String::len() returns byte length)
+            let length = manifest_text.len() as u32;
+            let found_string = FoundString {
+                text: manifest_text,
+                encoding,
+                offset: 0, // File offset not easily available from pelite DataEntry
+                rva,
+                section: Some(".rsrc".to_string()),
+                length,
+                tags: vec![Tag::Manifest, Tag::Resource],
+                score: 0,
+                source: StringSource::ResourceString,
+            };
+            strings.push(found_string);
+        }
+    }
+
+    strings
+}
+
+/// Extract all resource strings from a PE binary
+///
+/// Main orchestrator function that combines VERSIONINFO, STRINGTABLE, and MANIFEST
+/// string extraction. Returns all extracted strings with proper encoding and tags.
+///
+/// # Arguments
+///
+/// * `data` - Raw PE binary data
+///
+/// # Returns
+///
+/// Combined vector of FoundString entries from all resource types
+pub fn extract_resource_strings(data: &[u8]) -> Vec<FoundString> {
+    let mut all_strings = Vec::new();
+
+    // Extract VERSIONINFO strings
+    all_strings.extend(extract_version_info_strings(data));
+
+    // Extract STRINGTABLE strings
+    all_strings.extend(extract_string_table_strings(data));
+
+    // Extract MANIFEST strings
+    all_strings.extend(extract_manifest_strings(data));
+
+    all_strings
 }
 
 #[cfg(test)]
@@ -800,6 +1288,151 @@ mod tests {
         for resource in resources {
             assert!(resource.data_size > 0, "Resource should have non-zero size");
             assert!(resource.language <= 0xFFFF, "Language ID should be valid");
+        }
+    }
+
+    // Phase 2: String extraction tests
+
+    #[test]
+    fn test_decode_utf16le_valid() {
+        // Test UTF-16LE decoding with valid input
+        // "Hello" in UTF-16LE: 48 00 65 00 6C 00 6C 00 6F 00
+        let bytes = [0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00];
+        let result = decode_utf16le(&bytes);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Hello");
+    }
+
+    #[test]
+    fn test_decode_utf16le_with_null() {
+        // Test stripping trailing null terminators
+        // "Hi" + null terminator: 48 00 69 00 00 00
+        let bytes = [0x48, 0x00, 0x69, 0x00, 0x00, 0x00];
+        let result = decode_utf16le(&bytes);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Hi");
+    }
+
+    #[test]
+    fn test_decode_utf16le_odd_length() {
+        // Test error handling for odd-length input
+        // Should truncate last byte gracefully
+        let bytes = [0x48, 0x00, 0x65, 0x00, 0x6C]; // Odd length
+        let result = decode_utf16le(&bytes);
+        // Should still decode what it can
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[ignore] // Requires test_binary_with_resources.exe fixture
+    fn test_extract_version_info_strings_from_fixture() {
+        let fixture_path = get_fixture_path("test_binary_with_resources.exe");
+        assert!(
+            fixture_path.exists(),
+            "Fixture test_binary_with_resources.exe not found. See other test comments for build instructions."
+        );
+        let pe_data = fs::read(&fixture_path).expect("Failed to read resource fixture");
+        let strings = extract_version_info_strings(&pe_data);
+
+        // Should extract at least some version strings
+        assert!(!strings.is_empty(), "Should extract version info strings");
+        for string in &strings {
+            assert!(string.tags.contains(&Tag::Version));
+            assert!(string.tags.contains(&Tag::Resource));
+            assert_eq!(string.encoding, Encoding::Utf16Le);
+            assert_eq!(string.source, StringSource::ResourceString);
+        }
+    }
+
+    #[test]
+    #[ignore] // Requires test_binary_with_resources.exe fixture
+    fn test_extract_string_table_strings_from_fixture() {
+        let fixture_path = get_fixture_path("test_binary_with_resources.exe");
+        assert!(
+            fixture_path.exists(),
+            "Fixture test_binary_with_resources.exe not found. See other test comments for build instructions."
+        );
+        let pe_data = fs::read(&fixture_path).expect("Failed to read resource fixture");
+        let strings = extract_string_table_strings(&pe_data);
+
+        // Should extract at least some string table strings
+        assert!(!strings.is_empty(), "Should extract string table strings");
+        for string in &strings {
+            assert!(string.tags.contains(&Tag::Resource));
+            assert!(!string.tags.contains(&Tag::Version));
+            assert_eq!(string.encoding, Encoding::Utf16Le);
+            assert_eq!(string.source, StringSource::ResourceString);
+        }
+    }
+
+    #[test]
+    fn test_parse_string_table_block() {
+        // Test block parsing with crafted data
+        // Block with 2 strings: "A" (length 1) and "BC" (length 2)
+        // Format: [length1 u16][string1][length2 u16][string2]... (16 entries total)
+        let mut block = Vec::new();
+        // Entry 0: "A" = 01 00 41 00
+        block.extend_from_slice(&[0x01, 0x00, 0x41, 0x00]);
+        // Entry 1: "BC" = 02 00 42 00 43 00
+        block.extend_from_slice(&[0x02, 0x00, 0x42, 0x00, 0x43, 0x00]);
+        // Remaining 14 entries are empty (00 00)
+        for _ in 0..14 {
+            block.extend_from_slice(&[0x00, 0x00]);
+        }
+
+        let strings = parse_string_table_block(&block);
+        assert_eq!(strings.len(), 16);
+        assert_eq!(strings[0], Some("A".to_string()));
+        assert_eq!(strings[1], Some("BC".to_string()));
+        for item in strings.iter().skip(2) {
+            assert_eq!(item, &None);
+        }
+    }
+
+    #[test]
+    fn test_detect_manifest_encoding_utf8() {
+        // Test UTF-8 detection
+        let bytes = [0xEF, 0xBB, 0xBF, b'<', b'?', b'x', b'm'];
+        let encoding = detect_manifest_encoding(&bytes);
+        assert_eq!(encoding, Encoding::Utf8);
+    }
+
+    #[test]
+    fn test_detect_manifest_encoding_utf16le() {
+        // Test UTF-16LE detection
+        let bytes = [0xFF, 0xFE, b'<', 0x00, b'?', 0x00];
+        let encoding = detect_manifest_encoding(&bytes);
+        assert_eq!(encoding, Encoding::Utf16Le);
+    }
+
+    #[test]
+    fn test_extract_manifest_strings_empty() {
+        // Test with no manifest
+        let invalid_data = b"NOT_A_PE_FILE";
+        let strings = extract_manifest_strings(invalid_data);
+        assert!(strings.is_empty());
+    }
+
+    #[test]
+    #[ignore] // Requires test_binary_with_resources.exe fixture
+    fn test_extract_resource_strings_integration() {
+        // Test full orchestrator
+        let fixture_path = get_fixture_path("test_binary_with_resources.exe");
+        assert!(
+            fixture_path.exists(),
+            "Fixture test_binary_with_resources.exe not found. See other test comments for build instructions."
+        );
+        let pe_data = fs::read(&fixture_path).expect("Failed to read resource fixture");
+        let strings = extract_resource_strings(&pe_data);
+
+        // Should extract strings from at least one resource type
+        assert!(!strings.is_empty(), "Should extract some resource strings");
+
+        // Verify all strings have proper metadata
+        for string in &strings {
+            assert!(!string.text.is_empty());
+            assert!(string.tags.contains(&Tag::Resource));
+            assert_eq!(string.source, StringSource::ResourceString);
         }
     }
 }

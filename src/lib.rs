@@ -36,10 +36,14 @@
 //! The library is organized into focused modules:
 //!
 //! - [`container`]: Binary format detection and parsing (✅ Complete)
-//! - [`extraction`]: String extraction algorithms (🚧 Framework ready)
+//! - [`extraction`]: String extraction algorithms (✅ PE resources complete)
 //! - [`classification`]: Semantic analysis and tagging (🚧 Types defined)
 //! - [`output`]: Result formatting (🚧 Interfaces ready)
 //! - [`types`]: Core data structures and error handling (✅ Complete)
+//!
+//! ## PE Resource String Extraction
+//!
+//! - **PE Resource Strings**: VERSIONINFO, STRINGTABLE, and MANIFEST extraction (✅ Complete)
 
 pub mod classification;
 pub mod container;

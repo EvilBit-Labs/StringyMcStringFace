@@ -56,12 +56,25 @@
     - _Requirements: 1.2_
     - _Completed: Issue #4 - Phase 1 Foundation_
 
-  - [ ] 4.2 Implement PE resource string extraction
+  - [x] 4.2 Implement PE resource string extraction
 
-    - Extract strings from VERSIONINFO resources
-    - Extract strings from STRINGTABLE resources
-    - Add manifest resource string extraction
+    - Extract strings from VERSIONINFO resources ✅
+    - Extract strings from STRINGTABLE resources ✅
+    - Add manifest resource string extraction ✅
+    - Implement UTF-16LE decoding utilities ✅
+    - Add comprehensive unit tests ✅
+    - Add integration tests with fixtures ✅
     - _Requirements: 1.2_
+    - _Completed: Issue #5 - Phase 2 String Extraction_
+
+    **Implementation Notes:**
+
+    - VERSIONINFO: Uses pelite's `version_info()` API to extract all StringFileInfo key-value pairs
+    - STRINGTABLE: Manual parsing of RT_STRING blocks (16 strings per block, UTF-16LE)
+    - MANIFEST: Encoding detection (UTF-8/UTF-16LE/UTF-16BE) and XML extraction
+    - All strings tagged appropriately (`Tag::Version`, `Tag::Manifest`, `Tag::Resource`)
+    - Graceful error handling throughout (returns empty Vec on errors)
+    - Test coverage includes both unit tests and integration tests with real fixtures
 
 - [ ] 5. Implement Mach-O section classification
 
