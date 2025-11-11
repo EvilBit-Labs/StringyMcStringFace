@@ -22,11 +22,11 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.90
+        uses: dtolnay/rust-toolchain@1.91.0
 
       - uses: github/codeql-action/init@v4
         with:
-            languages: rust
+          languages: rust
 
       - uses: github/codeql-action/autobuild@v4
 
