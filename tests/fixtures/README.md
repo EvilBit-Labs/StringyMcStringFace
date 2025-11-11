@@ -5,7 +5,7 @@ This directory contains pre-compiled binary test fixtures used for snapshot test
 ## Fixtures
 
 - `test_binary_elf` - x86-64 ELF binary
-- `test_binary_macho` - ARM64 Mach-O binary
+- `test_binary_macho` - ARM64 Mach-O binary (contains typical load commands including LC_LOAD_DYLIB for system library dependencies like libSystem.B.dylib, potentially LC_RPATH commands, and framework dependencies if any frameworks are linked)
 - `test_binary_pe.exe` - x86-64 PE binary
 - `test_binary_with_resources.exe` - x86-64 PE binary with VERSIONINFO and STRINGTABLE resources
 
@@ -33,6 +33,20 @@ docker run --rm -v "$(pwd):/work" -w /work --platform linux/amd64 gcc:latest gcc
 clang -o test_binary_macho test_binary.c
 ```
 
+The resulting binary will have standard system library dependencies. To add rpaths for testing, use:
+
+```bash
+clang -o test_binary_macho test_binary.c -Wl,-rpath,@executable_path/../Frameworks
+```
+
+To link frameworks for testing, use:
+
+```bash
+clang -o test_binary_macho test_binary.c -framework Foundation
+```
+
+Note: The current fixture is sufficient for basic testing, but enhanced fixtures with rpaths and frameworks can be added later if needed.
+
 ### PE (x86-64)
 
 ```bash
@@ -40,6 +54,19 @@ docker run --rm -v "$(pwd):/work" -w /work mcr.microsoft.com/devcontainers/cpp:l
 ```
 
 Note: The current mingw-w64 build doesn't include resources, which is expected for Phase 1 testing.
+
+### Mach-O Load Commands
+
+Mach-O load command string extraction tests work cross-platform because they operate on binary data. The `test_binary_macho` fixture is an ARM64 binary but can be parsed on any platform using goblin.
+
+**Load commands tested:**
+
+- **LC_LOAD_DYLIB**: Library dependency paths (e.g., `/usr/lib/libSystem.B.dylib`)
+- **LC_LOAD_WEAK_DYLIB**: Weak library dependencies
+- **LC_REEXPORT_DYLIB**: Re-exported libraries
+- **LC_RPATH**: Runtime search paths (may contain @-variables like `@rpath`, `@executable_path`, `@loader_path`)
+
+The fixture should contain at least `libSystem.B.dylib` as a dependency (standard for all Mach-O executables). Framework paths and rpath variables are tested using the classification logic, even if the specific fixture doesn't contain them.
 
 ## Resource Testing
 
