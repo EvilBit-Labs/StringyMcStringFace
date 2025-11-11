@@ -29,13 +29,8 @@ fn test_pe_import_export_extraction() {
         "Should find sections in PE binary"
     );
 
-    // Verify resources field exists (may be None for simple binaries)
-    // The basic test_binary_pe.exe compiled from test_binary.c won't have resources
-    // since it's a minimal C program without resource files
-    assert!(
-        container_info.resources.is_some() || container_info.resources.is_none(),
-        "Resources field should exist in ContainerInfo"
-    );
+    // Note: resources may be None for minimal binaries like test_binary_pe.exe
+    // which is compiled from test_binary.c without resource files
 
     // Check exports (PE executables may not have exports, only DLLs typically do)
     let export_names: Vec<&str> = container_info
