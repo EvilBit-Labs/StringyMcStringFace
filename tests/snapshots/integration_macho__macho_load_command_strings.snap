@@ -1,0 +1,16 @@
+---
+source: tests/integration_macho.rs
+expression: output
+---
+=== DYLIB PATHS ===
+Total: 2
+
+Dylib Path 1: /usr/lib/libSystem.B.dylib
+Dylib Path 2: self
+
+=== RPATHS ===
+Total: 0
+
+
+=== FRAMEWORK PATHS ===
+Total: 0
