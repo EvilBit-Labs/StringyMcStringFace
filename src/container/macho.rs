@@ -40,6 +40,9 @@ impl MachoParser {
     }
 
     /// Calculate section weight based on likelihood of containing meaningful strings
+    ///
+    /// Note: Mach-O uses normalized weights (0.0-1.0) while other formats (ELF, PE)
+    /// currently use a 1-10 scale. Consider normalizing ELF/PE weights for consistency.
     fn calculate_section_weight(
         section_type: SectionType,
         segment_name: &str,
@@ -50,26 +53,32 @@ impl MachoParser {
             SectionType::StringData => {
                 match (segment_name, section_name) {
                     // __cstring is the primary string section in Mach-O
-                    ("__TEXT", "__cstring") => 10.0,
+                    ("__TEXT", "__cstring") => 1.0,
+                    // Objective-C method names - high priority identifiers
+                    ("__TEXT", "__objc_methname") => 1.0,
+                    // Objective-C class names - high priority identifiers
+                    ("__TEXT", "__objc_classname") => 1.0,
                     // __const may contain string constants
-                    ("__TEXT", "__const") => 9.0,
+                    ("__TEXT", "__const") => 0.7,
+                    // Unicode string literals
+                    ("__TEXT", "__ustring") => 0.7,
                     // Core Foundation strings
-                    ("__DATA_CONST", "__cfstring") => 8.5,
-                    _ => 8.0,
+                    ("__DATA_CONST", "__cfstring") => 0.7,
+                    _ => 0.7,
                 }
             }
             // Read-only data sections are likely to contain strings
-            SectionType::ReadOnlyData => 7.0,
+            SectionType::ReadOnlyData => 0.4,
             // Writable data sections may contain strings but less likely
-            SectionType::WritableData => 5.0,
+            SectionType::WritableData => 0.3,
             // Code sections unlikely to contain meaningful strings
-            SectionType::Code => 1.0,
+            SectionType::Code => 0.1,
             // Debug sections may contain some strings but usually not user-facing
-            SectionType::Debug => 2.0,
+            SectionType::Debug => 0.2,
             // Resources (not applicable to Mach-O but included for completeness)
-            SectionType::Resources => 8.0,
+            SectionType::Resources => 0.7,
             // Other sections get minimal weight
-            SectionType::Other => 1.0,
+            SectionType::Other => 0.1,
         }
     }
 
@@ -83,9 +92,12 @@ impl MachoParser {
 
         match (segment_name, section_name) {
             // String data sections - highest priority for string extraction
-            ("__TEXT", "__cstring") | ("__TEXT", "__const") | ("__DATA_CONST", "__cfstring") => {
-                StringData
-            }
+            ("__TEXT", "__cstring")
+            | ("__TEXT", "__const")
+            | ("__DATA_CONST", "__cfstring")
+            | ("__TEXT", "__objc_methname")
+            | ("__TEXT", "__objc_classname")
+            | ("__TEXT", "__ustring") => StringData,
 
             // Read-only data sections
             ("__DATA_CONST", _) => ReadOnlyData,
@@ -365,6 +377,18 @@ mod tests {
             MachoParser::classify_section("__DATA_CONST", "__cfstring"),
             SectionType::StringData
         );
+        assert_eq!(
+            MachoParser::classify_section("__TEXT", "__objc_methname"),
+            SectionType::StringData
+        );
+        assert_eq!(
+            MachoParser::classify_section("__TEXT", "__objc_classname"),
+            SectionType::StringData
+        );
+        assert_eq!(
+            MachoParser::classify_section("__TEXT", "__ustring"),
+            SectionType::StringData
+        );
 
         // Test read-only data sections
         assert_eq!(
@@ -476,11 +500,11 @@ mod tests {
         // String data sections should get highest weights
         assert_eq!(
             MachoParser::calculate_section_weight(SectionType::StringData, "__TEXT", "__cstring"),
-            10.0
+            1.0
         );
         assert_eq!(
             MachoParser::calculate_section_weight(SectionType::StringData, "__TEXT", "__const"),
-            9.0
+            0.7
         );
         assert_eq!(
             MachoParser::calculate_section_weight(
@@ -488,7 +512,27 @@ mod tests {
                 "__DATA_CONST",
                 "__cfstring"
             ),
-            8.5
+            0.7
+        );
+        assert_eq!(
+            MachoParser::calculate_section_weight(
+                SectionType::StringData,
+                "__TEXT",
+                "__objc_methname"
+            ),
+            1.0
+        );
+        assert_eq!(
+            MachoParser::calculate_section_weight(
+                SectionType::StringData,
+                "__TEXT",
+                "__objc_classname"
+            ),
+            1.0
+        );
+        assert_eq!(
+            MachoParser::calculate_section_weight(SectionType::StringData, "__TEXT", "__ustring"),
+            0.7
         );
 
         // Read-only data sections
@@ -498,31 +542,31 @@ mod tests {
                 "__DATA_CONST",
                 "__const"
             ),
-            7.0
+            0.4
         );
 
         // Writable data sections
         assert_eq!(
             MachoParser::calculate_section_weight(SectionType::WritableData, "__DATA", "__data"),
-            5.0
+            0.3
         );
 
         // Code sections should get low weight
         assert_eq!(
             MachoParser::calculate_section_weight(SectionType::Code, "__TEXT", "__text"),
-            1.0
+            0.1
         );
 
         // Debug sections
         assert_eq!(
             MachoParser::calculate_section_weight(SectionType::Debug, "__DWARF", "__debug_info"),
-            2.0
+            0.2
         );
 
         // Other sections
         assert_eq!(
             MachoParser::calculate_section_weight(SectionType::Other, "__UNKNOWN", "__unknown"),
-            1.0
+            0.1
         );
     }
 }
