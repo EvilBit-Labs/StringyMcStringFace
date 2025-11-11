@@ -267,11 +267,12 @@ fn test_macho_load_command_extraction_snapshot() {
     for (i, string) in dylib_paths.iter().take(20).enumerate() {
         let is_framework = string.text.contains(".framework");
         output.push_str(&format!(
-            "Dylib Path {}: {} {}\n",
+            "Dylib Path {}: {}{}",
             i + 1,
             string.text,
-            if is_framework { "(Framework)" } else { "" }
+            if is_framework { " (Framework)" } else { "" }
         ));
+        output.push('\n');
     }
     if dylib_paths.len() > 20 {
         output.push_str(&format!("... and {} more\n", dylib_paths.len() - 20));
@@ -285,15 +286,16 @@ fn test_macho_load_command_extraction_snapshot() {
     for (i, string) in rpaths.iter().take(20).enumerate() {
         let has_variable = has_rpath_variable(&string.text);
         output.push_str(&format!(
-            "Rpath {}: {} {}\n",
+            "Rpath {}: {}{}",
             i + 1,
             string.text,
             if has_variable {
-                "(Contains @-variable)"
+                " (Contains @-variable)"
             } else {
                 ""
             }
         ));
+        output.push('\n');
     }
     if rpaths.len() > 20 {
         output.push_str(&format!("... and {} more\n", rpaths.len() - 20));
@@ -489,16 +491,14 @@ fn test_macho_rpath_variable_detection() {
 
     for rpath_var in &rpaths_with_vars {
         let mut variables_found = Vec::new();
-        if has_rpath_variable(&rpath_var.text) {
-            if rpath_var.text.contains("@rpath") {
-                variables_found.push("@rpath");
-            }
-            if rpath_var.text.contains("@executable_path") {
-                variables_found.push("@executable_path");
-            }
-            if rpath_var.text.contains("@loader_path") {
-                variables_found.push("@loader_path");
-            }
+        if rpath_var.text.contains("@rpath") {
+            variables_found.push("@rpath");
+        }
+        if rpath_var.text.contains("@executable_path") {
+            variables_found.push("@executable_path");
+        }
+        if rpath_var.text.contains("@loader_path") {
+            variables_found.push("@loader_path");
         }
         println!(
             "Rpath variable found: {} (variables: {:?})",
