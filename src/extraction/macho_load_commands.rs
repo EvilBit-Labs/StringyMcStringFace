@@ -6,27 +6,31 @@
 //!
 //! # Examples
 //!
-//! ```rust
+//! ```rust,no_run
+//! use std::error::Error;
 //! use stringy::extraction::macho_load_commands::extract_load_command_strings;
 //! use stringy::types::{Tag, StringSource};
 //!
-//! let macho_data = std::fs::read("example.dylib")?;
-//! let strings = extract_load_command_strings(&macho_data);
+//! fn main() -> Result<(), Box<dyn Error>> {
+//!     let macho_data = std::fs::read("example.dylib")?;
+//!     let strings = extract_load_command_strings(&macho_data);
 //!
-//! // Filter dylib paths
-//! let dylib_paths: Vec<_> = strings.iter()
-//!     .filter(|s| s.tags.contains(&Tag::DylibPath))
-//!     .collect();
+//!     // Filter dylib paths
+//!     let dylib_paths: Vec<_> = strings.iter()
+//!         .filter(|s| s.tags.contains(&Tag::DylibPath))
+//!         .collect();
 //!
-//! // Filter rpaths
-//! let rpaths: Vec<_> = strings.iter()
-//!     .filter(|s| s.tags.contains(&Tag::Rpath))
-//!     .collect();
+//!     // Filter rpaths
+//!     let rpaths: Vec<_> = strings.iter()
+//!         .filter(|s| s.tags.contains(&Tag::Rpath))
+//!         .collect();
 //!
-//! // Filter framework paths
-//! let framework_paths: Vec<_> = strings.iter()
-//!     .filter(|s| s.tags.contains(&Tag::FrameworkPath))
-//!     .collect();
+//!     // Filter framework paths
+//!     let framework_paths: Vec<_> = strings.iter()
+//!         .filter(|s| s.tags.contains(&Tag::FrameworkPath))
+//!         .collect();
+//!     Ok(())
+//! }
 //! ```
 
 use crate::types::{Encoding, FoundString, StringSource, Tag};
@@ -188,8 +192,12 @@ fn extract_architecture_data<'a>(
     let offset = arch.offset as usize;
     let size = arch.size as usize;
 
-    if offset + size <= data.len() {
-        Ok(&data[offset..offset + size])
+    if let Some(end) = offset.checked_add(size) {
+        if end <= data.len() {
+            Ok(&data[offset..end])
+        } else {
+            Err(())
+        }
     } else {
         Err(())
     }

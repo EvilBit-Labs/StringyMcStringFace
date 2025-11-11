@@ -5,7 +5,10 @@ This directory contains pre-compiled binary test fixtures used for snapshot test
 ## Fixtures
 
 - `test_binary_elf` - x86-64 ELF binary
-- `test_binary_macho` - ARM64 Mach-O binary (contains typical load commands including LC_LOAD_DYLIB for system library dependencies like libSystem.B.dylib, potentially LC_RPATH commands, and framework dependencies if any frameworks are linked)
+- `test_binary_macho` - ARM64 Mach-O binary with standard load commands:
+  - LC_LOAD_DYLIB for system library dependencies (e.g., libSystem.B.dylib)
+  - May include LC_RPATH commands
+  - May include framework dependencies
 - `test_binary_pe.exe` - x86-64 PE binary
 - `test_binary_with_resources.exe` - x86-64 PE binary with VERSIONINFO and STRINGTABLE resources
 
