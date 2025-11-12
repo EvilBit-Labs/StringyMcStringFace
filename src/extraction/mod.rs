@@ -32,15 +32,15 @@
 //!
 //! - `extract_ascii_strings()`: Basic byte-level ASCII string scanning
 //! - `extract_from_section()`: Section-aware extraction with proper metadata population
-//! - `ExtractionConfig`: Configuration for minimum/maximum length filtering
+//! - `AsciiExtractionConfig`: Configuration for minimum/maximum length filtering
 //!
 //! # ASCII Extraction Example
 //!
 //! ```rust
-//! use stringy::extraction::ascii::{extract_ascii_strings, ExtractionConfig as AsciiConfig};
+//! use stringy::extraction::ascii::{extract_ascii_strings, AsciiExtractionConfig};
 //!
 //! let data = b"Hello\0World\0Test123";
-//! let config = AsciiConfig::default();
+//! let config = AsciiExtractionConfig::default();
 //! let strings = extract_ascii_strings(data, &config);
 //!
 //! for string in strings {
@@ -74,13 +74,12 @@
 //! // Format-specific extractors
 //! use stringy::extraction::{
 //!     extract_ascii_strings, extract_load_command_strings, extract_resources,
-//!     extract_resource_strings,
+//!     extract_resource_strings, AsciiExtractionConfig,
 //! };
-//! use stringy::extraction::ascii::ExtractionConfig as AsciiExtractionConfig;
 //!
 //! // ASCII extraction
-//! let config = AsciiExtractionConfig::default();
-//! let ascii_strings = extract_ascii_strings(&data, &config);
+//! let ascii_config = AsciiExtractionConfig::default();
+//! let ascii_strings = extract_ascii_strings(&data, &ascii_config);
 //!
 //! // Phase 1: Get resource metadata
 //! let metadata = extract_resources(&data);
@@ -101,7 +100,7 @@ pub mod ascii;
 pub mod macho_load_commands;
 pub mod pe_resources;
 
-pub use ascii::{extract_ascii_strings, extract_from_section};
+pub use ascii::{AsciiExtractionConfig, extract_ascii_strings, extract_from_section};
 pub use macho_load_commands::extract_load_command_strings;
 pub use pe_resources::{extract_resource_strings, extract_resources};
 
@@ -432,9 +431,9 @@ impl StringExtractor for BasicExtractor {
     }
 }
 
-/// Check if a byte is printable ASCII or common whitespace
+/// Check if a byte is printable text (ASCII or common whitespace)
 ///
-/// Printable ASCII includes characters from 0x20 (space) to 0x7E (~),
+/// Printable text includes characters from 0x20 (space) to 0x7E (~),
 /// plus common whitespace characters: tab (0x09), newline (0x0A), and
 /// carriage return (0x0D).
 ///
@@ -448,7 +447,7 @@ impl StringExtractor for BasicExtractor {
 ///
 /// When using both extractors on the same data, be aware that they may produce different
 /// results due to this definitional difference.
-fn is_printable_ascii(byte: u8) -> bool {
+fn is_printable_text_byte(byte: u8) -> bool {
     matches!(byte, 0x09 | 0x0A | 0x0D | 0x20..=0x7E)
 }
 
@@ -457,7 +456,7 @@ fn is_printable_ascii(byte: u8) -> bool {
 /// This includes printable ASCII, UTF-8 continuation bytes (0x80-0xBF),
 /// and UTF-8 start bytes (0xC2-0xF4 for valid UTF-8 sequences).
 fn could_be_utf8_byte(byte: u8) -> bool {
-    is_printable_ascii(byte) || matches!(byte, 0x80..=0xBF | 0xC2..=0xF4)
+    is_printable_text_byte(byte) || matches!(byte, 0x80..=0xBF | 0xC2..=0xF4)
 }
 
 /// Extract ASCII and UTF-8 strings from byte data
@@ -552,25 +551,25 @@ mod tests {
     use crate::types::{BinaryFormat, ExportInfo, ImportInfo, SectionType};
 
     #[test]
-    fn test_is_printable_ascii() {
+    fn test_is_printable_text_byte() {
         // Printable ASCII
-        assert!(is_printable_ascii(b' '));
-        assert!(is_printable_ascii(b'A'));
-        assert!(is_printable_ascii(b'z'));
-        assert!(is_printable_ascii(b'0'));
-        assert!(is_printable_ascii(b'9'));
-        assert!(is_printable_ascii(b'~'));
+        assert!(is_printable_text_byte(b' '));
+        assert!(is_printable_text_byte(b'A'));
+        assert!(is_printable_text_byte(b'z'));
+        assert!(is_printable_text_byte(b'0'));
+        assert!(is_printable_text_byte(b'9'));
+        assert!(is_printable_text_byte(b'~'));
 
         // Common whitespace
-        assert!(is_printable_ascii(b'\t'));
-        assert!(is_printable_ascii(b'\n'));
-        assert!(is_printable_ascii(b'\r'));
+        assert!(is_printable_text_byte(b'\t'));
+        assert!(is_printable_text_byte(b'\n'));
+        assert!(is_printable_text_byte(b'\r'));
 
         // Non-printable
-        assert!(!is_printable_ascii(0x00));
-        assert!(!is_printable_ascii(0x1F));
-        assert!(!is_printable_ascii(0x7F));
-        assert!(!is_printable_ascii(0xFF));
+        assert!(!is_printable_text_byte(0x00));
+        assert!(!is_printable_text_byte(0x1F));
+        assert!(!is_printable_text_byte(0x7F));
+        assert!(!is_printable_text_byte(0xFF));
     }
 
     #[test]

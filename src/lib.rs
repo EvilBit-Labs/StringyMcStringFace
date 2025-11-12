@@ -36,8 +36,8 @@
 //! println!("Found {} strings", strings.len());
 //!
 //! // ASCII string extraction (foundational encoding type)
-//! use stringy::extraction::ascii::{extract_ascii_strings, ExtractionConfig as AsciiConfig};
-//! let ascii_config = AsciiConfig::default();
+//! use stringy::extraction::{extract_ascii_strings, AsciiExtractionConfig};
+//! let ascii_config = AsciiExtractionConfig::default();
 //! let ascii_strings = extract_ascii_strings(&data, &ascii_config);
 //! println!("Found {} ASCII strings", ascii_strings.len());
 //! # Ok(())
@@ -50,6 +50,7 @@
 //!
 //! - [`container`]: Binary format detection and parsing (✅ Complete)
 //! - [`extraction`]: String extraction algorithms (✅ ASCII extraction and PE resources complete)
+//!   - ASCII extraction provides foundational encoding extraction as the reference implementation
 //! - [`classification`]: Semantic analysis and tagging (🚧 Types defined)
 //! - [`output`]: Result formatting (🚧 Interfaces ready)
 //! - [`types`]: Core data structures and error handling (✅ Complete)
@@ -72,4 +73,4 @@ pub use types::{
 };
 
 // Re-export extraction framework types
-pub use extraction::{BasicExtractor, ExtractionConfig, StringExtractor};
+pub use extraction::{AsciiExtractionConfig, BasicExtractor, ExtractionConfig, StringExtractor};

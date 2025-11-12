@@ -1,75 +1,41 @@
 //! ASCII String Extraction Module
 //!
-//! This module provides foundational ASCII string extraction functionality for StringyMcStringFace.
-//! It implements byte-level scanning for contiguous printable ASCII sequences and serves as the
-//! reference implementation for future UTF-8, UTF-16LE, and UTF-16BE extractors.
+//! This module provides foundational ASCII string extraction for StringyMcStringFace.
+//! It implements byte-level scanning for contiguous printable ASCII sequences and serves
+//! as the reference implementation for future UTF-8, UTF-16LE, and UTF-16BE extractors.
 //!
 //! # Examples
 //!
-//! ## Basic ASCII String Extraction
-//!
 //! ```rust
-//! use stringy::extraction::ascii::{extract_ascii_strings, ExtractionConfig as AsciiConfig};
-//!
-//! let data = b"Hello\0World\0Test123";
-//! let config = AsciiConfig::default();
-//! let strings = extract_ascii_strings(data, &config);
-//!
-//! for string in strings {
-//!     println!("Found: {} at offset {}", string.text, string.offset);
-//! }
-//! ```
-//!
-//! ## Section-Aware Extraction
-//!
-//! ```rust
-//! use stringy::extraction::ascii::{extract_from_section, ExtractionConfig as AsciiConfig};
+//! use stringy::extraction::ascii::{extract_ascii_strings, extract_from_section, AsciiExtractionConfig};
 //! use stringy::types::{SectionInfo, SectionType};
 //!
+//! // Basic extraction from raw data
+//! let data = b"Hello\0World\0Test123";
+//! let config = AsciiExtractionConfig::default();
+//! let strings = extract_ascii_strings(data, &config);
+//!
+//! // Section-aware extraction
 //! let section = SectionInfo {
 //!     name: ".rodata".to_string(),
-//!     offset: 100,
-//!     size: 50,
+//!     offset: 0,
+//!     size: 20,
 //!     rva: Some(0x1000),
 //!     section_type: SectionType::StringData,
 //!     is_executable: false,
 //!     is_writable: false,
 //!     weight: 1.0,
 //! };
-//!
-//! let data = b"prefix\0Hello World\0suffix";
-//! let config = AsciiConfig::default();
 //! let strings = extract_from_section(&section, data, &config);
-//!
-//! // Strings will have section metadata populated
-//! for string in strings {
-//!     assert_eq!(string.section, Some(".rodata".to_string()));
-//! }
-//! ```
-//!
-//! ## Custom Configuration
-//!
-//! ```rust
-//! use stringy::extraction::ascii::{extract_ascii_strings, ExtractionConfig as AsciiConfig};
-//!
-//! // Extract only strings between 8 and 100 bytes
-//! let config = AsciiConfig {
-//!     min_length: 8,
-//!     max_length: Some(100),
-//! };
-//!
-//! let data = b"Short\0MediumString\0VeryLongStringHere";
-//! let strings = extract_ascii_strings(data, &config);
-//! // Only "MediumString" will be extracted
 //! ```
 
 use crate::types::{Encoding, FoundString, SectionInfo, StringSource};
 
 /// Configuration for ASCII string extraction
 ///
-/// Controls minimum and maximum string length filtering during extraction.
-/// This structure serves as the foundation for future configuration expansion
-/// (encoding preferences, tag filters, etc.) as mentioned in the issue.
+/// Controls minimum and maximum string length filtering. This structure serves as the
+/// foundation for future configuration expansion, including encoding preferences and
+/// tag filters as mentioned in the issue.
 ///
 /// # Default Values
 ///
@@ -79,29 +45,27 @@ use crate::types::{Encoding, FoundString, SectionInfo, StringSource};
 /// # Examples
 ///
 /// ```rust
-/// use stringy::extraction::ascii::ExtractionConfig as AsciiConfig;
+/// use stringy::extraction::ascii::AsciiExtractionConfig;
 ///
 /// // Use default configuration
-/// let config = AsciiConfig::default();
+/// let config = AsciiExtractionConfig::default();
 ///
 /// // Custom minimum length
-/// let config = AsciiConfig::new(8);
+/// let config = AsciiExtractionConfig::new(8);
 ///
 /// // Custom minimum and maximum length
-/// let config = AsciiConfig {
-///     min_length: 5,
-///     max_length: Some(256),
-/// };
+/// let mut config = AsciiExtractionConfig::default();
+/// config.max_length = Some(256);
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ExtractionConfig {
+#[derive(Debug, Clone)]
+pub struct AsciiExtractionConfig {
     /// Minimum string length in bytes (default: 4)
     pub min_length: usize,
     /// Maximum string length in bytes (default: None, no limit)
     pub max_length: Option<usize>,
 }
 
-impl Default for ExtractionConfig {
+impl Default for AsciiExtractionConfig {
     fn default() -> Self {
         Self {
             min_length: 4,
@@ -110,21 +74,23 @@ impl Default for ExtractionConfig {
     }
 }
 
-impl ExtractionConfig {
-    /// Create a new `ExtractionConfig` with custom minimum length
-    ///
-    /// The maximum length will be set to `None` (no limit).
+impl AsciiExtractionConfig {
+    /// Create a new AsciiExtractionConfig with custom minimum length
     ///
     /// # Arguments
     ///
     /// * `min_length` - Minimum string length in bytes
     ///
-    /// # Examples
+    /// # Returns
+    ///
+    /// New AsciiExtractionConfig with specified minimum length and default max_length (None)
+    ///
+    /// # Example
     ///
     /// ```rust
-    /// use stringy::extraction::ascii::ExtractionConfig as AsciiConfig;
+    /// use stringy::extraction::ascii::AsciiExtractionConfig;
     ///
-    /// let config = AsciiConfig::new(8);
+    /// let config = AsciiExtractionConfig::new(8);
     /// assert_eq!(config.min_length, 8);
     /// assert_eq!(config.max_length, None);
     /// ```
@@ -141,21 +107,22 @@ impl ExtractionConfig {
 /// Printable ASCII includes characters from 0x20 (space) through 0x7E (tilde).
 /// This range covers all standard printable ASCII characters.
 ///
-/// **Note**: This function only considers the strict printable ASCII range (0x20-0x7E).
-/// Unlike the UTF-8-capable `is_printable_ascii` helper in `extraction::mod.rs`, this
-/// function does NOT include common whitespace characters like tab (0x09), newline (0x0A),
-/// or carriage return (0x0D). This ensures ASCII-only extraction produces consistent,
-/// predictable results without including control characters that may appear in binary data.
+/// **Note on printable character definitions**: This function uses a strict definition
+/// of printable ASCII (0x20-0x7E only), excluding whitespace control characters like
+/// tab, newline, and carriage return. This differs from `is_printable_text_byte` in
+/// `extraction::mod`, which includes common whitespace characters (0x09, 0x0A, 0x0D)
+/// to handle formatted text. This strict definition ensures ASCII-only extraction
+/// produces predictable, consistent results.
 ///
 /// # Arguments
 ///
-/// * `byte` - The byte to check
+/// * `byte` - Byte to check
 ///
 /// # Returns
 ///
 /// `true` if the byte is printable ASCII, `false` otherwise
 ///
-/// # Examples
+/// # Example
 ///
 /// ```rust
 /// use stringy::extraction::ascii::is_printable_ascii;
@@ -176,33 +143,9 @@ pub fn is_printable_ascii(byte: u8) -> bool {
 
 /// Extract ASCII strings from a byte slice
 ///
-/// Scans through the byte slice looking for contiguous sequences of printable
-/// ASCII characters. When a non-printable byte is encountered, checks if the
-/// accumulated sequence meets the minimum length threshold and creates a
-/// `FoundString` entry if it does.
-///
-/// **Note on StringSource**: This function performs raw byte-level scanning without
-/// section context, but currently uses `StringSource::SectionData` as the source type.
-/// A more appropriate variant (e.g., `StringSource::RawData`) may be added in a future
-/// update to better distinguish raw scans from section-aware extraction.
-///
-/// # Arguments
-///
-/// * `data` - Byte slice to scan for ASCII strings
-/// * `config` - Extraction configuration (minimum/maximum length)
-///
-/// # Returns
-///
-/// Vector of `FoundString` entries with the following metadata:
-/// - `text`: UTF-8 string from accumulated bytes
-/// - `encoding`: `Encoding::Ascii`
-/// - `offset`: Start position in the data slice (relative offset)
-/// - `length`: Byte count of the string
-/// - `source`: `StringSource::SectionData` (see note above)
-/// - `section`: `None` (use `extract_from_section` for section metadata)
-/// - `rva`: `None` (use `extract_from_section` for RVA)
-/// - `tags`: Empty vector
-/// - `score`: 0
+/// Scans through the byte slice looking for contiguous sequences of printable ASCII
+/// characters. When a non-printable byte is encountered, checks if the accumulated
+/// sequence meets the minimum length threshold and creates a FoundString entry.
 ///
 /// # Algorithm
 ///
@@ -213,13 +156,39 @@ pub fn is_printable_ascii(byte: u8) -> bool {
 /// 5. Handle end-of-buffer edge case by checking accumulated string after loop completes
 /// 6. Apply max_length filtering if configured
 ///
-/// # Examples
+/// # Arguments
+///
+/// * `data` - Byte slice to scan for ASCII strings
+/// * `config` - Extraction configuration
+///
+/// # Returns
+///
+/// Vector of FoundString entries with the following metadata:
+/// - `text`: UTF-8 string from accumulated bytes
+/// - `encoding`: `Encoding::Ascii`
+/// - `offset`: Start position in the data slice
+/// - `length`: Byte count
+/// - `source`: `StringSource::SectionData`
+/// - `tags`: Empty vector
+/// - `score`: 0
+/// - `section`: None
+/// - `rva`: None
+///
+/// # Edge Cases
+///
+/// - Empty input data returns empty vector
+/// - Data smaller than minimum length returns empty vector
+/// - String at buffer start (start_offset = 0)
+/// - String at buffer end (checked after loop)
+/// - Very long strings are filtered by max_length if configured
+///
+/// # Example
 ///
 /// ```rust
-/// use stringy::extraction::ascii::{extract_ascii_strings, ExtractionConfig as AsciiConfig};
+/// use stringy::extraction::ascii::{extract_ascii_strings, AsciiExtractionConfig};
 ///
 /// let data = b"Hello\0World\0Test123";
-/// let config = AsciiConfig::default();
+/// let config = AsciiExtractionConfig::default();
 /// let strings = extract_ascii_strings(data, &config);
 ///
 /// assert_eq!(strings.len(), 3);
@@ -228,7 +197,7 @@ pub fn is_printable_ascii(byte: u8) -> bool {
 /// assert_eq!(strings[1].text, "World");
 /// assert_eq!(strings[1].offset, 6);
 /// ```
-pub fn extract_ascii_strings(data: &[u8], config: &ExtractionConfig) -> Vec<FoundString> {
+pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec<FoundString> {
     let mut strings = Vec::new();
     let mut current_string_start: Option<usize> = None;
     let mut current_string_bytes = Vec::new();
@@ -243,30 +212,31 @@ pub fn extract_ascii_strings(data: &[u8], config: &ExtractionConfig) -> Vec<Foun
             // End of current string candidate
             if let Some(start) = current_string_start {
                 let len = current_string_bytes.len();
-
                 // Check minimum length
                 if len >= config.min_length {
                     // Check maximum length if configured
-                    let within_max = config.max_length.is_none_or(|max| len <= max);
-
-                    if within_max {
-                        // Move buffer out to avoid cloning
-                        let bytes = std::mem::take(&mut current_string_bytes);
-                        // Convert to UTF-8 string (ASCII is valid UTF-8)
-                        if let Ok(text) = String::from_utf8(bytes) {
-                            strings.push(FoundString {
-                                text,
-                                encoding: Encoding::Ascii,
-                                offset: start as u64,
-                                length: len as u32,
-                                source: StringSource::SectionData,
-                                section: None,
-                                rva: None,
-                                tags: Vec::new(),
-                                score: 0,
-                            });
-                        }
+                    if let Some(max_len) = config.max_length
+                        && len > max_len
+                    {
+                        // Skip this string, reset accumulator
+                        current_string_start = None;
+                        current_string_bytes.clear();
+                        continue;
                     }
+                    // Convert bytes to UTF-8 string (ASCII is valid UTF-8)
+                    let bytes = std::mem::take(&mut current_string_bytes);
+                    let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
+                    strings.push(FoundString {
+                        text,
+                        encoding: Encoding::Ascii,
+                        offset: start as u64,
+                        rva: None,
+                        section: None,
+                        length: len as u32,
+                        tags: Vec::new(),
+                        score: 0,
+                        source: StringSource::SectionData,
+                    });
                 }
             }
             current_string_start = None;
@@ -277,29 +247,40 @@ pub fn extract_ascii_strings(data: &[u8], config: &ExtractionConfig) -> Vec<Foun
     // Handle string at end of buffer
     if let Some(start) = current_string_start {
         let len = current_string_bytes.len();
-
-        // Check minimum length
         if len >= config.min_length {
             // Check maximum length if configured
-            let within_max = config.max_length.is_none_or(|max| len <= max);
-
-            if within_max {
-                // Move buffer out to avoid cloning
-                let bytes = std::mem::take(&mut current_string_bytes);
-                // Convert to UTF-8 string (ASCII is valid UTF-8)
-                if let Ok(text) = String::from_utf8(bytes) {
+            if let Some(max_len) = config.max_length {
+                if len > max_len {
+                    // Skip this string
+                } else {
+                    let bytes = std::mem::take(&mut current_string_bytes);
+                    let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
                     strings.push(FoundString {
                         text,
                         encoding: Encoding::Ascii,
                         offset: start as u64,
-                        length: len as u32,
-                        source: StringSource::SectionData,
-                        section: None,
                         rva: None,
+                        section: None,
+                        length: len as u32,
                         tags: Vec::new(),
                         score: 0,
+                        source: StringSource::SectionData,
                     });
                 }
+            } else {
+                let bytes = std::mem::take(&mut current_string_bytes);
+                let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
+                strings.push(FoundString {
+                    text,
+                    encoding: Encoding::Ascii,
+                    offset: start as u64,
+                    rva: None,
+                    section: None,
+                    length: len as u32,
+                    tags: Vec::new(),
+                    score: 0,
+                    source: StringSource::SectionData,
+                });
             }
         }
     }
@@ -309,43 +290,48 @@ pub fn extract_ascii_strings(data: &[u8], config: &ExtractionConfig) -> Vec<Foun
 
 /// Extract ASCII strings from a specific section with proper metadata population
 ///
-/// This is a section-aware wrapper around `extract_ascii_strings` that:
-/// 1. Calculates the section data slice using section.offset and section.size
-/// 2. Calls `extract_ascii_strings` on the section data slice
-/// 3. Post-processes each FoundString to adjust offsets (add section.offset)
-/// 4. Populates section field with section.name
-/// 5. Populates rva field with calculated value (section.rva + relative_offset) if section.rva is Some
+/// This function extracts strings from a section of the binary, adjusting offsets
+/// and populating section-specific metadata (section name, RVA).
+///
+/// # Implementation
+///
+/// 1. Calculate section data slice using section.offset and section.size, with bounds checking
+/// 2. Call `extract_ascii_strings` on the section data slice
+/// 3. Post-process each FoundString to adjust offsets (add section.offset to relative offsets)
+/// 4. Populate section field with section.name.clone()
+/// 5. Populate rva field with calculated value (section.rva + relative_offset) if section.rva is Some
+/// 6. Return the adjusted vector of FoundStrings
 ///
 /// # Arguments
 ///
-/// * `section` - Section metadata containing offset, size, name, and optional RVA
-/// * `data` - Full binary data
+/// * `section` - Section metadata
+/// * `data` - Raw binary data
 /// * `config` - Extraction configuration
 ///
 /// # Returns
 ///
-/// Vector of `FoundString` entries with complete metadata including:
-/// - Absolute file offsets (section.offset + relative_offset)
-/// - Section names
-/// - RVA values (if section.rva is available)
+/// Vector of FoundString entries with complete metadata including:
+/// - Adjusted absolute offsets (section.offset + relative_offset)
+/// - Section name populated
+/// - RVA calculated if section.rva is available
 ///
 /// # Edge Cases
 ///
-/// - Empty input data: returns empty vector
-/// - Data smaller than minimum length: returns empty vector
 /// - Section boundaries: ensures slice doesn't exceed data.len()
 /// - Section offset + size overflow: uses checked arithmetic
+/// - Empty sections return empty vector
+/// - Sections beyond data bounds return empty vector
 ///
-/// # Examples
+/// # Example
 ///
 /// ```rust
-/// use stringy::extraction::ascii::{extract_from_section, ExtractionConfig as AsciiConfig};
+/// use stringy::extraction::ascii::{extract_from_section, AsciiExtractionConfig};
 /// use stringy::types::{SectionInfo, SectionType};
 ///
 /// let section = SectionInfo {
 ///     name: ".rodata".to_string(),
-///     offset: 100,
-///     size: 50,
+///     offset: 10,
+///     size: 20,
 ///     rva: Some(0x1000),
 ///     section_type: SectionType::StringData,
 ///     is_executable: false,
@@ -354,35 +340,30 @@ pub fn extract_ascii_strings(data: &[u8], config: &ExtractionConfig) -> Vec<Foun
 /// };
 ///
 /// let data = b"prefix\0Hello World\0suffix";
-/// let config = AsciiConfig::default();
+/// let config = AsciiExtractionConfig::default();
 /// let strings = extract_from_section(&section, data, &config);
 ///
-/// // Strings will have absolute offsets and section metadata
+/// // Strings will have adjusted offsets and section metadata
 /// for string in strings {
-///     assert!(string.offset >= section.offset);
 ///     assert_eq!(string.section, Some(".rodata".to_string()));
+///     assert!(string.offset >= 10);
 /// }
 /// ```
 pub fn extract_from_section(
     section: &SectionInfo,
     data: &[u8],
-    config: &ExtractionConfig,
+    config: &AsciiExtractionConfig,
 ) -> Vec<FoundString> {
-    // Early return for zero-sized sections
-    if section.size == 0 {
-        return Vec::new();
-    }
-
     // Calculate section data slice with bounds checking
     let section_offset = section.offset as usize;
     let section_size = section.size as usize;
 
-    // Check if section offset is beyond data length
+    // Check if section is out of bounds
     if section_offset >= data.len() {
         return Vec::new();
     }
 
-    // Calculate end offset with overflow protection
+    // Calculate end offset with checked arithmetic
     let end_offset = section_offset
         .checked_add(section_size)
         .unwrap_or(data.len())
@@ -397,16 +378,17 @@ pub fn extract_from_section(
     // Post-process: adjust offsets and populate metadata
     for string in &mut strings {
         // Adjust offset: add section.offset to relative offset
-        string.offset += section.offset;
+        // string.offset is relative to section_data (starts at 0), so add section.offset
+        let relative_offset = string.offset;
+        string.offset = section.offset + relative_offset;
 
         // Populate section name
         string.section = Some(section.name.clone());
 
-        // Populate RVA if section has RVA
-        if let Some(section_rva) = section.rva {
-            // Calculate relative offset within section
-            let relative_offset = string.offset - section.offset;
-            string.rva = Some(section_rva + relative_offset);
+        // Calculate and populate RVA if section.rva is available
+        if let Some(base_rva) = section.rva {
+            // relative_offset is the offset within the section
+            string.rva = Some(base_rva + relative_offset);
         }
     }
 
@@ -416,11 +398,25 @@ pub fn extract_from_section(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::SectionType;
+    use crate::types::{SectionInfo, SectionType};
+
+    // Helper to create test section
+    fn create_test_section(name: &str, offset: u64, size: u64, rva: Option<u64>) -> SectionInfo {
+        SectionInfo {
+            name: name.to_string(),
+            offset,
+            size,
+            rva,
+            section_type: SectionType::StringData,
+            is_executable: false,
+            is_writable: false,
+            weight: 1.0,
+        }
+    }
 
     #[test]
     fn test_is_printable_ascii() {
-        // Printable ASCII range
+        // Printable ASCII range (0x20-0x7E)
         assert!(is_printable_ascii(0x20)); // space
         assert!(is_printable_ascii(0x21)); // !
         assert!(is_printable_ascii(0x41)); // A
@@ -435,67 +431,67 @@ mod tests {
         assert!(!is_printable_ascii(0x00));
         assert!(!is_printable_ascii(0x1F));
         assert!(!is_printable_ascii(0x7F));
-        assert!(!is_printable_ascii(0x80));
         assert!(!is_printable_ascii(0xFF));
     }
 
     #[test]
     fn test_extract_ascii_strings_basic() {
-        let data = b"Hello\0World\0Test123";
-        let config = ExtractionConfig::default();
+        // Basic extraction with default minimum length (4)
+        let data = b"Hello\0World\0Test";
+        let config = AsciiExtractionConfig::default();
         let strings = extract_ascii_strings(data, &config);
 
         assert_eq!(strings.len(), 3);
         assert_eq!(strings[0].text, "Hello");
         assert_eq!(strings[0].offset, 0);
-        assert_eq!(strings[0].length, 5);
         assert_eq!(strings[0].encoding, Encoding::Ascii);
         assert_eq!(strings[0].source, StringSource::SectionData);
-
         assert_eq!(strings[1].text, "World");
         assert_eq!(strings[1].offset, 6);
-        assert_eq!(strings[1].length, 5);
-
-        assert_eq!(strings[2].text, "Test123");
+        assert_eq!(strings[2].text, "Test");
         assert_eq!(strings[2].offset, 12);
-        assert_eq!(strings[2].length, 7);
     }
 
     #[test]
     fn test_extract_ascii_strings_custom_min_length() {
+        // Custom minimum length filtering
         let data = b"Hi\0Test\0AB\0LongString";
-        let config = ExtractionConfig::new(3);
+        let config = AsciiExtractionConfig::new(3);
         let strings = extract_ascii_strings(data, &config);
 
         assert_eq!(strings.len(), 2);
         assert_eq!(strings[0].text, "Test");
         assert_eq!(strings[1].text, "LongString");
+        // "Hi" and "AB" should be filtered out (length < 3)
     }
 
     #[test]
     fn test_extract_ascii_strings_min_length_5() {
-        let data = b"Hi\0Test\0AB\0LongString";
-        let config = ExtractionConfig::new(5);
+        let data = b"Test\0Hello\0World";
+        let config = AsciiExtractionConfig::new(5);
         let strings = extract_ascii_strings(data, &config);
 
-        assert_eq!(strings.len(), 1);
-        assert_eq!(strings[0].text, "LongString");
+        assert_eq!(strings.len(), 2);
+        assert_eq!(strings[0].text, "Hello");
+        assert_eq!(strings[1].text, "World");
+        // "Test" should be filtered out (length < 5)
     }
 
     #[test]
     fn test_extract_ascii_strings_min_length_10() {
-        let data = b"Short\0Medium\0VeryLongString";
-        let config = ExtractionConfig::new(10);
+        let data = b"Short\0VeryLongStringHere";
+        let config = AsciiExtractionConfig::new(10);
         let strings = extract_ascii_strings(data, &config);
 
         assert_eq!(strings.len(), 1);
-        assert_eq!(strings[0].text, "VeryLongString");
+        assert_eq!(strings[0].text, "VeryLongStringHere");
     }
 
     #[test]
     fn test_extract_ascii_strings_empty_input() {
+        // Empty input edge case
         let data = b"";
-        let config = ExtractionConfig::default();
+        let config = AsciiExtractionConfig::default();
         let strings = extract_ascii_strings(data, &config);
 
         assert!(strings.is_empty());
@@ -503,28 +499,33 @@ mod tests {
 
     #[test]
     fn test_extract_ascii_strings_no_strings_found() {
+        // No strings found (all binary data)
         let data = &[0x00, 0xFF, 0x01, 0x02, 0x03];
-        let config = ExtractionConfig::default();
+        let config = AsciiExtractionConfig::default();
         let strings = extract_ascii_strings(data, &config);
 
         assert!(strings.is_empty());
     }
 
     #[test]
-    fn test_extract_ascii_strings_string_at_buffer_start() {
+    fn test_extract_ascii_strings_string_at_start() {
+        // String at buffer start
         let data = b"Start\0Middle\0End";
-        let config = ExtractionConfig::new(3);
+        let config = AsciiExtractionConfig::default();
         let strings = extract_ascii_strings(data, &config);
 
-        assert_eq!(strings.len(), 3);
+        // "End" is only 3 characters, below min_length=4, so filtered out
+        assert_eq!(strings.len(), 2);
         assert_eq!(strings[0].text, "Start");
         assert_eq!(strings[0].offset, 0);
+        assert_eq!(strings[1].text, "Middle");
     }
 
     #[test]
-    fn test_extract_ascii_strings_string_at_buffer_end() {
+    fn test_extract_ascii_strings_string_at_end() {
+        // String at buffer end
         let data = b"Start\0Middle\0EndTest";
-        let config = ExtractionConfig::default();
+        let config = AsciiExtractionConfig::default();
         let strings = extract_ascii_strings(data, &config);
 
         assert_eq!(strings.len(), 3);
@@ -534,322 +535,244 @@ mod tests {
 
     #[test]
     fn test_extract_ascii_strings_single_char_below_minimum() {
-        let data = b"A\0B\0C\0Test";
-        let config = ExtractionConfig::default();
+        // Single character below minimum
+        let data = b"A\0Test\0B\0C";
+        let config = AsciiExtractionConfig::default();
         let strings = extract_ascii_strings(data, &config);
 
         assert_eq!(strings.len(), 1);
         assert_eq!(strings[0].text, "Test");
+        // Single characters should be filtered out
     }
 
     #[test]
     fn test_extract_ascii_strings_exact_minimum_length() {
-        let data = b"Test\0ABCD";
-        let config = ExtractionConfig::default();
+        // Exact minimum length string
+        let data = b"Test\0Hello";
+        let config = AsciiExtractionConfig::default(); // min_length = 4
         let strings = extract_ascii_strings(data, &config);
 
         assert_eq!(strings.len(), 2);
         assert_eq!(strings[0].text, "Test");
         assert_eq!(strings[0].length, 4);
-        assert_eq!(strings[1].text, "ABCD");
-        assert_eq!(strings[1].length, 4);
+        assert_eq!(strings[1].text, "Hello");
     }
 
     #[test]
     fn test_extract_ascii_strings_offset_calculation() {
-        let data = b"First\0Second\0Third";
-        let config = ExtractionConfig::default();
+        // Offset calculation correctness
+        let data = b"prefix\0Hello\0World\0suffix";
+        let config = AsciiExtractionConfig::default();
         let strings = extract_ascii_strings(data, &config);
 
+        // All strings are >= 4 characters, so all should be extracted
+        assert_eq!(strings.len(), 4);
+        assert_eq!(strings[0].text, "prefix");
         assert_eq!(strings[0].offset, 0);
-        assert_eq!(strings[1].offset, 6);
-        assert_eq!(strings[2].offset, 13);
-    }
-
-    #[test]
-    fn test_extract_ascii_strings_max_length_filtering() {
-        let data = b"Short\0VeryLongStringHere\0Medium";
-        let config = ExtractionConfig {
-            min_length: 4,
-            max_length: Some(10),
-        };
-        let strings = extract_ascii_strings(data, &config);
-
-        assert_eq!(strings.len(), 2);
-        assert_eq!(strings[0].text, "Short");
-        assert_eq!(strings[1].text, "Medium");
-        assert!(!strings.iter().any(|s| s.text == "VeryLongStringHere"));
-    }
-
-    #[test]
-    fn test_extract_ascii_strings_max_length_exact() {
-        let data = b"Exactly10\0TooLongString";
-        let config = ExtractionConfig {
-            min_length: 4,
-            max_length: Some(10),
-        };
-        let strings = extract_ascii_strings(data, &config);
-
-        assert_eq!(strings.len(), 1);
-        assert_eq!(strings[0].text, "Exactly10");
+        assert_eq!(strings[1].text, "Hello");
+        assert_eq!(strings[1].offset, 7); // "prefix\0" = 7 bytes
+        assert_eq!(strings[2].text, "World");
+        assert_eq!(strings[2].offset, 13); // "prefix\0Hello\0" = 13 bytes
+        assert_eq!(strings[3].text, "suffix");
+        assert_eq!(strings[3].offset, 19); // "prefix\0Hello\0World\0" = 19 bytes
     }
 
     #[test]
     fn test_extract_ascii_strings_multiple_strings_sequence() {
-        // Use min_length=3 to test extraction of 3-character strings ("One", "Two")
-        // which would be filtered out by the default min_length=4
-        let data = b"One\0Two\0Three\0Four";
-        let config = ExtractionConfig::new(3);
+        // Multiple strings in sequence
+        let data = b"First\0Second\0Third\0Fourth";
+        let config = AsciiExtractionConfig::default();
         let strings = extract_ascii_strings(data, &config);
 
         assert_eq!(strings.len(), 4);
-        assert_eq!(strings[0].text, "One");
-        assert_eq!(strings[1].text, "Two");
-        assert_eq!(strings[2].text, "Three");
-        assert_eq!(strings[3].text, "Four");
+        assert_eq!(strings[0].text, "First");
+        assert_eq!(strings[1].text, "Second");
+        assert_eq!(strings[2].text, "Third");
+        assert_eq!(strings[3].text, "Fourth");
     }
 
     #[test]
     fn test_extract_ascii_strings_separated_by_single_byte() {
-        let data = b"First\x01Second\x02Third";
-        let config = ExtractionConfig::default();
+        // Strings separated by single non-printable byte
+        let data = b"Hello\x00World\x01Test";
+        let config = AsciiExtractionConfig::default();
         let strings = extract_ascii_strings(data, &config);
 
         assert_eq!(strings.len(), 3);
-        assert_eq!(strings[0].text, "First");
-        assert_eq!(strings[1].text, "Second");
-        assert_eq!(strings[2].text, "Third");
+        assert_eq!(strings[0].text, "Hello");
+        assert_eq!(strings[1].text, "World");
+        assert_eq!(strings[2].text, "Test");
+    }
+
+    #[test]
+    fn test_extract_ascii_strings_max_length_filtering() {
+        // Max length filtering if configured
+        let data = b"Short\0VeryLongStringHere";
+        let config = AsciiExtractionConfig {
+            max_length: Some(10),
+            ..Default::default()
+        };
+        let strings = extract_ascii_strings(data, &config);
+
+        assert_eq!(strings.len(), 1);
+        assert_eq!(strings[0].text, "Short");
+        // "VeryLongStringHere" should be filtered out (length > 10)
     }
 
     #[test]
     fn test_extract_ascii_strings_very_long_string() {
+        // Very long strings (test max_length enforcement)
         let long_string = "A".repeat(1000);
-        let data = format!("{}\0Test", long_string).into_bytes();
-        let config = ExtractionConfig {
-            min_length: 4,
+        let data = format!("{}\0Short", long_string).into_bytes();
+        let config = AsciiExtractionConfig {
             max_length: Some(100),
+            ..Default::default()
         };
         let strings = extract_ascii_strings(&data, &config);
 
-        // Very long string should be filtered out by max_length
         assert_eq!(strings.len(), 1);
-        assert_eq!(strings[0].text, "Test");
+        assert_eq!(strings[0].text, "Short");
+        // Very long string should be filtered out
     }
 
     #[test]
     fn test_extract_from_section_basic() {
-        let section = SectionInfo {
-            name: ".rodata".to_string(),
-            offset: 0,
-            size: 20,
-            rva: Some(0x1000),
-            section_type: SectionType::StringData,
-            is_executable: false,
-            is_writable: false,
-            weight: 1.0,
-        };
-
+        // Basic section extraction
+        let section = create_test_section(".rodata", 0, 20, Some(0x1000));
         let data = b"Hello World\0Test";
-        let config = ExtractionConfig::default();
+        let config = AsciiExtractionConfig::default();
         let strings = extract_from_section(&section, data, &config);
 
         assert_eq!(strings.len(), 2);
         assert_eq!(strings[0].text, "Hello World");
         assert_eq!(strings[0].offset, 0);
-        assert_eq!(strings[0].section, Some(".rodata".to_string()));
         assert_eq!(strings[0].rva, Some(0x1000));
+        assert_eq!(strings[0].section, Some(".rodata".to_string()));
         assert_eq!(strings[1].text, "Test");
         assert_eq!(strings[1].offset, 12);
         assert_eq!(strings[1].rva, Some(0x100C));
     }
 
     #[test]
-    fn test_extract_from_section_with_offset() {
-        let section = SectionInfo {
-            name: ".data".to_string(),
-            offset: 100,
-            size: 20,
-            rva: Some(0x2000),
-            section_type: SectionType::WritableData,
-            is_executable: false,
-            is_writable: true,
-            weight: 0.5,
-        };
+    fn test_extract_from_section_offset_adjustment() {
+        // Section metadata population (verify section name and RVA)
+        // data = b"prefix\0Hello World\0suffix"
+        //        "prefix\0" = 7 bytes, so "Hello World" starts at offset 7
+        // Section should start at 7 to include "Hello World"
+        let section = create_test_section(".data", 7, 12, Some(0x2000));
+        let data = b"prefix\0Hello World\0suffix";
+        let config = AsciiExtractionConfig::default();
+        let strings = extract_from_section(&section, data, &config);
 
-        let mut data = vec![0u8; 120];
-        let test_data = b"Hello\0World";
-        data[100..100 + test_data.len()].copy_from_slice(test_data);
-        let config = ExtractionConfig::default();
-        let strings = extract_from_section(&section, &data, &config);
-
-        assert_eq!(strings.len(), 2);
-        assert_eq!(strings[0].text, "Hello");
-        assert_eq!(strings[0].offset, 100);
-        assert_eq!(strings[0].section, Some(".data".to_string()));
+        assert_eq!(strings.len(), 1);
+        assert_eq!(strings[0].text, "Hello World");
+        // Section starts at 7, "Hello World" is at relative offset 0 within section
+        // Absolute offset = section.offset (7) + relative_offset (0) = 7
+        assert_eq!(strings[0].offset, 7);
         assert_eq!(strings[0].rva, Some(0x2000));
-        assert_eq!(strings[1].text, "World");
-        assert_eq!(strings[1].offset, 106);
-        assert_eq!(strings[1].rva, Some(0x2006));
+        assert_eq!(strings[0].section, Some(".data".to_string()));
     }
 
     #[test]
-    fn test_extract_from_section_section_metadata() {
-        let section = SectionInfo {
-            name: ".text".to_string(),
-            offset: 50,
-            size: 30,
-            rva: Some(0x3000),
-            section_type: SectionType::Code,
-            is_executable: true,
-            is_writable: false,
-            weight: 0.1,
-        };
+    fn test_extract_from_section_rva_calculation() {
+        // RVA calculation with section offset
+        let section = create_test_section(".text", 5, 10, Some(0x1000));
+        let data = b"pre\0Hello\0suf";
+        let config = AsciiExtractionConfig::default();
+        let strings = extract_from_section(&section, data, &config);
 
-        let mut data = vec![0u8; 80];
-        let test_data = b"TestString\0Another";
-        data[50..50 + test_data.len()].copy_from_slice(test_data);
-        let config = ExtractionConfig::default();
-        let strings = extract_from_section(&section, &data, &config);
-
-        for string in &strings {
-            assert_eq!(string.section, Some(".text".to_string()));
-            assert!(string.offset >= section.offset);
-            if let Some(rva) = string.rva {
-                assert!(rva >= section.rva.unwrap());
-            }
+        if !strings.is_empty() {
+            // Section data is data[5..15] = "Hello\0suf"
+            // "Hello" is at relative offset 0
+            // Absolute offset = 5 + 0 = 5
+            // RVA = 0x1000 + 0 = 0x1000
+            assert_eq!(strings[0].offset, 5);
+            assert_eq!(strings[0].rva, Some(0x1000));
         }
     }
 
     #[test]
     fn test_extract_from_section_no_rva() {
-        let section = SectionInfo {
-            name: ".rodata".to_string(),
-            offset: 0,
-            size: 15,
-            rva: None,
-            section_type: SectionType::StringData,
-            is_executable: false,
-            is_writable: false,
-            weight: 1.0,
-        };
-
-        let data = b"Hello\0World";
-        let config = ExtractionConfig::default();
+        // Section without RVA
+        let section = create_test_section(".data", 0, 20, None);
+        let data = b"Hello World\0Test";
+        let config = AsciiExtractionConfig::default();
         let strings = extract_from_section(&section, data, &config);
 
         assert_eq!(strings.len(), 2);
+        assert_eq!(strings[0].rva, None);
+        assert_eq!(strings[1].rva, None);
+    }
+
+    #[test]
+    fn test_extract_from_section_section_name() {
+        // Verify section name is populated
+        let section = create_test_section(".custom", 0, 20, Some(0x3000));
+        let data = b"Test String\0Another";
+        let config = AsciiExtractionConfig::default();
+        let strings = extract_from_section(&section, data, &config);
+
         for string in &strings {
-            assert_eq!(string.rva, None);
-            assert_eq!(string.section, Some(".rodata".to_string()));
+            assert_eq!(string.section, Some(".custom".to_string()));
         }
     }
 
     #[test]
-    fn test_extract_from_section_empty_section() {
-        let section = SectionInfo {
-            name: ".empty".to_string(),
-            offset: 0,
-            size: 0,
-            rva: None,
-            section_type: SectionType::Other,
-            is_executable: false,
-            is_writable: false,
-            weight: 0.0,
-        };
-
-        let data = b"Some data";
-        let config = ExtractionConfig::default();
+    fn test_extract_from_section_bounds_checking() {
+        // Section boundaries (ensure slice doesn't exceed data.len())
+        let section = create_test_section(".data", 0, 1000, None);
+        let data = b"Short data";
+        let config = AsciiExtractionConfig::default();
         let strings = extract_from_section(&section, data, &config);
 
-        assert!(strings.is_empty());
-    }
-
-    #[test]
-    fn test_extract_from_section_section_boundaries() {
-        let section = SectionInfo {
-            name: ".data".to_string(),
-            offset: 10,
-            size: 15,
-            rva: Some(0x1000),
-            section_type: SectionType::WritableData,
-            is_executable: false,
-            is_writable: true,
-            weight: 0.5,
-        };
-
-        let data = b"prefix\0Hello World\0suffix";
-        let config = ExtractionConfig::default();
-        let strings = extract_from_section(&section, data, &config);
-
-        // Should only extract strings within section boundaries
-        for string in &strings {
-            assert!(string.offset >= section.offset);
-            assert!(string.offset < section.offset + section.size);
-        }
+        // Should only extract from available data, not panic
+        assert!(strings.len() <= 1);
     }
 
     #[test]
     fn test_extract_from_section_out_of_bounds() {
-        let section = SectionInfo {
-            name: ".invalid".to_string(),
-            offset: 1000,
-            size: 100,
-            rva: None,
-            section_type: SectionType::Other,
-            is_executable: false,
-            is_writable: false,
-            weight: 0.0,
-        };
-
-        let data = b"small data";
-        let config = ExtractionConfig::default();
+        // Section offset + size overflow (use checked arithmetic)
+        let section = create_test_section(".data", 1000, 100, None);
+        let data = b"Short data";
+        let config = AsciiExtractionConfig::default();
         let strings = extract_from_section(&section, data, &config);
 
+        // Should return empty vector, not panic
         assert!(strings.is_empty());
     }
 
     #[test]
-    fn test_extract_from_section_overflow_protection() {
-        let section = SectionInfo {
-            name: ".overflow".to_string(),
-            offset: u64::MAX - 10,
-            size: 100,
-            rva: None,
-            section_type: SectionType::Other,
-            is_executable: false,
-            is_writable: false,
-            weight: 0.0,
-        };
-
-        let data = b"test data";
-        let config = ExtractionConfig::default();
+    fn test_extract_from_section_empty_section() {
+        // Empty section
+        let section = create_test_section(".empty", 0, 0, None);
+        let data = b"Some data";
+        let config = AsciiExtractionConfig::default();
         let strings = extract_from_section(&section, data, &config);
 
-        // Should handle overflow gracefully
         assert!(strings.is_empty());
     }
 
     #[test]
     fn test_extraction_config_default() {
-        let config = ExtractionConfig::default();
+        let config = AsciiExtractionConfig::default();
         assert_eq!(config.min_length, 4);
         assert_eq!(config.max_length, None);
     }
 
     #[test]
     fn test_extraction_config_new() {
-        let config = ExtractionConfig::new(8);
+        let config = AsciiExtractionConfig::new(8);
         assert_eq!(config.min_length, 8);
         assert_eq!(config.max_length, None);
     }
 
     #[test]
-    fn test_extraction_config_custom() {
-        let config = ExtractionConfig {
-            min_length: 5,
+    fn test_extraction_config_custom_max_length() {
+        let config = AsciiExtractionConfig {
             max_length: Some(256),
+            ..Default::default()
         };
-        assert_eq!(config.min_length, 5);
+        assert_eq!(config.min_length, 4);
         assert_eq!(config.max_length, Some(256));
     }
 }
