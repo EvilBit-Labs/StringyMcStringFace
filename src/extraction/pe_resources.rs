@@ -445,6 +445,7 @@ pub fn extract_version_info_strings(data: &[u8]) -> Vec<FoundString> {
                 tags: vec![Tag::Version, Tag::Resource],
                 score: 0,
                 source: StringSource::ResourceString,
+                confidence: 1.0,
             };
             strings.push(found_string);
         });
@@ -600,6 +601,7 @@ pub fn extract_string_table_strings(data: &[u8]) -> Vec<FoundString> {
                     tags: vec![Tag::Resource],
                     score: 0,
                     source: StringSource::ResourceString,
+                    confidence: 1.0,
                 };
                 strings.push(found_string);
             }
@@ -787,6 +789,7 @@ pub fn extract_manifest_strings(data: &[u8]) -> Vec<FoundString> {
                 tags: vec![Tag::Manifest, Tag::Resource],
                 score: 0,
                 source: StringSource::ResourceString,
+                confidence: 1.0,
             };
             strings.push(found_string);
         }

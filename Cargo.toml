@@ -20,6 +20,7 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5.51", features = ["derive"] }
+entropy = "0.4"
 goblin = "0.10.3"
 pelite = "0.10"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -42,4 +43,8 @@ harness = false
 
 [[bench]]
 name = "pe"
+harness = false
+
+[[bench]]
+name = "ascii_extraction"
 harness = false

@@ -62,11 +62,21 @@ fn test_basic_extractor_utf8_strings() {
         .extract_from_section(data, &section, &config)
         .unwrap();
 
-    assert!(strings.len() >= 2);
-    assert_eq!(strings[0].text, "Hello 世界");
-    assert_eq!(strings[0].encoding, Encoding::Utf8);
-    assert_eq!(strings[1].text, "Test 测试");
-    assert_eq!(strings[1].encoding, Encoding::Utf8);
+    // Should extract UTF-8 strings "Hello 世界" and "Test 测试"
+    // Note: ASCII extractor may also extract ASCII prefixes, but UTF-8 extractor
+    // will extract the full UTF-8 strings. We check for the UTF-8 strings.
+    let utf8_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf8)
+        .collect();
+    assert!(
+        utf8_strings.len() >= 2,
+        "Should find at least 2 UTF-8 strings, found {} UTF-8 strings ({} total)",
+        utf8_strings.len(),
+        strings.len()
+    );
+    assert!(utf8_strings.iter().any(|s| s.text == "Hello 世界"));
+    assert!(utf8_strings.iter().any(|s| s.text == "Test 测试"));
 }
 
 #[test]
@@ -394,6 +404,7 @@ fn test_basic_extractor_encoding_filtering() {
     // Only allow ASCII, exclude UTF-8
     let config = ExtractionConfig {
         encodings: vec![Encoding::Ascii],
+        enabled_encodings: vec![Encoding::Ascii],
         ..Default::default()
     };
 

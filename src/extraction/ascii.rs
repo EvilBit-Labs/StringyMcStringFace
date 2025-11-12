@@ -29,6 +29,8 @@
 //! let strings = extract_from_section(&section, data, &config);
 //! ```
 
+use crate::extraction::config::NoiseFilterConfig;
+use crate::extraction::filters::{CompositeNoiseFilter, FilterContext};
 use crate::types::{Encoding, FoundString, SectionInfo, StringSource};
 
 /// Configuration for ASCII string extraction
@@ -236,6 +238,7 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                         tags: Vec::new(),
                         score: 0,
                         source: StringSource::SectionData,
+                        confidence: 1.0,
                     });
                 }
             }
@@ -265,6 +268,7 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                         tags: Vec::new(),
                         score: 0,
                         source: StringSource::SectionData,
+                        confidence: 1.0,
                     });
                 }
             } else {
@@ -280,6 +284,7 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                     tags: Vec::new(),
                     score: 0,
                     source: StringSource::SectionData,
+                    confidence: 1.0,
                 });
             }
         }
@@ -291,22 +296,28 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
 /// Extract ASCII strings from a specific section with proper metadata population
 ///
 /// This function extracts strings from a section of the binary, adjusting offsets
-/// and populating section-specific metadata (section name, RVA).
+/// and populating section-specific metadata (section name, RVA). It also applies
+/// noise filtering if enabled in the extraction configuration.
 ///
 /// # Implementation
 ///
 /// 1. Calculate section data slice using section.offset and section.size, with bounds checking
 /// 2. Call `extract_ascii_strings` on the section data slice
-/// 3. Post-process each FoundString to adjust offsets (add section.offset to relative offsets)
-/// 4. Populate section field with section.name.clone()
-/// 5. Populate rva field with calculated value (section.rva + relative_offset) if section.rva is Some
-/// 6. Return the adjusted vector of FoundStrings
+/// 3. For each candidate string, compute confidence using noise filters if enabled
+/// 4. Apply confidence threshold filtering if noise filtering is enabled
+/// 5. Post-process each FoundString to adjust offsets (add section.offset to relative offsets)
+/// 6. Populate section field with section.name.clone()
+/// 7. Populate rva field with calculated value (section.rva + relative_offset) if section.rva is Some
+/// 8. Return the adjusted vector of FoundStrings
 ///
 /// # Arguments
 ///
 /// * `section` - Section metadata
 /// * `data` - Raw binary data
 /// * `config` - Extraction configuration
+/// * `noise_filter_config` - Optional noise filter configuration (if None, filtering is skipped)
+/// * `noise_filtering_enabled` - Whether to apply noise filtering
+/// * `min_confidence_threshold` - Minimum confidence threshold for filtering
 ///
 /// # Returns
 ///
@@ -314,6 +325,7 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
 /// - Adjusted absolute offsets (section.offset + relative_offset)
 /// - Section name populated
 /// - RVA calculated if section.rva is available
+/// - Confidence scores computed from noise filters
 ///
 /// # Edge Cases
 ///
@@ -326,6 +338,7 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
 ///
 /// ```rust
 /// use stringy::extraction::ascii::{extract_from_section, AsciiExtractionConfig};
+/// use stringy::extraction::config::NoiseFilterConfig;
 /// use stringy::types::{SectionInfo, SectionType};
 ///
 /// let section = SectionInfo {
@@ -341,7 +354,8 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
 ///
 /// let data = b"prefix\0Hello World\0suffix";
 /// let config = AsciiExtractionConfig::default();
-/// let strings = extract_from_section(&section, data, &config);
+/// let noise_config = Some(NoiseFilterConfig::default());
+/// let strings = extract_from_section(&section, data, &config, noise_config.as_ref(), true, 0.5);
 ///
 /// // Strings will have adjusted offsets and section metadata
 /// for string in strings {
@@ -353,6 +367,9 @@ pub fn extract_from_section(
     section: &SectionInfo,
     data: &[u8],
     config: &AsciiExtractionConfig,
+    noise_filter_config: Option<&NoiseFilterConfig>,
+    noise_filtering_enabled: bool,
+    min_confidence_threshold: f32,
 ) -> Vec<FoundString> {
     // Calculate section data slice with bounds checking
     let section_offset = section.offset as usize;
@@ -373,10 +390,33 @@ pub fn extract_from_section(
     let section_data = &data[section_offset..end_offset];
 
     // Extract strings from section data
-    let mut strings = extract_ascii_strings(section_data, config);
+    let strings = extract_ascii_strings(section_data, config);
 
-    // Post-process: adjust offsets and populate metadata
-    for string in &mut strings {
+    // Build filter context from section
+    let filter_context = FilterContext::from_section(section);
+
+    // Create composite noise filter if filtering is enabled and config is provided
+    let filter = if noise_filtering_enabled {
+        noise_filter_config.map(CompositeNoiseFilter::new)
+    } else {
+        None
+    };
+
+    // Post-process: compute confidence, apply threshold, adjust offsets and populate metadata
+    let mut filtered_strings = Vec::new();
+    for mut string in strings {
+        // Compute confidence if filtering is enabled
+        if let Some(ref noise_filter) = filter {
+            string.confidence = noise_filter.calculate_confidence(&string.text, &filter_context);
+            // Apply threshold filtering
+            if noise_filtering_enabled && string.confidence < min_confidence_threshold {
+                continue;
+            }
+        } else {
+            // If filtering is disabled, keep default confidence of 1.0
+            string.confidence = 1.0;
+        }
+
         // Adjust offset: add section.offset to relative offset
         // string.offset is relative to section_data (starts at 0), so add section.offset
         let relative_offset = string.offset;
@@ -390,9 +430,11 @@ pub fn extract_from_section(
             // relative_offset is the offset within the section
             string.rva = Some(base_rva + relative_offset);
         }
+
+        filtered_strings.push(string);
     }
 
-    strings
+    filtered_strings
 }
 
 #[cfg(test)]
@@ -641,7 +683,7 @@ mod tests {
         let section = create_test_section(".rodata", 0, 20, Some(0x1000));
         let data = b"Hello World\0Test";
         let config = AsciiExtractionConfig::default();
-        let strings = extract_from_section(&section, data, &config);
+        let strings = extract_from_section(&section, data, &config, None, false, 0.5);
 
         assert_eq!(strings.len(), 2);
         assert_eq!(strings[0].text, "Hello World");
@@ -662,7 +704,7 @@ mod tests {
         let section = create_test_section(".data", 7, 12, Some(0x2000));
         let data = b"prefix\0Hello World\0suffix";
         let config = AsciiExtractionConfig::default();
-        let strings = extract_from_section(&section, data, &config);
+        let strings = extract_from_section(&section, data, &config, None, false, 0.5);
 
         assert_eq!(strings.len(), 1);
         assert_eq!(strings[0].text, "Hello World");
@@ -679,7 +721,7 @@ mod tests {
         let section = create_test_section(".text", 5, 10, Some(0x1000));
         let data = b"pre\0Hello\0suf";
         let config = AsciiExtractionConfig::default();
-        let strings = extract_from_section(&section, data, &config);
+        let strings = extract_from_section(&section, data, &config, None, false, 0.5);
 
         if !strings.is_empty() {
             // Section data is data[5..15] = "Hello\0suf"
@@ -697,7 +739,7 @@ mod tests {
         let section = create_test_section(".data", 0, 20, None);
         let data = b"Hello World\0Test";
         let config = AsciiExtractionConfig::default();
-        let strings = extract_from_section(&section, data, &config);
+        let strings = extract_from_section(&section, data, &config, None, false, 0.5);
 
         assert_eq!(strings.len(), 2);
         assert_eq!(strings[0].rva, None);
@@ -710,7 +752,7 @@ mod tests {
         let section = create_test_section(".custom", 0, 20, Some(0x3000));
         let data = b"Test String\0Another";
         let config = AsciiExtractionConfig::default();
-        let strings = extract_from_section(&section, data, &config);
+        let strings = extract_from_section(&section, data, &config, None, false, 0.5);
 
         for string in &strings {
             assert_eq!(string.section, Some(".custom".to_string()));
@@ -723,7 +765,7 @@ mod tests {
         let section = create_test_section(".data", 0, 1000, None);
         let data = b"Short data";
         let config = AsciiExtractionConfig::default();
-        let strings = extract_from_section(&section, data, &config);
+        let strings = extract_from_section(&section, data, &config, None, false, 0.5);
 
         // Should only extract from available data, not panic
         assert!(strings.len() <= 1);
@@ -735,7 +777,7 @@ mod tests {
         let section = create_test_section(".data", 1000, 100, None);
         let data = b"Short data";
         let config = AsciiExtractionConfig::default();
-        let strings = extract_from_section(&section, data, &config);
+        let strings = extract_from_section(&section, data, &config, None, false, 0.5);
 
         // Should return empty vector, not panic
         assert!(strings.is_empty());
@@ -747,7 +789,7 @@ mod tests {
         let section = create_test_section(".empty", 0, 0, None);
         let data = b"Some data";
         let config = AsciiExtractionConfig::default();
-        let strings = extract_from_section(&section, data, &config);
+        let strings = extract_from_section(&section, data, &config, None, false, 0.5);
 
         assert!(strings.is_empty());
     }

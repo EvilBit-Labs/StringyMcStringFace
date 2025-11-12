@@ -243,6 +243,26 @@ pub struct FoundString {
     pub score: i32,
     /// Source of the string (section data, import, etc.)
     pub source: StringSource,
+    /// Confidence score from noise filtering (0.0-1.0)
+    ///
+    /// This represents how confident we are that the string is legitimate vs noise.
+    /// A score of 1.0 indicates maximum confidence (e.g., strings from known-good sources
+    /// like imports, exports, resources). Lower scores indicate potential noise that
+    /// may need filtering. This is separate from the `score` field, which is used for
+    /// final ranking (combining section weight, semantic boosts, and noise penalties).
+    pub confidence: f32,
+}
+
+impl FoundString {
+    /// Returns true if confidence is high (>= 0.7)
+    pub fn is_high_confidence(&self) -> bool {
+        self.confidence >= 0.7
+    }
+
+    /// Returns true if confidence is low (< 0.5)
+    pub fn is_low_confidence(&self) -> bool {
+        self.confidence < 0.5
+    }
 }
 
 /// Error types for the stringy library
