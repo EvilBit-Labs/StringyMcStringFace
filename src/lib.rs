@@ -34,6 +34,12 @@
 //! let config = ExtractionConfig::default();
 //! let strings = extractor.extract(&data, &container_info, &config)?;
 //! println!("Found {} strings", strings.len());
+//!
+//! // ASCII string extraction (foundational encoding type)
+//! use stringy::extraction::ascii::{extract_ascii_strings, ExtractionConfig as AsciiConfig};
+//! let ascii_config = AsciiConfig::default();
+//! let ascii_strings = extract_ascii_strings(&data, &ascii_config);
+//! println!("Found {} ASCII strings", ascii_strings.len());
 //! # Ok(())
 //! # }
 //! ```
@@ -43,7 +49,7 @@
 //! The library is organized into focused modules:
 //!
 //! - [`container`]: Binary format detection and parsing (✅ Complete)
-//! - [`extraction`]: String extraction algorithms (✅ Core framework and PE resources complete)
+//! - [`extraction`]: String extraction algorithms (✅ ASCII extraction and PE resources complete)
 //! - [`classification`]: Semantic analysis and tagging (🚧 Types defined)
 //! - [`output`]: Result formatting (🚧 Interfaces ready)
 //! - [`types`]: Core data structures and error handling (✅ Complete)

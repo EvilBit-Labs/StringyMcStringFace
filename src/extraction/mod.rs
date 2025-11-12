@@ -24,6 +24,30 @@
 //! - `extract_resources()`: Returns resource metadata (Phase 1)
 //! - `extract_resource_strings()`: Returns actual strings from resources (Phase 2)
 //!
+//! ## ASCII String Extraction
+//!
+//! The ASCII extraction module provides foundational encoding extraction for StringyMcStringFace.
+//! It implements byte-level scanning for contiguous printable ASCII sequences and serves as the
+//! reference implementation for future UTF-8, UTF-16LE, and UTF-16BE extractors.
+//!
+//! - `extract_ascii_strings()`: Basic byte-level ASCII string scanning
+//! - `extract_from_section()`: Section-aware extraction with proper metadata population
+//! - `ExtractionConfig`: Configuration for minimum/maximum length filtering
+//!
+//! # ASCII Extraction Example
+//!
+//! ```rust
+//! use stringy::extraction::ascii::{extract_ascii_strings, ExtractionConfig as AsciiConfig};
+//!
+//! let data = b"Hello\0World\0Test123";
+//! let config = AsciiConfig::default();
+//! let strings = extract_ascii_strings(data, &config);
+//!
+//! for string in strings {
+//!     println!("Found: {} at offset {}", string.text, string.offset);
+//! }
+//! ```
+//!
 //! ## Mach-O Load Command String Extraction
 //!
 //! The Mach-O load command extraction module extracts library dependencies and runtime
@@ -48,7 +72,15 @@
 //! let strings = extractor.extract(&data, &container_info, &config)?;
 //!
 //! // Format-specific extractors
-//! use stringy::extraction::{extract_resources, extract_resource_strings, extract_load_command_strings};
+//! use stringy::extraction::{
+//!     extract_ascii_strings, extract_load_command_strings, extract_resources,
+//!     extract_resource_strings,
+//! };
+//! use stringy::extraction::ascii::ExtractionConfig as AsciiExtractionConfig;
+//!
+//! // ASCII extraction
+//! let config = AsciiExtractionConfig::default();
+//! let ascii_strings = extract_ascii_strings(&data, &config);
 //!
 //! // Phase 1: Get resource metadata
 //! let metadata = extract_resources(&data);
@@ -65,9 +97,11 @@ use crate::types::{
     ContainerInfo, Encoding, FoundString, Result, SectionInfo, SectionType, StringSource,
 };
 
+pub mod ascii;
 pub mod macho_load_commands;
 pub mod pe_resources;
 
+pub use ascii::{extract_ascii_strings, extract_from_section};
 pub use macho_load_commands::extract_load_command_strings;
 pub use pe_resources::{extract_resource_strings, extract_resources};
 
@@ -403,6 +437,17 @@ impl StringExtractor for BasicExtractor {
 /// Printable ASCII includes characters from 0x20 (space) to 0x7E (~),
 /// plus common whitespace characters: tab (0x09), newline (0x0A), and
 /// carriage return (0x0D).
+///
+/// **Note on printable character definitions**: This function is used by the UTF-8-capable
+/// extraction helpers and includes common whitespace characters (tab, newline, carriage return)
+/// to handle text files and formatted data. This differs from the ASCII-only `is_printable_ascii`
+/// function in `extraction::ascii`, which only considers the strict printable range (0x20-0x7E)
+/// without whitespace control characters. This difference ensures that:
+/// - ASCII-only extraction (`extraction::ascii`) produces strict, predictable results
+/// - UTF-8-capable extraction (this module) can handle formatted text with line breaks
+///
+/// When using both extractors on the same data, be aware that they may produce different
+/// results due to this definitional difference.
 fn is_printable_ascii(byte: u8) -> bool {
     matches!(byte, 0x09 | 0x0A | 0x0D | 0x20..=0x7E)
 }
