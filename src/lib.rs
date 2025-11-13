@@ -17,6 +17,7 @@
 //!
 //! ```rust
 //! use stringy::container::{detect_format, create_parser};
+//! use stringy::extraction::{BasicExtractor, ExtractionConfig, StringExtractor};
 //!
 //! # fn example() -> stringy::Result<()> {
 //! let data = std::fs::read("binary_file")?;
@@ -27,6 +28,18 @@
 //! println!("Format: {:?}", container_info.format);
 //! println!("Sections: {}", container_info.sections.len());
 //! println!("Imports: {}", container_info.imports.len());
+//!
+//! // Extract strings using the basic extractor
+//! let extractor = BasicExtractor::new();
+//! let config = ExtractionConfig::default();
+//! let strings = extractor.extract(&data, &container_info, &config)?;
+//! println!("Found {} strings", strings.len());
+//!
+//! // ASCII string extraction (foundational encoding type)
+//! use stringy::extraction::{extract_ascii_strings, AsciiExtractionConfig};
+//! let ascii_config = AsciiExtractionConfig::default();
+//! let ascii_strings = extract_ascii_strings(&data, &ascii_config);
+//! println!("Found {} ASCII strings", ascii_strings.len());
 //! # Ok(())
 //! # }
 //! ```
@@ -36,7 +49,8 @@
 //! The library is organized into focused modules:
 //!
 //! - [`container`]: Binary format detection and parsing (✅ Complete)
-//! - [`extraction`]: String extraction algorithms (✅ PE resources complete)
+//! - [`extraction`]: String extraction algorithms (✅ ASCII extraction and PE resources complete)
+//!   - ASCII extraction provides foundational encoding extraction as the reference implementation
 //! - [`classification`]: Semantic analysis and tagging (🚧 Types defined)
 //! - [`output`]: Result formatting (🚧 Interfaces ready)
 //! - [`types`]: Core data structures and error handling (✅ Complete)
@@ -57,3 +71,6 @@ pub use types::{
     ResourceStringEntry, ResourceStringTable, ResourceType, Result, SectionInfo, SectionType,
     StringSource, StringyError, Tag,
 };
+
+// Re-export extraction framework types
+pub use extraction::{AsciiExtractionConfig, BasicExtractor, ExtractionConfig, StringExtractor};

@@ -10,16 +10,50 @@ Binary Data → Section Analysis → Encoding Detection → String Scanning → 
 
 ## Encoding Support
 
-### ASCII/UTF-8 Extraction
+### ASCII Extraction
 
-The most common encoding in most binaries.
+The most common encoding in most binaries. ASCII extraction provides foundational string extraction with configurable minimum length thresholds.
 
 #### Algorithm
 
-1. **Scan for printable sequences**: Characters in range 0x20-0x7E plus common whitespace
+1. **Scan for printable sequences**: Characters in range 0x20-0x7E (strict printable ASCII)
 2. **Length filtering**: Configurable minimum length (default: 4 characters)
 3. **Null termination**: Respect null terminators but don't require them
-4. **Context awareness**: Consider section type for validation
+4. **Section awareness**: Integrate with section metadata for context-aware filtering
+
+#### Basic Extraction
+
+```rust
+use stringy::extraction::ascii::{extract_ascii_strings, AsciiExtractionConfig};
+
+let data = b"Hello\0World\0Test123";
+let config = AsciiExtractionConfig::default();
+let strings = extract_ascii_strings(data, &config);
+
+for string in strings {
+    println!("Found: {} at offset {}", string.text, string.offset);
+}
+```
+
+#### Configuration
+
+```rust
+use stringy::extraction::ascii::AsciiExtractionConfig;
+
+// Default configuration (min_length: 4, no max_length)
+let config = AsciiExtractionConfig::default();
+
+// Custom minimum length
+let config = AsciiExtractionConfig::new(8);
+
+// Custom minimum and maximum length
+let mut config = AsciiExtractionConfig::default();
+config.max_length = Some(256);
+```
+
+### UTF-8 Extraction
+
+UTF-8 extraction builds on ASCII extraction and handles multi-byte characters. See the main extraction module for UTF-8 support.
 
 #### Implementation Details
 
@@ -51,11 +85,129 @@ fn extract_ascii_strings(data: &[u8], min_len: usize) -> Vec<RawString> {
 }
 ```
 
-#### Noise Filtering
+## Noise Filtering
 
-- **Padding detection**: Skip sequences of repeated characters
-- **Table data**: Avoid extracting from obvious data tables
-- **Binary interleaving**: Skip strings with excessive binary data
+Stringy implements a multi-layered heuristic filtering system to reduce false positives and identify noise in extracted strings. The filtering system uses a combination of entropy analysis, character distribution, linguistic patterns, length checks, repetition detection, and context-aware filtering.
+
+### Filter Architecture
+
+The noise filtering system consists of multiple independent filters that can be combined with configurable weights:
+
+1. **Character Distribution Filter**: Detects abnormal character frequency distributions
+2. **Entropy Filter**: Uses Shannon entropy to detect padding/repetition and random binary
+3. **Linguistic Pattern Filter**: Analyzes vowel-to-consonant ratios and common bigrams
+4. **Length Filter**: Penalizes excessively long strings and very short strings in low-weight sections
+5. **Repetition Filter**: Detects repeated character patterns and repeated substrings
+6. **Context-Aware Filter**: Boosts confidence for strings in high-weight sections
+
+### Character Distribution Analysis
+
+Detects strings with abnormal character distributions:
+
+- **Excessive punctuation** (>80%): Low confidence (0.2)
+- **Excessive repetition** (>90% same character): Very low confidence (0.1)
+- **Excessive non-alphanumeric** (>70%): Low confidence (0.3)
+- **Reasonable distribution**: High confidence (1.0)
+
+### Entropy-Based Filtering
+
+Uses Shannon entropy (bits per byte) to classify strings:
+
+- **Very low entropy** (\<1.5 bits/byte): Likely padding or repetition (confidence: 0.1)
+- **Very high entropy** (>7.5 bits/byte): Likely random binary (confidence: 0.2)
+- **Optimal range** (3.5-6.0 bits/byte): High confidence (1.0)
+- **Acceptable range** (2.0-7.0 bits/byte): Moderate confidence (0.4-0.7)
+
+### Linguistic Pattern Detection
+
+Analyzes text for word-like patterns:
+
+- **Vowel-to-consonant ratio**: Reasonable range 0.2-0.8 for English
+- **Common bigrams**: Detects common English patterns (th, he, in, er, an, re, on, at, en, nd)
+- **Handles non-English**: Gracefully handles non-English strings without over-penalizing
+
+### Length-Based Filtering
+
+Applies penalties based on string length:
+
+- **Excessively long** (>200 characters): Low confidence (0.3) - likely table data
+- **Very short in low-weight sections** (\<4 chars, weight \<0.5): Moderate confidence (0.5)
+- **Normal length** (4-100 characters): High confidence (1.0)
+
+### Repetition Detection
+
+Identifies repetitive patterns:
+
+- **Repeated characters** (e.g., "AAAA", "0000"): Very low confidence (0.1)
+- **Repeated substrings** (e.g., "abcabcabc"): Low confidence (0.2)
+- **Normal strings**: High confidence (1.0)
+
+### Context-Aware Filtering
+
+Boosts or reduces confidence based on section context:
+
+- **String data sections** (.rodata, .rdata, \_\_cstring): High confidence (0.9-1.0)
+- **Read-only data sections**: High confidence (0.9)
+- **Resource sections**: Maximum confidence (1.0) - known-good sources
+- **Code sections**: Lower confidence (0.3-0.5)
+- **Writable data sections**: Moderate confidence (0.6)
+
+### Configuration
+
+```rust
+use stringy::extraction::config::{NoiseFilterConfig, FilterWeights};
+
+// Default configuration
+let config = NoiseFilterConfig::default();
+
+// Customize thresholds
+let mut config = NoiseFilterConfig::default();
+config.entropy_min = 2.0;
+config.entropy_max = 7.0;
+config.max_length = 150;
+
+// Customize filter weights
+config.filter_weights = FilterWeights {
+    entropy_weight: 0.3,
+    char_distribution_weight: 0.25,
+    linguistic_weight: 0.2,
+    length_weight: 0.15,
+    repetition_weight: 0.05,
+    context_weight: 0.05,
+};
+```
+
+### Using Noise Filters
+
+```rust
+use stringy::extraction::config::NoiseFilterConfig;
+use stringy::extraction::filters::{CompositeNoiseFilter, FilterContext};
+use stringy::types::SectionType;
+
+let filter_config = NoiseFilterConfig::default();
+let filter = CompositeNoiseFilter::new(&filter_config);
+let context = FilterContext::default();
+
+let confidence = filter.calculate_confidence("Hello, World!", &context);
+if confidence >= 0.5 {
+    // String passed filtering threshold
+}
+```
+
+### Confidence Scoring
+
+Each string is assigned a confidence score (0.0-1.0) indicating how likely it is to be legitimate:
+
+- **1.0**: Maximum confidence (strings from known-good sources like imports, exports, resources)
+- **0.7-0.9**: High confidence (likely legitimate strings)
+- **0.5-0.7**: Moderate confidence (may need review)
+- **0.0-0.5**: Low confidence (likely noise, filtered out by default)
+
+The confidence score is separate from the `score` field used for final ranking. Confidence specifically represents the noise filtering assessment.
+
+### Performance
+
+Noise filtering is designed to add minimal overhead (\<10% per acceptance criteria). Individual filters are optimized for performance, and the composite filter allows enabling/disabling specific filters to balance accuracy and speed.
 
 ### UTF-16 Extraction
 
@@ -251,15 +403,52 @@ fn deduplicate_strings(strings: Vec<RawString>) -> Vec<DeduplicatedString> {
 
 ## Configuration Options
 
-### Length Filtering
+### Extraction Configuration
 
 ```rust
+use stringy::extraction::config::ExtractionConfig;
+
 pub struct ExtractionConfig {
-    pub min_ascii_len: usize,  // Default: 4
-    pub min_utf16_len: usize,  // Default: 3
-    pub max_string_len: usize, // Default: 1024
+    pub min_ascii_length: usize,          // Default: 4
+    pub min_wide_length: usize,           // Default: 3 (for UTF-16)
+    pub enabled_encodings: Vec<Encoding>, // Default: ASCII, UTF-8
+    pub noise_filtering_enabled: bool,    // Default: true
+    pub min_confidence_threshold: f32,    // Default: 0.5
 }
 ```
+
+### Noise Filter Configuration
+
+```rust
+use stringy::extraction::config::NoiseFilterConfig;
+
+pub struct NoiseFilterConfig {
+    pub entropy_min: f32,              // Default: 1.5
+    pub entropy_max: f32,              // Default: 7.5
+    pub max_length: usize,             // Default: 200
+    pub max_repetition_ratio: f32,     // Default: 0.7
+    pub min_vowel_ratio: f32,          // Default: 0.1
+    pub max_vowel_ratio: f32,          // Default: 0.9
+    pub filter_weights: FilterWeights, // Default: balanced weights
+}
+```
+
+### Filter Weights
+
+```rust
+use stringy::extraction::config::FilterWeights;
+
+pub struct FilterWeights {
+    pub entropy_weight: f32,           // Default: 0.25
+    pub char_distribution_weight: f32, // Default: 0.20
+    pub linguistic_weight: f32,        // Default: 0.20
+    pub length_weight: f32,            // Default: 0.15
+    pub repetition_weight: f32,        // Default: 0.10
+    pub context_weight: f32,           // Default: 0.10
+}
+```
+
+All weights must sum to 1.0. The configuration validates this automatically.
 
 ### Encoding Selection
 
@@ -330,14 +519,73 @@ lazy_static! {
 
 ### Validation Heuristics
 
-- **Entropy checking**: Skip high-entropy strings likely to be binary data
-- **Language detection**: Prefer strings with common English patterns
-- **Context validation**: Consider surrounding bytes for legitimacy
+The noise filtering system implements comprehensive validation:
+
+- **Entropy checking**: Uses Shannon entropy to detect padding/repetition and random binary data
+- **Language detection**: Analyzes vowel-to-consonant ratios and common bigrams
+- **Context validation**: Considers section type, weight, and permissions
+- **Character distribution**: Detects abnormal frequency distributions
+- **Repetition detection**: Identifies repeated patterns and padding
 
 ### False Positive Reduction
 
-- **Padding detection**: Skip repeated character sequences
-- **Table data**: Avoid structured binary data
-- **Alignment checking**: Consider memory alignment patterns
+The multi-layered filtering system targets common sources of false positives:
 
-This comprehensive extraction system ensures high-quality string extraction while maintaining performance and minimizing false positives.
+- **Padding detection**: Identifies repeated character sequences (e.g., "AAAA", "\\x00\\x00\\x00\\x00")
+- **Table data**: Filters excessively long strings likely to be structured data
+- **Binary noise**: High-entropy strings are flagged as likely random binary
+- **Context awareness**: Strings in code sections receive lower confidence scores
+
+### Performance Characteristics
+
+Noise filtering is designed for minimal overhead:
+
+- **Target overhead**: \<10% compared to extraction without filtering
+- **Optimized filters**: Each filter is independently optimized
+- **Configurable**: Can enable/disable individual filters to balance accuracy and speed
+- **Scalable**: Handles large binaries efficiently
+
+### Examples
+
+#### Basic Extraction with Filtering
+
+```rust
+use stringy::extraction::ascii::{extract_ascii_strings, AsciiExtractionConfig};
+use stringy::extraction::config::NoiseFilterConfig;
+use stringy::extraction::filters::{CompositeNoiseFilter, FilterContext};
+
+let data = b"Hello World\0AAAA\0Test123";
+let config = AsciiExtractionConfig::default();
+let strings = extract_ascii_strings(data, &config);
+
+let filter_config = NoiseFilterConfig::default();
+let filter = CompositeNoiseFilter::new(&filter_config);
+let context = FilterContext::default();
+
+let filtered: Vec<_> = strings
+    .into_iter()
+    .filter(|s| filter.calculate_confidence(&s.text, &context) >= 0.5)
+    .collect();
+```
+
+#### Custom Filter Configuration
+
+```rust
+use stringy::extraction::config::{NoiseFilterConfig, FilterWeights};
+
+let mut config = NoiseFilterConfig::default();
+config.entropy_min = 2.0;
+config.entropy_max = 7.0;
+config.max_length = 150;
+
+config.filter_weights = FilterWeights {
+    entropy_weight: 0.4,
+    char_distribution_weight: 0.3,
+    linguistic_weight: 0.15,
+    length_weight: 0.1,
+    repetition_weight: 0.03,
+    context_weight: 0.02,
+};
+```
+
+This comprehensive extraction system ensures high-quality string extraction while maintaining performance and minimizing false positives through multi-layered noise filtering.
