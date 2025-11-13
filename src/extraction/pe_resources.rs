@@ -5,6 +5,11 @@
 //! general PE structure parsing (sections, imports, exports) while pelite specifically
 //! handles resource directory parsing.
 //!
+//! **Note**: General UTF-16 string extraction from binary sections is now handled by the
+//! `utf16` module (`src/extraction/utf16.rs`), which supports both UTF-16LE and UTF-16BE
+//! with advanced confidence scoring. This module focuses specifically on PE resource-specific
+//! extraction (VERSIONINFO, STRINGTABLE, MANIFEST).
+//!
 //! # Phase 1 vs Phase 2
 //!
 //! **Phase 1 (Complete)**: Resource enumeration and metadata extraction

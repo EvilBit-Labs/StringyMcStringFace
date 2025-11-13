@@ -123,7 +123,10 @@ pub use config::{FilterWeights, NoiseFilterConfig};
 pub use filters::{CompositeNoiseFilter, FilterContext, NoiseFilter};
 pub use macho_load_commands::extract_load_command_strings;
 pub use pe_resources::{extract_resource_strings, extract_resources};
-pub use utf16::{Utf16ExtractionConfig, extract_utf16le_strings};
+pub use utf16::{
+    ByteOrder, Utf16ExtractionConfig, extract_from_section as extract_utf16_from_section,
+    extract_utf16_strings,
+};
 
 /// Configuration for string extraction
 ///
@@ -178,6 +181,12 @@ pub struct ExtractionConfig {
     ///
     /// UTF-16LE strings with confidence below this threshold will be filtered out.
     pub utf16_min_confidence: f32,
+    /// Which UTF-16 byte order(s) to scan (default: Auto)
+    pub utf16_byte_order: ByteOrder,
+    /// Minimum UTF-16-specific confidence threshold (default: 0.5)
+    ///
+    /// UTF-16 strings with UTF-16-specific confidence below this threshold will be filtered out.
+    pub utf16_confidence_threshold: f32,
 }
 
 impl Default for ExtractionConfig {
@@ -200,6 +209,8 @@ impl Default for ExtractionConfig {
             noise_filtering_enabled: true,
             min_confidence_threshold: 0.5,
             utf16_min_confidence: 0.7,
+            utf16_byte_order: ByteOrder::Auto,
+            utf16_confidence_threshold: 0.5,
         }
     }
 }
@@ -232,6 +243,11 @@ impl ExtractionConfig {
         if !(0.0..=1.0).contains(&self.utf16_min_confidence) {
             return Err(crate::types::StringyError::ConfigError(
                 "utf16_min_confidence must be between 0.0 and 1.0".to_string(),
+            ));
+        }
+        if !(0.0..=1.0).contains(&self.utf16_confidence_threshold) {
+            return Err(crate::types::StringyError::ConfigError(
+                "utf16_confidence_threshold must be between 0.0 and 1.0".to_string(),
             ));
         }
         Ok(())
@@ -517,8 +533,8 @@ impl StringExtractor for BasicExtractor {
             };
 
             for (text, relative_offset, length) in raw_strings {
-                // Skip if already extracted as ASCII
-                if text.is_ascii() {
+                // Skip if already extracted as ASCII (only if ASCII extraction is enabled)
+                if ascii_enabled && text.is_ascii() {
                     continue;
                 }
 
@@ -569,20 +585,41 @@ impl StringExtractor for BasicExtractor {
             }
         }
 
-        // For UTF-16LE strings, use the UTF-16LE extractor (only if UTF-16LE is enabled)
+        // For UTF-16 strings, use the UTF-16 extractor (only if UTF-16LE or UTF-16BE is enabled)
         // Check both encodings and enabled_encodings fields
         let utf16le_enabled = config.encodings.contains(&Encoding::Utf16Le)
             || config.enabled_encodings.contains(&Encoding::Utf16Le);
-        if utf16le_enabled {
-            // Create UTF-16LE extraction config
-            let utf16_config = utf16::Utf16ExtractionConfig {
-                min_char_len: config.min_wide_length,
-                max_char_len: None, // Use max_length from ExtractionConfig if needed
-                min_confidence: config.utf16_min_confidence,
+        let utf16be_enabled = config.encodings.contains(&Encoding::Utf16Be)
+            || config.enabled_encodings.contains(&Encoding::Utf16Be);
+
+        if utf16le_enabled || utf16be_enabled {
+            // Determine which byte order(s) to scan based on enabled encodings and config
+            let byte_order = if utf16le_enabled && utf16be_enabled {
+                // Both enabled - use config setting (usually Auto)
+                config.utf16_byte_order
+            } else if utf16le_enabled {
+                ByteOrder::LE
+            } else {
+                ByteOrder::BE
             };
 
-            // Extract UTF-16LE strings using the dedicated UTF-16LE extractor
-            let utf16le_strings = utf16::extract_from_section(
+            // Create UTF-16 extraction config
+            // Convert max_length from bytes to UTF-16 character count (divide by 2)
+            let utf16_max_chars = if config.max_length < 2 {
+                Some(0)
+            } else {
+                Some(config.max_length / 2)
+            };
+            let utf16_config = utf16::Utf16ExtractionConfig {
+                min_length: config.min_wide_length,
+                max_length: utf16_max_chars,
+                byte_order,
+                confidence_threshold: config.utf16_confidence_threshold,
+                scan_both_alignments: false, // Default to false to avoid performance degradation
+            };
+
+            // Extract UTF-16 strings using the dedicated UTF-16 extractor
+            let utf16_strings = utf16::extract_from_section(
                 section,
                 data,
                 &utf16_config,
@@ -591,7 +628,7 @@ impl StringExtractor for BasicExtractor {
                 config.utf16_min_confidence,
             );
 
-            found_strings.extend(utf16le_strings);
+            found_strings.extend(utf16_strings);
         }
 
         Ok(found_strings)

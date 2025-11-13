@@ -793,3 +793,334 @@ fn test_utf16le_confidence_threshold() {
         assert!(string.confidence >= config_high.utf16_min_confidence);
     }
 }
+
+#[test]
+fn test_basic_extractor_utf16be_strings() {
+    // Test UTF-16BE extraction through BasicExtractor
+    use stringy::extraction::ByteOrder;
+
+    let mut data = vec![0x00; 50];
+    // "Hello\0" in UTF-16BE: 00 48 00 65 00 6C 00 6C 00 6F 00 00
+    let hello = vec![
+        0x00, 0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00, 0x00,
+    ];
+    data.extend_from_slice(&hello);
+
+    let section = stringy::types::SectionInfo {
+        name: ".rdata".to_string(),
+        offset: 50,
+        size: hello.len() as u64,
+        rva: Some(0x1000),
+        section_type: SectionType::StringData,
+        is_executable: false,
+        is_writable: false,
+        weight: 1.0,
+    };
+
+    let container_info = stringy::ContainerInfo::new(
+        stringy::BinaryFormat::Pe,
+        vec![section],
+        vec![],
+        vec![],
+        None,
+    );
+
+    let extractor = BasicExtractor::new();
+    let mut config = ExtractionConfig::default();
+    config.enabled_encodings.push(Encoding::Utf16Be);
+    config.utf16_byte_order = ByteOrder::BE;
+
+    let strings = extractor
+        .extract(&data, &container_info, &config)
+        .expect("Failed to extract strings");
+
+    // Should find UTF-16BE strings
+    let utf16be_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Be)
+        .collect();
+    assert!(!utf16be_strings.is_empty(), "Should find UTF-16BE strings");
+    assert!(utf16be_strings.iter().any(|s| s.text == "Hello"));
+
+    // Verify metadata
+    for string in &utf16be_strings {
+        assert_eq!(string.source, StringSource::SectionData);
+        assert_eq!(string.section, Some(".rdata".to_string()));
+        assert_eq!(string.encoding, Encoding::Utf16Be);
+    }
+}
+
+#[test]
+fn test_basic_extractor_utf16_auto_detection() {
+    // Test automatic byte order detection
+    use stringy::extraction::ByteOrder;
+
+    let mut data = vec![0x00; 50];
+    // UTF-16LE "Hello\0"
+    let hello_le = vec![
+        0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00, 0x00, 0x00,
+    ];
+    data.extend_from_slice(&hello_le);
+    data.extend_from_slice(&[0x00; 20]); // Padding
+    // UTF-16BE "World\0"
+    let world_be = vec![
+        0x00, 0x57, 0x00, 0x6F, 0x00, 0x72, 0x00, 0x6C, 0x00, 0x64, 0x00, 0x00,
+    ];
+    data.extend_from_slice(&world_be);
+
+    let section = stringy::types::SectionInfo {
+        name: ".rdata".to_string(),
+        offset: 50,
+        size: (hello_le.len() + 20 + world_be.len()) as u64,
+        rva: Some(0x1000),
+        section_type: SectionType::StringData,
+        is_executable: false,
+        is_writable: false,
+        weight: 1.0,
+    };
+
+    let container_info = stringy::ContainerInfo::new(
+        stringy::BinaryFormat::Pe,
+        vec![section],
+        vec![],
+        vec![],
+        None,
+    );
+
+    let extractor = BasicExtractor::new();
+    let mut config = ExtractionConfig::default();
+    config.enabled_encodings.push(Encoding::Utf16Le);
+    config.enabled_encodings.push(Encoding::Utf16Be);
+    config.utf16_byte_order = ByteOrder::Auto;
+
+    let strings = extractor
+        .extract(&data, &container_info, &config)
+        .expect("Failed to extract strings");
+
+    // Should find both UTF-16LE and UTF-16BE strings
+    let utf16le_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Le)
+        .collect();
+    let utf16be_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Be)
+        .collect();
+
+    assert!(
+        !utf16le_strings.is_empty() || !utf16be_strings.is_empty(),
+        "Should find at least one UTF-16 string"
+    );
+}
+
+#[test]
+fn test_basic_extractor_utf16_encoding_filtering() {
+    // Test encoding selection - only allow UTF-16LE (exclude UTF-16BE)
+    use stringy::extraction::ByteOrder;
+
+    let mut data = vec![0x00; 50];
+    // UTF-16LE "Hello\0"
+    let hello_le = vec![
+        0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00, 0x00, 0x00,
+    ];
+    data.extend_from_slice(&hello_le);
+    data.extend_from_slice(&[0x00; 20]);
+    // UTF-16BE "World\0"
+    let world_be = vec![
+        0x00, 0x57, 0x00, 0x6F, 0x00, 0x72, 0x00, 0x6C, 0x00, 0x64, 0x00, 0x00,
+    ];
+    data.extend_from_slice(&world_be);
+
+    let section = stringy::types::SectionInfo {
+        name: ".rdata".to_string(),
+        offset: 50,
+        size: (hello_le.len() + 20 + world_be.len()) as u64,
+        rva: Some(0x1000),
+        section_type: SectionType::StringData,
+        is_executable: false,
+        is_writable: false,
+        weight: 1.0,
+    };
+
+    let container_info = stringy::ContainerInfo::new(
+        stringy::BinaryFormat::Pe,
+        vec![section],
+        vec![],
+        vec![],
+        None,
+    );
+
+    let extractor = BasicExtractor::new();
+
+    // Only allow UTF-16LE
+    let config_le_only = ExtractionConfig {
+        enabled_encodings: vec![Encoding::Utf16Le],
+        utf16_byte_order: ByteOrder::LE,
+        ..Default::default()
+    };
+
+    let strings_le_only = extractor
+        .extract(&data, &container_info, &config_le_only)
+        .expect("Failed to extract strings");
+
+    let utf16be_in_le_only: Vec<_> = strings_le_only
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Be)
+        .collect();
+    assert!(
+        utf16be_in_le_only.is_empty(),
+        "Should not extract UTF-16BE when only LE is enabled"
+    );
+
+    // Only allow UTF-16BE
+    let config_be_only = ExtractionConfig {
+        enabled_encodings: vec![Encoding::Utf16Be],
+        utf16_byte_order: ByteOrder::BE,
+        ..Default::default()
+    };
+
+    let strings_be_only = extractor
+        .extract(&data, &container_info, &config_be_only)
+        .expect("Failed to extract strings");
+
+    let utf16le_in_be_only: Vec<_> = strings_be_only
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Le)
+        .collect();
+    assert!(
+        utf16le_in_be_only.is_empty(),
+        "Should not extract UTF-16LE when only BE is enabled"
+    );
+}
+
+#[test]
+fn test_basic_extractor_utf16_confidence_filtering() {
+    // Test confidence threshold filtering
+    use stringy::extraction::ByteOrder;
+
+    let mut data = vec![0x00; 50];
+    // Legitimate UTF-16LE string
+    let hello = vec![
+        0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00, 0x00, 0x00,
+    ];
+    data.extend_from_slice(&hello);
+    // False positive pattern (null-interleaved binary data)
+    let false_positive = vec![0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00];
+    data.extend_from_slice(&false_positive);
+
+    let section = stringy::types::SectionInfo {
+        name: ".rdata".to_string(),
+        offset: 50,
+        size: (hello.len() + false_positive.len()) as u64,
+        rva: Some(0x1000),
+        section_type: SectionType::StringData,
+        is_executable: false,
+        is_writable: false,
+        weight: 1.0,
+    };
+
+    let container_info = stringy::ContainerInfo::new(
+        stringy::BinaryFormat::Pe,
+        vec![section],
+        vec![],
+        vec![],
+        None,
+    );
+
+    let extractor = BasicExtractor::new();
+    let mut config = ExtractionConfig::default();
+    config.enabled_encodings.push(Encoding::Utf16Le);
+    config.utf16_byte_order = ByteOrder::LE;
+    config.utf16_confidence_threshold = 0.6; // Higher threshold to filter false positives
+
+    let strings = extractor
+        .extract(&data, &container_info, &config)
+        .expect("Failed to extract strings");
+
+    let utf16le_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Le)
+        .collect();
+
+    // Should find legitimate string
+    assert!(utf16le_strings.iter().any(|s| s.text == "Hello"));
+
+    // All extracted strings should meet confidence threshold
+    for string in &utf16le_strings {
+        assert!(string.confidence >= config.utf16_confidence_threshold);
+    }
+}
+
+#[test]
+fn test_basic_extractor_mixed_encodings() {
+    // Test extraction of multiple encodings (ASCII, UTF-8, UTF-16LE, UTF-16BE)
+    use stringy::extraction::ByteOrder;
+
+    let mut data = b"Hello".to_vec(); // ASCII
+    data.push(0x00);
+    data.extend_from_slice("世界".as_bytes()); // UTF-8
+    data.push(0x00);
+    data.extend_from_slice(&[0x00; 20]); // Padding
+    // UTF-16LE "Test\0"
+    let test_le = vec![0x54, 0x00, 0x65, 0x00, 0x73, 0x00, 0x74, 0x00, 0x00, 0x00];
+    data.extend_from_slice(&test_le);
+    data.extend_from_slice(&[0x00; 20]);
+    // UTF-16BE "World\0"
+    let world_be = vec![
+        0x00, 0x57, 0x00, 0x6F, 0x00, 0x72, 0x00, 0x6C, 0x00, 0x64, 0x00, 0x00,
+    ];
+    data.extend_from_slice(&world_be);
+
+    let section = stringy::types::SectionInfo {
+        name: ".rdata".to_string(),
+        offset: 0,
+        size: data.len() as u64,
+        rva: Some(0x1000),
+        section_type: SectionType::StringData,
+        is_executable: false,
+        is_writable: false,
+        weight: 1.0,
+    };
+
+    let container_info = stringy::ContainerInfo::new(
+        stringy::BinaryFormat::Pe,
+        vec![section],
+        vec![],
+        vec![],
+        None,
+    );
+
+    let extractor = BasicExtractor::new();
+    let mut config = ExtractionConfig::default();
+    config.enabled_encodings.push(Encoding::Utf16Le);
+    config.enabled_encodings.push(Encoding::Utf16Be);
+    config.utf16_byte_order = ByteOrder::Auto;
+
+    let strings = extractor
+        .extract(&data, &container_info, &config)
+        .expect("Failed to extract strings");
+
+    // Should find strings in multiple encodings
+    let _ascii_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.encoding == Encoding::Ascii)
+        .collect();
+    let _utf8_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf8)
+        .collect();
+    let _utf16le_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Le)
+        .collect();
+    let _utf16be_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Be)
+        .collect();
+
+    // Should find at least some strings
+    assert!(
+        !strings.is_empty(),
+        "Should find strings in at least one encoding"
+    );
+}

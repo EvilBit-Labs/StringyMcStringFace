@@ -213,63 +213,74 @@ The confidence score is separate from the `score` field used for final ranking. 
 
 Noise filtering is designed to add minimal overhead (\<10% per acceptance criteria). Individual filters are optimized for performance, and the composite filter allows enabling/disabling specific filters to balance accuracy and speed.
 
-### UTF-16 Extraction
+### UTF-16 Extraction ✅
 
-Critical for Windows binaries and some resources.
+Critical for Windows binaries and some resources. Supports both UTF-16LE (Little-Endian) and UTF-16BE (Big-Endian) with automatic byte order detection.
 
-#### UTF-16LE (Little Endian) ✅
+#### UTF-16LE (Little-Endian) ✅
 
-Most common on Windows platforms. **Implementation complete** - see `src/extraction/utf16.rs`.
+Most common on Windows platforms. Default 3 character minimum.
 
 **Detection heuristics**:
 
 - Even-length sequences (2-byte alignment required)
 - Low byte printable, high byte mostly zero
 - Null termination patterns (0x00 0x00)
-- Confidence scoring based on printable character percentage
+- Advanced confidence scoring with multiple heuristics
 
-#### UTF-16BE (Big Endian)
+#### UTF-16BE (Big-Endian) ✅
 
-Less common but found in some formats.
+Found in Java .class files, network protocols, some cross-platform binaries.
 
 **Detection heuristics**:
 
 - Even-length sequences
 - High byte printable, low byte mostly zero
 - Reverse byte order from UTF-16LE
+- Same advanced confidence scoring as UTF-16LE
+
+#### Automatic Byte Order Detection ✅
+
+The `ByteOrder::Auto` mode automatically detects and extracts both UTF-16LE and UTF-16BE strings from the same data, avoiding duplicates and correctly identifying the encoding of each string.
 
 #### Implementation
 
-UTF-16LE extraction is implemented in `src/extraction/utf16.rs` following the pattern established in the ASCII extractor. The implementation provides:
+UTF-16 extraction is implemented in `src/extraction/utf16.rs` following the pattern established in the ASCII extractor. The implementation provides:
 
-- `extract_utf16le_strings()`: Basic byte-level UTF-16LE string scanning
+- `extract_utf16_strings()`: Main extraction function supporting both byte orders
+- `extract_utf16le_strings()`: UTF-16LE-specific extraction (backward compatibility)
 - `extract_from_section()`: Section-aware extraction with proper metadata population
-- `Utf16ExtractionConfig`: Configuration for minimum/maximum character count and confidence thresholds
+- `Utf16ExtractionConfig`: Configuration for minimum/maximum character count, byte order selection, and confidence thresholds
+- `ByteOrder` enum: Control which byte order(s) to scan (LE, BE, Auto)
 
 **Usage Example**:
 
 ```rust
-use stringy::extraction::utf16::{extract_utf16le_strings, Utf16ExtractionConfig};
+use stringy::extraction::utf16::{extract_utf16_strings, Utf16ExtractionConfig, ByteOrder};
 
-// "Hello\0World\0" in UTF-16LE
-let data = &[
-    0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00, 0x00, 0x00, // "Hello\0"
-    0x57, 0x00, 0x6F, 0x00, 0x72, 0x00, 0x6C, 0x00, 0x64, 0x00, 0x00, 0x00, // "World\0"
-];
-let config = Utf16ExtractionConfig::default();
-let strings = extract_utf16le_strings(data, &config);
+// Extract UTF-16LE strings from Windows PE binary
+let config = Utf16ExtractionConfig {
+    byte_order: ByteOrder::LE,
+    min_length: 3,
+    confidence_threshold: 0.6,
+    ..Default::default()
+};
+let strings = extract_utf16_strings(data, &config);
 
-for string in strings {
-    println!("Found: {} at offset {}", string.text, string.offset);
-}
+// Extract both UTF-16LE and UTF-16BE with auto-detection
+let config = Utf16ExtractionConfig {
+    byte_order: ByteOrder::Auto,
+    ..Default::default()
+};
+let strings = extract_utf16_strings(data, &config);
 ```
 
 **Configuration**:
 
 ```rust
-use stringy::extraction::utf16::Utf16ExtractionConfig;
+use stringy::extraction::utf16::{Utf16ExtractionConfig, ByteOrder};
 
-// Default configuration (min_char_len: 3, min_confidence: 0.7)
+// Default configuration (min_length: 3, byte_order: Auto, confidence_threshold: 0.5)
 let config = Utf16ExtractionConfig::default();
 
 // Custom minimum character length
@@ -277,33 +288,76 @@ let config = Utf16ExtractionConfig::new(5);
 
 // Custom configuration
 let mut config = Utf16ExtractionConfig::default();
-config.min_char_len = 3;
-config.max_char_len = Some(256);
-config.min_confidence = 0.8;
+config.min_length = 3;
+config.max_length = Some(256);
+config.byte_order = ByteOrder::LE;
+config.confidence_threshold = 0.6;
 ```
 
-#### Confidence Scoring
+#### UTF-16-Specific Confidence Scoring
 
-UTF-16LE detection uses confidence scoring to avoid false positives. The confidence score is calculated based on:
+UTF-16 extraction uses advanced confidence scoring to detect false positives from null-interleaved binary data. The confidence score combines multiple heuristics:
 
-1. **Printable character percentage**: The ratio of printable UTF-16LE characters to total characters
+1. **Valid Unicode range check**: Validates code points are in valid Unicode ranges (U+0020-U+D7FF, U+E000-U+FFFD, U+10000-U+10FFFF), penalizes private use areas and invalid surrogates
 
-   - > 90% printable: High confidence (0.9+)
-   - > 70% printable: Medium confidence (0.7-0.9)
-   - > 50% printable: Low confidence (0.5-0.7)
-   - \<50% printable: Very low confidence (\<0.5)
+2. **Printable character ratio**: Calculates ratio of printable characters including common Unicode ranges
 
-2. **Null termination bonus**: Strings with proper null termination (0x00 0x00) receive a +0.1 confidence bonus
+3. **ASCII ratio**: Boosts confidence for ASCII-heavy strings (>50% characters in ASCII printable range)
 
-3. **Length bonus**: Strings with reasonable length (3-100 characters) receive a +0.05 confidence bonus
+4. **Null pattern detection**: Flags suspicious patterns like:
+
+   - Excessive nulls (>30% of characters)
+   - Regular null intervals (every 2nd, 4th, 8th position)
+   - Fixed-offset nulls indicating structured binary data
+
+5. **Byte order consistency**: Verifies byte order is consistent throughout the string (for Auto mode)
+
+**Confidence Formula**:
+
+```
+confidence = (valid_unicode_weight × valid_ratio)
+           + (printable_weight × printable_ratio)
+           + (ascii_weight × ascii_ratio)
+           - (null_pattern_penalty)
+           - (invalid_range_penalty)
+```
+
+The result is clamped to 0.0-1.0 range.
 
 **Examples**:
 
-- **High confidence**: "Microsoft Corporation" with null terminator (>90% printable, proper null termination)
-- **Medium confidence**: "Test123" with null terminator (>70% printable, proper null termination)
-- **Low confidence**: Mixed printable/non-printable characters (>50% printable, may be coincidental)
+- **High confidence**: "Microsoft Corporation" (>90% printable, valid Unicode, no null patterns)
+- **Medium confidence**: "Test123" (>70% printable, valid Unicode)
+- **Low confidence**: Null-interleaved binary table data (excessive nulls, regular patterns)
 
-The confidence score is combined with noise filtering confidence when noise filtering is enabled, using the minimum of both scores.
+The UTF-16-specific confidence score is combined with general noise filtering confidence when noise filtering is enabled, using the minimum of both scores.
+
+#### False Positive Prevention
+
+UTF-16 extraction is prone to false positives because binary data with null bytes can look like UTF-16 strings. The confidence scoring system mitigates this by:
+
+- **Detecting null-interleaved patterns**: Binary tables with numeric data (e.g., `[0x01, 0x00, 0x02, 0x00]`) are flagged as suspicious
+- **Penalizing regular null patterns**: Data with nulls at fixed intervals (every 2nd, 4th, 8th byte) receives lower confidence
+- **Validating Unicode ranges**: Invalid code points and surrogate pairs reduce confidence
+- **Configurable threshold**: The `utf16_confidence_threshold` (default 0.5) can be tuned to balance recall and precision
+
+**Recommendations**:
+
+- For Windows PE binaries: Use `ByteOrder::LE` with `confidence_threshold: 0.6`
+- For Java .class files: Use `ByteOrder::BE` with `confidence_threshold: 0.5`
+- For unknown formats: Use `ByteOrder::Auto` with `confidence_threshold: 0.5`
+- For high-precision extraction: Increase `confidence_threshold` to 0.7-0.8
+
+#### Performance Considerations
+
+UTF-16 scanning adds overhead compared to ASCII/UTF-8 extraction:
+
+- **Scanning both byte orders**: Auto mode doubles the work by scanning for both LE and BE
+- **Confidence scoring**: The multi-heuristic confidence calculation adds computational cost
+- **Recommendations**:
+  - Use specific byte order (LE or BE) when the target format is known
+  - Auto mode is best for unknown or mixed-format binaries
+  - Consider disabling UTF-16 extraction for formats that don't use it (e.g., pure ELF binaries)
 
 ## Section-Aware Extraction
 
@@ -430,7 +484,7 @@ fn deduplicate_strings(strings: Vec<RawString>) -> Vec<DeduplicatedString> {
 ### Extraction Configuration
 
 ```rust
-use stringy::extraction::config::ExtractionConfig;
+use stringy::extraction::{ByteOrder, Encoding, ExtractionConfig};
 
 pub struct ExtractionConfig {
     pub min_ascii_length: usize,          // Default: 4
@@ -439,18 +493,28 @@ pub struct ExtractionConfig {
     pub noise_filtering_enabled: bool,    // Default: true
     pub min_confidence_threshold: f32,    // Default: 0.5
     pub utf16_min_confidence: f32,        // Default: 0.7 (for UTF-16LE)
+    pub utf16_byte_order: ByteOrder,      // Default: Auto
+    pub utf16_confidence_threshold: f32,  // Default: 0.5 (UTF-16-specific)
 }
 ```
 
-**UTF-16LE Configuration Example**:
+**UTF-16 Configuration Examples**:
 
 ```rust
-use stringy::extraction::{ExtractionConfig, Encoding};
+use stringy::extraction::{ExtractionConfig, Encoding, ByteOrder};
 
+// Extract UTF-16LE strings from Windows PE binary
 let mut config = ExtractionConfig::default();
 config.min_wide_length = 3;
-config.utf16_min_confidence = 0.7;
+config.utf16_confidence_threshold = 0.6;
+config.utf16_byte_order = ByteOrder::LE;
 config.enabled_encodings.push(Encoding::Utf16Le);
+
+// Extract both UTF-16LE and UTF-16BE with auto-detection
+let mut config = ExtractionConfig::default();
+config.enabled_encodings.push(Encoding::Utf16Le);
+config.enabled_encodings.push(Encoding::Utf16Be);
+config.utf16_byte_order = ByteOrder::Auto;
 ```
 
 ### Noise Filter Configuration
