@@ -10,9 +10,13 @@ Binary Data → Section Analysis → Encoding Detection → String Scanning → 
 
 ## Encoding Support
 
-### ASCII Extraction
+### ASCII Extraction ✅
 
 The most common encoding in most binaries. ASCII extraction provides foundational string extraction with configurable minimum length thresholds.
+
+### UTF-16LE Extraction ✅
+
+UTF-16LE extraction is now implemented and available for Windows PE binary string extraction. It provides UTF-16LE string extraction with confidence scoring and noise filtering integration.
 
 #### Algorithm
 
@@ -213,15 +217,16 @@ Noise filtering is designed to add minimal overhead (\<10% per acceptance criter
 
 Critical for Windows binaries and some resources.
 
-#### UTF-16LE (Little Endian)
+#### UTF-16LE (Little Endian) ✅
 
-Most common on Windows platforms.
+Most common on Windows platforms. **Implementation complete** - see `src/extraction/utf16.rs`.
 
 **Detection heuristics**:
 
-- Even-length sequences
+- Even-length sequences (2-byte alignment required)
 - Low byte printable, high byte mostly zero
 - Null termination patterns (0x00 0x00)
+- Confidence scoring based on printable character percentage
 
 #### UTF-16BE (Big Endian)
 
@@ -233,53 +238,72 @@ Less common but found in some formats.
 - High byte printable, low byte mostly zero
 - Reverse byte order from UTF-16LE
 
-#### Implementation Strategy
+#### Implementation
+
+UTF-16LE extraction is implemented in `src/extraction/utf16.rs` following the pattern established in the ASCII extractor. The implementation provides:
+
+- `extract_utf16le_strings()`: Basic byte-level UTF-16LE string scanning
+- `extract_from_section()`: Section-aware extraction with proper metadata population
+- `Utf16ExtractionConfig`: Configuration for minimum/maximum character count and confidence thresholds
+
+**Usage Example**:
 
 ```rust
-fn extract_utf16_strings(data: &[u8], endian: Endianness, min_len: usize) -> Vec<RawString> {
-    let mut strings = Vec::new();
-    let mut i = 0;
+use stringy::extraction::utf16::{extract_utf16le_strings, Utf16ExtractionConfig};
 
-    while i + 1 < data.len() {
-        let mut char_count = 0;
-        let start = i;
+// "Hello\0World\0" in UTF-16LE
+let data = &[
+    0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00, 0x00, 0x00, // "Hello\0"
+    0x57, 0x00, 0x6F, 0x00, 0x72, 0x00, 0x6C, 0x00, 0x64, 0x00, 0x00, 0x00, // "World\0"
+];
+let config = Utf16ExtractionConfig::default();
+let strings = extract_utf16le_strings(data, &config);
 
-        // Scan for UTF-16 sequence
-        while i + 1 < data.len() {
-            let (low, high) = match endian {
-                Endianness::Little => (data[i], data[i + 1]),
-                Endianness::Big => (data[i + 1], data[i]),
-            };
-
-            if is_printable_utf16_char(low, high) {
-                char_count += 1;
-                i += 2;
-            } else if low == 0 && high == 0 && char_count >= min_len {
-                // Null terminator found
-                break;
-            } else {
-                break;
-            }
-        }
-
-        if char_count >= min_len {
-            strings.push(extract_utf16_string(&data[start..i], endian));
-        }
-
-        i += 2;
-    }
-
-    strings
+for string in strings {
+    println!("Found: {} at offset {}", string.text, string.offset);
 }
+```
+
+**Configuration**:
+
+```rust
+use stringy::extraction::utf16::Utf16ExtractionConfig;
+
+// Default configuration (min_char_len: 3, min_confidence: 0.7)
+let config = Utf16ExtractionConfig::default();
+
+// Custom minimum character length
+let config = Utf16ExtractionConfig::new(5);
+
+// Custom configuration
+let mut config = Utf16ExtractionConfig::default();
+config.min_char_len = 3;
+config.max_char_len = Some(256);
+config.min_confidence = 0.8;
 ```
 
 #### Confidence Scoring
 
-UTF-16 detection uses confidence scoring to avoid false positives:
+UTF-16LE detection uses confidence scoring to avoid false positives. The confidence score is calculated based on:
 
-- **High confidence**: >90% printable characters, proper null termination
-- **Medium confidence**: >70% printable, reasonable length
-- **Low confidence**: >50% printable, may be coincidental
+1. **Printable character percentage**: The ratio of printable UTF-16LE characters to total characters
+
+   - > 90% printable: High confidence (0.9+)
+   - > 70% printable: Medium confidence (0.7-0.9)
+   - > 50% printable: Low confidence (0.5-0.7)
+   - \<50% printable: Very low confidence (\<0.5)
+
+2. **Null termination bonus**: Strings with proper null termination (0x00 0x00) receive a +0.1 confidence bonus
+
+3. **Length bonus**: Strings with reasonable length (3-100 characters) receive a +0.05 confidence bonus
+
+**Examples**:
+
+- **High confidence**: "Microsoft Corporation" with null terminator (>90% printable, proper null termination)
+- **Medium confidence**: "Test123" with null terminator (>70% printable, proper null termination)
+- **Low confidence**: Mixed printable/non-printable characters (>50% printable, may be coincidental)
+
+The confidence score is combined with noise filtering confidence when noise filtering is enabled, using the minimum of both scores.
 
 ## Section-Aware Extraction
 
@@ -414,7 +438,19 @@ pub struct ExtractionConfig {
     pub enabled_encodings: Vec<Encoding>, // Default: ASCII, UTF-8
     pub noise_filtering_enabled: bool,    // Default: true
     pub min_confidence_threshold: f32,    // Default: 0.5
+    pub utf16_min_confidence: f32,        // Default: 0.7 (for UTF-16LE)
 }
+```
+
+**UTF-16LE Configuration Example**:
+
+```rust
+use stringy::extraction::{ExtractionConfig, Encoding};
+
+let mut config = ExtractionConfig::default();
+config.min_wide_length = 3;
+config.utf16_min_confidence = 0.7;
+config.enabled_encodings.push(Encoding::Utf16Le);
 ```
 
 ### Noise Filter Configuration

@@ -508,3 +508,288 @@ fn test_basic_extractor_exclude_symbols() {
     assert!(!strings.iter().any(|s| s.source == StringSource::ImportName));
     assert!(!strings.iter().any(|s| s.source == StringSource::ExportName));
 }
+
+#[test]
+fn test_utf16le_extraction_with_basic_extractor() {
+    // Create mock binary with UTF-16LE strings in a .rdata section
+    let mut data = vec![0x00; 100]; // Padding
+    let hello = vec![
+        0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00, 0x00, 0x00,
+    ]; // "Hello\0"
+    let world = vec![
+        0x57, 0x00, 0x6F, 0x00, 0x72, 0x00, 0x6C, 0x00, 0x64, 0x00, 0x00, 0x00,
+    ]; // "World\0"
+    data.extend_from_slice(&hello);
+    data.extend_from_slice(&world);
+
+    let section = stringy::types::SectionInfo {
+        name: ".rdata".to_string(),
+        offset: 100,
+        size: (hello.len() + world.len()) as u64,
+        rva: Some(0x1000),
+        section_type: SectionType::StringData,
+        is_executable: false,
+        is_writable: false,
+        weight: 1.0,
+    };
+
+    let container_info = stringy::ContainerInfo::new(
+        stringy::BinaryFormat::Pe,
+        vec![section],
+        vec![],
+        vec![],
+        None,
+    );
+
+    let extractor = BasicExtractor::new();
+    let mut config = ExtractionConfig::default();
+    config.enabled_encodings.push(Encoding::Utf16Le);
+
+    let strings = extractor
+        .extract(&data, &container_info, &config)
+        .expect("Failed to extract strings");
+
+    // Should find UTF-16LE strings
+    let utf16le_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Le)
+        .collect();
+    assert!(!utf16le_strings.is_empty(), "Should find UTF-16LE strings");
+    assert!(utf16le_strings.iter().any(|s| s.text == "Hello"));
+    assert!(utf16le_strings.iter().any(|s| s.text == "World"));
+
+    // Verify metadata
+    for string in &utf16le_strings {
+        assert_eq!(string.source, StringSource::SectionData);
+        assert_eq!(string.section, Some(".rdata".to_string()));
+        assert!(string.confidence >= config.utf16_min_confidence);
+    }
+}
+
+#[test]
+fn test_utf16le_encoding_filtering() {
+    // Test that UTF-16LE strings are only extracted when Encoding::Utf16Le is enabled
+    let mut data = vec![0x00; 50];
+    let hello = vec![
+        0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00, 0x00, 0x00,
+    ];
+    data.extend_from_slice(&hello);
+
+    let section = stringy::types::SectionInfo {
+        name: ".rdata".to_string(),
+        offset: 50,
+        size: hello.len() as u64,
+        rva: Some(0x1000),
+        section_type: SectionType::StringData,
+        is_executable: false,
+        is_writable: false,
+        weight: 1.0,
+    };
+
+    let container_info = stringy::ContainerInfo::new(
+        stringy::BinaryFormat::Pe,
+        vec![section],
+        vec![],
+        vec![],
+        None,
+    );
+
+    let extractor = BasicExtractor::new();
+
+    // Test with UTF-16LE disabled
+    let config_disabled = ExtractionConfig {
+        enabled_encodings: vec![Encoding::Ascii, Encoding::Utf8],
+        ..Default::default()
+    };
+    let strings_disabled = extractor
+        .extract(&data, &container_info, &config_disabled)
+        .expect("Failed to extract strings");
+    let utf16le_disabled: Vec<_> = strings_disabled
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Le)
+        .collect();
+    assert!(
+        utf16le_disabled.is_empty(),
+        "Should not extract UTF-16LE when disabled"
+    );
+
+    // Test with UTF-16LE enabled
+    let mut config_enabled = ExtractionConfig::default();
+    config_enabled.enabled_encodings.push(Encoding::Utf16Le);
+    let strings_enabled = extractor
+        .extract(&data, &container_info, &config_enabled)
+        .expect("Failed to extract strings");
+    let utf16le_enabled: Vec<_> = strings_enabled
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Le)
+        .collect();
+    assert!(
+        !utf16le_enabled.is_empty(),
+        "Should extract UTF-16LE when enabled"
+    );
+}
+
+#[test]
+fn test_utf16le_with_noise_filtering() {
+    // Create test data with both high-quality and noisy UTF-16LE strings
+    let mut data = vec![0x00; 50];
+    let hello = vec![
+        0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00, 0x00, 0x00,
+    ];
+    data.extend_from_slice(&hello);
+    // Add noisy string (repeated characters)
+    let noisy = vec![
+        0x41, 0x00, 0x41, 0x00, 0x41, 0x00, 0x41, 0x00, 0x41, 0x00, 0x00, 0x00,
+    ]; // "AAAAA\0"
+    data.extend_from_slice(&noisy);
+
+    let section = stringy::types::SectionInfo {
+        name: ".rdata".to_string(),
+        offset: 50,
+        size: (hello.len() + noisy.len()) as u64,
+        rva: Some(0x1000),
+        section_type: SectionType::StringData,
+        is_executable: false,
+        is_writable: false,
+        weight: 1.0,
+    };
+
+    let container_info = stringy::ContainerInfo::new(
+        stringy::BinaryFormat::Pe,
+        vec![section],
+        vec![],
+        vec![],
+        None,
+    );
+
+    let extractor = BasicExtractor::new();
+    let mut config = ExtractionConfig::default();
+    config.enabled_encodings.push(Encoding::Utf16Le);
+    config.noise_filtering_enabled = true;
+    config.min_confidence_threshold = 0.6;
+
+    let strings = extractor
+        .extract(&data, &container_info, &config)
+        .expect("Failed to extract strings");
+
+    // Should extract strings, but noisy ones may be filtered out
+    let utf16le_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Le)
+        .collect();
+    assert!(!utf16le_strings.is_empty());
+    // High-quality string should be present
+    assert!(utf16le_strings.iter().any(|s| s.text == "Hello"));
+    // All extracted strings should meet confidence threshold
+    for string in &utf16le_strings {
+        assert!(string.confidence >= config.min_confidence_threshold);
+    }
+}
+
+#[test]
+fn test_utf16le_min_wide_length_config() {
+    // Test that min_wide_length configuration is respected
+    let mut data = vec![0x00; 50];
+    let hi = vec![0x48, 0x00, 0x69, 0x00, 0x00, 0x00]; // "Hi\0" (2 chars)
+    let test = vec![0x54, 0x00, 0x65, 0x00, 0x73, 0x00, 0x74, 0x00, 0x00, 0x00]; // "Test\0" (4 chars)
+    data.extend_from_slice(&hi);
+    data.extend_from_slice(&test);
+
+    let section = stringy::types::SectionInfo {
+        name: ".rdata".to_string(),
+        offset: 50,
+        size: (hi.len() + test.len()) as u64,
+        rva: Some(0x1000),
+        section_type: SectionType::StringData,
+        is_executable: false,
+        is_writable: false,
+        weight: 1.0,
+    };
+
+    let container_info = stringy::ContainerInfo::new(
+        stringy::BinaryFormat::Pe,
+        vec![section],
+        vec![],
+        vec![],
+        None,
+    );
+
+    let extractor = BasicExtractor::new();
+    let mut config = ExtractionConfig::default();
+    config.enabled_encodings.push(Encoding::Utf16Le);
+    config.min_wide_length = 3; // Minimum 3 characters
+
+    let strings = extractor
+        .extract(&data, &container_info, &config)
+        .expect("Failed to extract strings");
+
+    let utf16le_strings: Vec<_> = strings
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Le)
+        .collect();
+    // "Hi" (2 chars) should be filtered out, "Test" (4 chars) should be extracted
+    assert_eq!(utf16le_strings.len(), 1);
+    assert_eq!(utf16le_strings[0].text, "Test");
+}
+
+#[test]
+fn test_utf16le_confidence_threshold() {
+    // Test various utf16_min_confidence threshold values
+    let mut data = vec![0x00; 50];
+    let hello = vec![
+        0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00, 0x00, 0x00,
+    ];
+    data.extend_from_slice(&hello);
+
+    let section = stringy::types::SectionInfo {
+        name: ".rdata".to_string(),
+        offset: 50,
+        size: hello.len() as u64,
+        rva: Some(0x1000),
+        section_type: SectionType::StringData,
+        is_executable: false,
+        is_writable: false,
+        weight: 1.0,
+    };
+
+    let container_info = stringy::ContainerInfo::new(
+        stringy::BinaryFormat::Pe,
+        vec![section],
+        vec![],
+        vec![],
+        None,
+    );
+
+    let extractor = BasicExtractor::new();
+
+    // Low threshold should include more strings
+    let mut config_low = ExtractionConfig::default();
+    config_low.enabled_encodings.push(Encoding::Utf16Le);
+    config_low.utf16_min_confidence = 0.5;
+    let strings_low = extractor
+        .extract(&data, &container_info, &config_low)
+        .expect("Failed to extract strings");
+
+    // High threshold may filter more strings
+    let mut config_high = ExtractionConfig::default();
+    config_high.enabled_encodings.push(Encoding::Utf16Le);
+    config_high.utf16_min_confidence = 0.95;
+    let strings_high = extractor
+        .extract(&data, &container_info, &config_high)
+        .expect("Failed to extract strings");
+
+    let utf16le_low: Vec<_> = strings_low
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Le)
+        .collect();
+    let utf16le_high: Vec<_> = strings_high
+        .iter()
+        .filter(|s| s.encoding == Encoding::Utf16Le)
+        .collect();
+
+    assert!(utf16le_low.len() >= utf16le_high.len());
+    // All extracted strings should meet their respective thresholds
+    for string in &utf16le_high {
+        assert!(string.confidence >= config_high.utf16_min_confidence);
+    }
+}
