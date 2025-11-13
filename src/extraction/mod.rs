@@ -28,11 +28,21 @@
 //!
 //! The ASCII extraction module provides foundational encoding extraction for StringyMcStringFace.
 //! It implements byte-level scanning for contiguous printable ASCII sequences and serves as the
-//! reference implementation for future UTF-8, UTF-16LE, and UTF-16BE extractors.
+//! reference implementation for UTF-8, UTF-16LE, and UTF-16BE extractors.
 //!
 //! - `extract_ascii_strings()`: Basic byte-level ASCII string scanning
 //! - `extract_from_section()`: Section-aware extraction with proper metadata population
 //! - `AsciiExtractionConfig`: Configuration for minimum/maximum length filtering
+//!
+//! ## UTF-16LE String Extraction
+//!
+//! The UTF-16LE extraction module provides UTF-16LE string extraction with confidence scoring
+//! and noise filtering. It implements byte-level scanning for contiguous UTF-16LE character
+//! sequences, following the pattern established in the ASCII extractor.
+//!
+//! - `extract_utf16le_strings()`: Basic byte-level UTF-16LE string scanning
+//! - `extract_from_section()`: Section-aware extraction with proper metadata population
+//! - `Utf16ExtractionConfig`: Configuration for minimum/maximum character count and confidence thresholds
 //!
 //! # ASCII Extraction Example
 //!
@@ -73,13 +83,17 @@
 //!
 //! // Format-specific extractors
 //! use stringy::extraction::{
-//!     extract_ascii_strings, extract_load_command_strings, extract_resources,
-//!     extract_resource_strings, AsciiExtractionConfig,
+//!     extract_ascii_strings, extract_utf16le_strings, extract_load_command_strings, extract_resources,
+//!     extract_resource_strings, AsciiExtractionConfig, Utf16ExtractionConfig,
 //! };
 //!
 //! // ASCII extraction
 //! let ascii_config = AsciiExtractionConfig::default();
 //! let ascii_strings = extract_ascii_strings(&data, &ascii_config);
+//!
+//! // UTF-16LE extraction
+//! let utf16_config = Utf16ExtractionConfig::default();
+//! let utf16le_strings = extract_utf16le_strings(&data, &utf16_config);
 //!
 //! // Phase 1: Get resource metadata
 //! let metadata = extract_resources(&data);
@@ -101,12 +115,18 @@ pub mod config;
 pub mod filters;
 pub mod macho_load_commands;
 pub mod pe_resources;
+pub mod utf16;
+pub mod util;
 
 pub use ascii::{AsciiExtractionConfig, extract_ascii_strings, extract_from_section};
 pub use config::{FilterWeights, NoiseFilterConfig};
 pub use filters::{CompositeNoiseFilter, FilterContext, NoiseFilter};
 pub use macho_load_commands::extract_load_command_strings;
 pub use pe_resources::{extract_resource_strings, extract_resources};
+pub use utf16::{
+    ByteOrder, Utf16ExtractionConfig, extract_from_section as extract_utf16_from_section,
+    extract_utf16_strings,
+};
 
 /// Configuration for string extraction
 ///
@@ -157,6 +177,16 @@ pub struct ExtractionConfig {
     ///
     /// Strings with confidence below this threshold will be filtered out.
     pub min_confidence_threshold: f32,
+    /// Minimum confidence threshold for UTF-16LE strings (default: 0.7)
+    ///
+    /// UTF-16LE strings with confidence below this threshold will be filtered out.
+    pub utf16_min_confidence: f32,
+    /// Which UTF-16 byte order(s) to scan (default: Auto)
+    pub utf16_byte_order: ByteOrder,
+    /// Minimum UTF-16-specific confidence threshold (default: 0.5)
+    ///
+    /// UTF-16 strings with UTF-16-specific confidence below this threshold will be filtered out.
+    pub utf16_confidence_threshold: f32,
 }
 
 impl Default for ExtractionConfig {
@@ -178,6 +208,9 @@ impl Default for ExtractionConfig {
             enabled_encodings: vec![Encoding::Ascii, Encoding::Utf8],
             noise_filtering_enabled: true,
             min_confidence_threshold: 0.5,
+            utf16_min_confidence: 0.7,
+            utf16_byte_order: ByteOrder::Auto,
+            utf16_confidence_threshold: 0.5,
         }
     }
 }
@@ -205,6 +238,16 @@ impl ExtractionConfig {
         if !(0.0..=1.0).contains(&self.min_confidence_threshold) {
             return Err(crate::types::StringyError::ConfigError(
                 "min_confidence_threshold must be between 0.0 and 1.0".to_string(),
+            ));
+        }
+        if !(0.0..=1.0).contains(&self.utf16_min_confidence) {
+            return Err(crate::types::StringyError::ConfigError(
+                "utf16_min_confidence must be between 0.0 and 1.0".to_string(),
+            ));
+        }
+        if !(0.0..=1.0).contains(&self.utf16_confidence_threshold) {
+            return Err(crate::types::StringyError::ConfigError(
+                "utf16_confidence_threshold must be between 0.0 and 1.0".to_string(),
             ));
         }
         Ok(())
@@ -439,12 +482,6 @@ impl StringExtractor for BasicExtractor {
 
         let section_data = &data[section_offset..end_offset];
 
-        // Use ASCII extractor for ASCII strings
-        let ascii_config = ascii::AsciiExtractionConfig {
-            min_length: config.min_ascii_length.max(config.min_length),
-            max_length: Some(config.max_length),
-        };
-
         // Build noise filter config from extraction config
         let noise_filter_config = if config.noise_filtering_enabled {
             Some(crate::extraction::config::NoiseFilterConfig::default())
@@ -452,15 +489,30 @@ impl StringExtractor for BasicExtractor {
             None
         };
 
-        // Extract ASCII strings using the dedicated ASCII extractor with filtering
-        let mut found_strings = ascii::extract_from_section(
-            section,
-            data,
-            &ascii_config,
-            noise_filter_config.as_ref(),
-            config.noise_filtering_enabled,
-            config.min_confidence_threshold,
-        );
+        // Extract ASCII strings only if ASCII encoding is enabled
+        // Check both encodings and enabled_encodings fields
+        let ascii_enabled = config.encodings.contains(&Encoding::Ascii)
+            || config.enabled_encodings.contains(&Encoding::Ascii);
+
+        let mut found_strings = Vec::new();
+
+        if ascii_enabled {
+            // Use ASCII extractor for ASCII strings
+            let ascii_config = ascii::AsciiExtractionConfig {
+                min_length: config.min_ascii_length.max(config.min_length),
+                max_length: Some(config.max_length),
+            };
+
+            // Extract ASCII strings using the dedicated ASCII extractor with filtering
+            found_strings = ascii::extract_from_section(
+                section,
+                data,
+                &ascii_config,
+                noise_filter_config.as_ref(),
+                config.noise_filtering_enabled,
+                config.min_confidence_threshold,
+            );
+        }
 
         // For UTF-8 strings, use the existing helper (only if UTF-8 is enabled)
         // Check both encodings and enabled_encodings fields
@@ -481,8 +533,8 @@ impl StringExtractor for BasicExtractor {
             };
 
             for (text, relative_offset, length) in raw_strings {
-                // Skip if already extracted as ASCII
-                if text.is_ascii() {
+                // Skip if already extracted as ASCII (only if ASCII extraction is enabled)
+                if ascii_enabled && text.is_ascii() {
                     continue;
                 }
 
@@ -531,6 +583,52 @@ impl StringExtractor for BasicExtractor {
 
                 found_strings.push(found_string);
             }
+        }
+
+        // For UTF-16 strings, use the UTF-16 extractor (only if UTF-16LE or UTF-16BE is enabled)
+        // Check both encodings and enabled_encodings fields
+        let utf16le_enabled = config.encodings.contains(&Encoding::Utf16Le)
+            || config.enabled_encodings.contains(&Encoding::Utf16Le);
+        let utf16be_enabled = config.encodings.contains(&Encoding::Utf16Be)
+            || config.enabled_encodings.contains(&Encoding::Utf16Be);
+
+        if utf16le_enabled || utf16be_enabled {
+            // Determine which byte order(s) to scan based on enabled encodings and config
+            let byte_order = if utf16le_enabled && utf16be_enabled {
+                // Both enabled - use config setting (usually Auto)
+                config.utf16_byte_order
+            } else if utf16le_enabled {
+                ByteOrder::LE
+            } else {
+                ByteOrder::BE
+            };
+
+            // Create UTF-16 extraction config
+            // Convert max_length from bytes to UTF-16 character count (divide by 2)
+            let utf16_max_chars = if config.max_length < 2 {
+                Some(0)
+            } else {
+                Some(config.max_length / 2)
+            };
+            let utf16_config = utf16::Utf16ExtractionConfig {
+                min_length: config.min_wide_length,
+                max_length: utf16_max_chars,
+                byte_order,
+                confidence_threshold: config.utf16_confidence_threshold,
+                scan_both_alignments: false, // Default to false to avoid performance degradation
+            };
+
+            // Extract UTF-16 strings using the dedicated UTF-16 extractor
+            let utf16_strings = utf16::extract_from_section(
+                section,
+                data,
+                &utf16_config,
+                noise_filter_config.as_ref(),
+                config.noise_filtering_enabled,
+                config.utf16_min_confidence,
+            );
+
+            found_strings.extend(utf16_strings);
         }
 
         Ok(found_strings)
@@ -979,6 +1077,54 @@ mod tests {
         assert!(ascii_strings.iter().any(|s| s.text == "Test"));
         // UTF-8 string "世界" should be filtered out
         assert!(!strings.iter().any(|s| s.text.contains("世界")));
+    }
+
+    #[test]
+    fn test_basic_extractor_ascii_disabled() {
+        let extractor = BasicExtractor::new();
+        // Exclude ASCII, only allow UTF-8
+        let config = ExtractionConfig {
+            encodings: vec![Encoding::Utf8],
+            enabled_encodings: vec![Encoding::Utf8],
+            ..Default::default()
+        };
+
+        let section = SectionInfo {
+            name: ".rodata".to_string(),
+            offset: 0,
+            size: 30,
+            rva: None,
+            section_type: SectionType::StringData,
+            is_executable: false,
+            is_writable: false,
+            weight: 1.0,
+        };
+
+        let data = b"Hello\0World\0Test";
+        let strings = extractor
+            .extract_from_section(data, &section, &config)
+            .unwrap();
+
+        // Should not find ASCII strings when ASCII is disabled
+        // Note: "Hello", "World", and "Test" are ASCII-only, so they should be extracted as UTF-8
+        // but ASCII extractor should not run
+        let ascii_strings: Vec<_> = strings
+            .iter()
+            .filter(|s| s.encoding == Encoding::Ascii)
+            .collect();
+        assert_eq!(
+            ascii_strings.len(),
+            0,
+            "Should not find any ASCII strings when ASCII is disabled"
+        );
+
+        // UTF-8 extractor may still find these strings since they're valid UTF-8
+        let utf8_strings: Vec<_> = strings
+            .iter()
+            .filter(|s| s.encoding == Encoding::Utf8)
+            .collect();
+        // UTF-8 extractor should find the strings
+        assert!(!utf8_strings.is_empty(), "Should find UTF-8 strings");
     }
 
     #[test]
