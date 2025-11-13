@@ -40,6 +40,12 @@
 //! let ascii_config = AsciiExtractionConfig::default();
 //! let ascii_strings = extract_ascii_strings(&data, &ascii_config);
 //! println!("Found {} ASCII strings", ascii_strings.len());
+//!
+//! // UTF-16LE string extraction (Windows PE binaries)
+//! use stringy::extraction::{extract_utf16le_strings, Utf16ExtractionConfig};
+//! let utf16_config = Utf16ExtractionConfig::default();
+//! let utf16le_strings = extract_utf16le_strings(&data, &utf16_config);
+//! println!("Found {} UTF-16LE strings", utf16le_strings.len());
 //! # Ok(())
 //! # }
 //! ```
@@ -49,8 +55,9 @@
 //! The library is organized into focused modules:
 //!
 //! - [`container`]: Binary format detection and parsing (✅ Complete)
-//! - [`extraction`]: String extraction algorithms (✅ ASCII extraction and PE resources complete)
+//! - [`extraction`]: String extraction algorithms (✅ ASCII, UTF-16LE extraction and PE resources complete)
 //!   - ASCII extraction provides foundational encoding extraction as the reference implementation
+//!   - UTF-16LE extraction provides Windows PE binary string extraction with confidence scoring
 //! - [`classification`]: Semantic analysis and tagging (🚧 Types defined)
 //! - [`output`]: Result formatting (🚧 Interfaces ready)
 //! - [`types`]: Core data structures and error handling (✅ Complete)
@@ -73,4 +80,6 @@ pub use types::{
 };
 
 // Re-export extraction framework types
-pub use extraction::{AsciiExtractionConfig, BasicExtractor, ExtractionConfig, StringExtractor};
+pub use extraction::{
+    AsciiExtractionConfig, BasicExtractor, ExtractionConfig, StringExtractor, Utf16ExtractionConfig,
+};
