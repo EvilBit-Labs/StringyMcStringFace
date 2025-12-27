@@ -1,5 +1,5 @@
 ---
-# MegaLinter configuration for StringyMcStringFace
+# MegaLinter configuration for Stringy
 # This configuration minimizes false positives while maintaining code quality
 
 # Apply linter fixes where safe

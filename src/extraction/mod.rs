@@ -26,7 +26,7 @@
 //!
 //! ## ASCII String Extraction
 //!
-//! The ASCII extraction module provides foundational encoding extraction for StringyMcStringFace.
+//! The ASCII extraction module provides foundational encoding extraction for Stringy.
 //! It implements byte-level scanning for contiguous printable ASCII sequences and serves as the
 //! reference implementation for UTF-8, UTF-16LE, and UTF-16BE extractors.
 //!
