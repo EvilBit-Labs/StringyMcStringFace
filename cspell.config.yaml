@@ -1,5 +1,5 @@
 ---
-# cspell configuration for StringyMcStringFace
+# cspell configuration for Stringy
 version: "0.2"
 
 language: "en"
@@ -75,7 +75,6 @@ languageSettings:
 
 words:
   # Project-specific terms
-  - StringyMcStringFace
   - stringy
   - EvilBit
   - evilbitlabs

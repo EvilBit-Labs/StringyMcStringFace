@@ -18,8 +18,8 @@ create-missing = true
 [output.html]
 default-theme = "navy"
 preferred-dark-theme = "navy"
-git-repository-url = "https://github.com/EvilBit-Labs/StringyMcStringFace"
-edit-url-template = "https://github.com/EvilBit-Labs/StringyMcStringFace/edit/main/docs/{path}"
+git-repository-url = "https://github.com/EvilBit-Labs/Stringy"
+edit-url-template = "https://github.com/EvilBit-Labs/Stringy/edit/main/docs/{path}"
 smart-punctuation = true
 mathjax-support = false
 additional-css = ["whichlang.css"]

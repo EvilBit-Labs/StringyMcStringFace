@@ -1,10 +1,8 @@
 ![Stupid Sentient Yarn Ball Logo](docs/src/images/logo-320.png)
 
-# StringyMcStringFace
+# Stringy
 
 A smarter alternative to the standard `strings` command that uses binary analysis to extract meaningful strings from executables, focusing on data structures rather than arbitrary byte runs.
-
-> **Why the stupid name?** My coworkers held a democratic vote and chose "StringyMcStringFace" over my more dignified suggestions. I trusted their maturity. This was a mistake. The command is still just `stringy` though.
 
 ---
 
@@ -74,8 +72,8 @@ Presents the most relevant strings first using a scoring algorithm.
 ### From Source
 
 ```bash
-git clone https://github.com/EvilBit-Labs/StringyMcStringFace
-cd StringyMcStringFace
+git clone https://github.com/EvilBit-Labs/Stringy
+cd Stringy
 cargo build --release
 ./target/release/stringy --help
 ```
@@ -219,8 +217,6 @@ Licensed under Apache 2.0.
 
 - Inspired by `strings(1)` and the need for better binary analysis tools
 - Built with Rust ecosystem crates: `goblin`, `bstr`, `regex`, `rustc-demangle`
-- My coworkers, for selecting the name and abusing my willingness to trust democracy and their maturity
+- My coworkers, for their excellent input on the original name selection
 
----
 
-*Remember: it's **`StringyMcStringFace`** on GitHub, but just **`stringy`** on your command line.*

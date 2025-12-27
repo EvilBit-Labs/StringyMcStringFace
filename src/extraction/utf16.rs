@@ -1,6 +1,6 @@
 //! UTF-16 String Extraction Module
 //!
-//! This module provides UTF-16 string extraction for StringyMcStringFace, supporting both
+//! This module provides UTF-16 string extraction for Stringy, supporting both
 //! UTF-16LE (Little-Endian) and UTF-16BE (Big-Endian) byte orders. It implements byte-level
 //! scanning for contiguous UTF-16 character sequences with advanced confidence scoring and
 //! noise filtering integration.
