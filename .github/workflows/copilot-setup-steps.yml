@@ -59,7 +59,7 @@ jobs:
 
       - name: Setup summary
         run: |
-          echo "✅ StringyMcStringFace development environment setup complete!"
+          echo "✅ Stringy development environment setup complete!"
           echo ""
           echo "Available tools:"
           echo "  - Rust toolchain: $(rustc --version)"

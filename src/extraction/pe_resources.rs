@@ -5,6 +5,11 @@
 //! general PE structure parsing (sections, imports, exports) while pelite specifically
 //! handles resource directory parsing.
 //!
+//! **Note**: General UTF-16 string extraction from binary sections is now handled by the
+//! `utf16` module (`src/extraction/utf16.rs`), which supports both UTF-16LE and UTF-16BE
+//! with advanced confidence scoring. This module focuses specifically on PE resource-specific
+//! extraction (VERSIONINFO, STRINGTABLE, MANIFEST).
+//!
 //! # Phase 1 vs Phase 2
 //!
 //! **Phase 1 (Complete)**: Resource enumeration and metadata extraction
@@ -370,23 +375,7 @@ fn detect_manifests(root: &pelite::resources::Directory) -> Result<Vec<ResourceM
 ///
 /// Decoded UTF-8 string, or error if decoding fails
 fn decode_utf16le(bytes: &[u8]) -> Result<String> {
-    // Handle odd-length input by truncating last byte
-    let even_bytes = if bytes.len() % 2 == 1 {
-        &bytes[..bytes.len() - 1]
-    } else {
-        bytes
-    };
-
-    // Convert to u16 slice
-    let u16_slice: Vec<u16> = even_bytes
-        .chunks_exact(2)
-        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-        .collect();
-
-    // Decode UTF-16 to String
-    String::from_utf16(&u16_slice)
-        .map(|s| s.trim_end_matches('\0').to_string())
-        .map_err(|_| crate::types::StringyError::EncodingError { offset: 0 })
+    crate::extraction::util::decode_utf16le_bytes(bytes, true)
 }
 
 /// Extract strings from VERSIONINFO resources
