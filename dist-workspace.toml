@@ -52,7 +52,7 @@ install-success-msg = "Successfully installed Stringy! Ready to start looking at
 
 # GitHub release configuration
 [dist.github]
-repository = "EvilBit-Labs/StringyMcStringFace"
+repository = "EvilBit-Labs/Stringy"
 [dist.github-action-commits]
 "actions/checkout" = "v5"
 "actions/download-artifact" = "v6"
