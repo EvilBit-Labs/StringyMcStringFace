@@ -28,15 +28,9 @@ jobs:
     # You can define any steps you want, and they will run before the agent starts.
     # If you do not check out your code, Copilot will do this for you.
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.91.0
-
-      - name: Install just task runner
-        uses: taiki-e/install-action@v2
-        with:
-          tool: just
+      - uses: extractions/setup-just@v3
 
       - name: Set up Python for pre-commit
         uses: actions/setup-python@v6
