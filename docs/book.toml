@@ -1,7 +1,6 @@
 [book]
 authors = ["UncleSp1d3r <unclesp1d3r@evilbitlabs.io>"]
 language = "en"
-multilingual = false
 src = "src"
 title = "Stringy User Guide"
 description = "Stringy User Guide - A smarter strings extraction tool"
@@ -46,9 +45,6 @@ heading-split-level = 3
 [output.html.fold]
 enable = true
 level = 1
-
-
-[preprocessor.alerts]
 
 [preprocessor.mermaid]
 command = "mdbook-mermaid"
