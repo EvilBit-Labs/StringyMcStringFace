@@ -5,7 +5,7 @@ Stringy is built as a modular Rust library with a clear separation of concerns. 
 ## High-Level Architecture
 
 ```text
-Binary File → Format Detection → Container Parsing → String Extraction → Classification → Ranking → Output
+Binary File → Format Detection → Container Parsing → String Extraction → Deduplication → Classification → Ranking → Output
 ```
 
 ## Core Components
@@ -34,20 +34,34 @@ The parsers implement intelligent section prioritization:
 ```rust
 // Example: ELF section weights
 ".rodata" | ".rodata.str1.*" => 10.0  // Highest priority
-".comment" | ".note.*"       => 9.0   // Build info, very likely strings  
+".comment" | ".note.*"       => 9.0   // Build info, very likely strings
 ".data.rel.ro"              => 7.0   // Read-only data
 ".data"                     => 5.0   // Writable data
 ".text"                     => 1.0   // Code sections (low priority)
 ```
 
-### 2. Extraction Module (`src/extraction/`) 🚧 **Framework Ready**
+### 2. Extraction Module (`src/extraction/`) ✅ **Core Complete**
 
 Implements encoding-aware string extraction algorithms with configurable parameters.
 
 - **ASCII/UTF-8**: Scans for printable character sequences with noise filtering
 - **UTF-16**: Detects little-endian and big-endian wide strings with confidence scoring
-- **Deduplication**: Canonicalizes strings while preserving complete metadata
+- **Deduplication**: Groups strings by (text, encoding) keys, preserves all occurrence metadata, merges tags using set union, and calculates combined scores with occurrence-based bonuses
 - **Section-Aware**: Uses container parser weights to prioritize extraction areas
+
+#### Deduplication System
+
+The deduplication module (`src/extraction/dedup.rs`) provides comprehensive string deduplication:
+
+- **Grouping Strategy**: Strings are grouped by `(text, encoding)` tuple, ensuring UTF-8 and UTF-16 versions are kept separate
+- **Occurrence Preservation**: All occurrence metadata (offset, RVA, section, source, tags, score, confidence) is preserved in `StringOccurrence` structures
+- **Tag Merging**: Tags from all occurrences are merged using `HashSet` for uniqueness, then converted to a sorted `Vec<Tag>`
+- **Combined Scoring**: Calculates combined scores using:
+  - Base score: Maximum `original_score` across all occurrences
+  - Occurrence bonus: `5 * (occurrences.len() - 1)` points for multiple occurrences
+  - Cross-section bonus: `10` points if string appears in sections with different names
+  - Multi-source bonus: `15` points if string appears from different `StringSource` variants
+  - Confidence boost: `(max_confidence * 10.0) as i32` where `max_confidence` is the highest confidence value
 
 ### 3. Classification Module (`src/classification/`) 🚧 **Types Defined**
 
@@ -127,6 +141,12 @@ all_strings.extend(extract_symbol_strings(&container_info));
 
 // Deduplicate while preserving all metadata
 let unique_strings = deduplicate(all_strings);
+// Returns Vec<CanonicalString> with:
+// - Grouped by (text, encoding) key
+// - All occurrences preserved in occurrences field
+// - Merged tags from all occurrences
+// - Combined scores with occurrence-based bonuses
+// - Sorted by combined_score descending
 ```
 
 ### 3. Classification Phase 🚧 **Types Ready**
@@ -139,7 +159,7 @@ for string in &mut unique_strings {
         source: string.source,
         encoding: string.encoding,
     };
-    
+
     string.tags = classify_string(&string.text, &context);
     string.score = calculate_score(&string, &context);
 }
