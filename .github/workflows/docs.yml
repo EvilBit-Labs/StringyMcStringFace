@@ -36,7 +36,7 @@ jobs:
         uses: jontze/action-mdbook@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          mdbook-version: 0.4.52
+          mdbook-version: 0.5.2
           use-mermaid: true
           use-toc: true
           use-admonish: true
@@ -45,7 +45,7 @@ jobs:
         uses: cargo-bins/cargo-binstall@main
 
       - name: Install mdbook plugins
-        run: cargo binstall mdbook-tabs mdbook-i18n-helpers mdbook-alerts mdbook-yml-header mdbook-image-size --no-confirm
+        run: cargo binstall mdbook-tabs mdbook-i18n-helpers mdbook-yml-header mdbook-image-size --no-confirm
 
       - name: Build mdBook
         run: |
