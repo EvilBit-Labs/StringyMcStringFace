@@ -218,5 +218,3 @@ Licensed under Apache 2.0.
 - Inspired by `strings(1)` and the need for better binary analysis tools
 - Built with Rust ecosystem crates: `goblin`, `bstr`, `regex`, `rustc-demangle`
 - My coworkers, for their excellent input on the original name selection
-
-
