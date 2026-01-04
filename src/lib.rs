@@ -81,5 +81,6 @@ pub use types::{
 
 // Re-export extraction framework types
 pub use extraction::{
-    AsciiExtractionConfig, BasicExtractor, ExtractionConfig, StringExtractor, Utf16ExtractionConfig,
+    AsciiExtractionConfig, BasicExtractor, CanonicalString, ExtractionConfig, StringExtractor,
+    StringOccurrence, Utf16ExtractionConfig, deduplicate,
 };
