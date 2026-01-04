@@ -44,6 +44,23 @@
 //! - `extract_from_section()`: Section-aware extraction with proper metadata population
 //! - `Utf16ExtractionConfig`: Configuration for minimum/maximum character count and confidence thresholds
 //!
+//! ## String Deduplication
+//!
+//! The deduplication module provides functionality to group duplicate strings while preserving
+//! complete metadata about all occurrences. Strings are grouped by (text, encoding) keys, ensuring
+//! UTF-8 and UTF-16 versions are kept separate.
+//!
+//! - `deduplicate()`: Groups strings by (text, encoding) and creates `CanonicalString` entries
+//! - `CanonicalString`: Represents a deduplicated string with all occurrence metadata
+//! - `StringOccurrence`: Preserves location and context for each string instance
+//!
+//! The deduplication process:
+//! - Groups strings by (text, encoding) tuple
+//! - Preserves all occurrence metadata (offset, RVA, section, source, tags, score, confidence)
+//! - Merges tags using set union semantics
+//! - Calculates combined scores with occurrence-based bonuses
+//! - Sorts results by combined_score descending
+//!
 //! # ASCII Extraction Example
 //!
 //! ```rust
@@ -112,6 +129,7 @@ use crate::types::{
 
 pub mod ascii;
 pub mod config;
+pub mod dedup;
 pub mod filters;
 pub mod macho_load_commands;
 pub mod pe_resources;
@@ -120,6 +138,7 @@ pub mod util;
 
 pub use ascii::{AsciiExtractionConfig, extract_ascii_strings, extract_from_section};
 pub use config::{FilterWeights, NoiseFilterConfig};
+pub use dedup::{CanonicalString, StringOccurrence, deduplicate, found_string_to_occurrence};
 pub use filters::{CompositeNoiseFilter, FilterContext, NoiseFilter};
 pub use macho_load_commands::extract_load_command_strings;
 pub use pe_resources::{extract_resource_strings, extract_resources};
@@ -187,6 +206,19 @@ pub struct ExtractionConfig {
     ///
     /// UTF-16 strings with UTF-16-specific confidence below this threshold will be filtered out.
     pub utf16_confidence_threshold: f32,
+    /// Enable/disable deduplication (default: true)
+    ///
+    /// When enabled, strings are grouped by (text, encoding) and all occurrence metadata is preserved.
+    pub enable_deduplication: bool,
+    /// Deduplication threshold - only deduplicate strings appearing N+ times (default: None)
+    ///
+    /// If set, only strings appearing at least this many times will be deduplicated.
+    /// Other strings will be passed through unchanged.
+    pub dedup_threshold: Option<usize>,
+    /// Whether to preserve all occurrence metadata (default: true)
+    ///
+    /// When true, full occurrence lists are kept. When false, only occurrence count is preserved.
+    pub preserve_all_occurrences: bool,
 }
 
 impl Default for ExtractionConfig {
@@ -211,6 +243,9 @@ impl Default for ExtractionConfig {
             utf16_min_confidence: 0.7,
             utf16_byte_order: ByteOrder::Auto,
             utf16_confidence_threshold: 0.5,
+            enable_deduplication: true,
+            dedup_threshold: None,
+            preserve_all_occurrences: true,
         }
     }
 }
@@ -289,7 +324,9 @@ pub trait StringExtractor {
     ///
     /// # Returns
     ///
-    /// Vector of found strings with metadata
+    /// Vector of found strings with metadata. When deduplication is enabled,
+    /// this returns deduplicated strings but loses occurrence metadata.
+    /// Use `extract_canonical()` to preserve full occurrence information.
     fn extract(
         &self,
         data: &[u8],
@@ -317,6 +354,29 @@ pub trait StringExtractor {
         section: &SectionInfo,
         config: &ExtractionConfig,
     ) -> Result<Vec<FoundString>>;
+
+    /// Extract strings and return canonical strings with full occurrence metadata
+    ///
+    /// Similar to `extract()`, but returns `CanonicalString` entries that preserve
+    /// all occurrence metadata when deduplication is enabled. This allows consumers
+    /// to see all offsets, sections, and sources where each string appears.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Raw binary data
+    /// * `container_info` - Container metadata including sections
+    /// * `config` - Extraction configuration
+    ///
+    /// # Returns
+    ///
+    /// Vector of canonical strings with full occurrence metadata. If deduplication
+    /// is disabled, each string will have a single occurrence.
+    fn extract_canonical(
+        &self,
+        data: &[u8],
+        container_info: &ContainerInfo,
+        config: &ExtractionConfig,
+    ) -> Result<Vec<CanonicalString>>;
 }
 
 /// Basic sequential string extractor
@@ -453,7 +513,125 @@ impl StringExtractor for BasicExtractor {
             }
         }
 
-        Ok(all_strings)
+        // Apply deduplication if enabled
+        if config.enable_deduplication {
+            let canonical_strings = deduplicate(
+                all_strings,
+                config.dedup_threshold,
+                config.preserve_all_occurrences,
+            );
+            // Convert canonical strings back to FoundString for backward compatibility
+            Ok(canonical_strings
+                .into_iter()
+                .map(|cs| cs.to_found_string())
+                .collect())
+        } else {
+            Ok(all_strings)
+        }
+    }
+
+    fn extract_canonical(
+        &self,
+        data: &[u8],
+        container_info: &ContainerInfo,
+        config: &ExtractionConfig,
+    ) -> Result<Vec<CanonicalString>> {
+        let mut all_strings = Vec::new();
+
+        // Sort sections by priority from config.section_priority
+        let mut sections: Vec<_> = container_info.sections.iter().collect();
+        sections.sort_by_key(|section| {
+            config
+                .section_priority
+                .iter()
+                .position(|&st| st == section.section_type)
+                .unwrap_or_else(|| {
+                    // Fallback to section weight (higher weight = higher priority)
+                    // Convert weight to usize for consistent key type
+                    // Use a large offset to ensure fallback sections sort after prioritized ones
+                    let weight_int = (section.weight * 1000.0) as usize;
+                    config.section_priority.len() + (10000 - weight_int.min(10000))
+                })
+        });
+
+        for section in sections {
+            // Filter sections based on config
+            if section.section_type == SectionType::Debug && !config.include_debug {
+                continue;
+            }
+
+            // Filter code sections by both type and executable flag
+            if (section.section_type == SectionType::Code || section.is_executable)
+                && !config.scan_code_sections
+            {
+                continue;
+            }
+
+            // Extract strings from this section
+            let section_strings = self.extract_from_section(data, section, config)?;
+            all_strings.extend(section_strings);
+        }
+
+        // Include import/export symbols if configured
+        if config.include_symbols {
+            // Add import names
+            for import in &container_info.imports {
+                let length = import.name.len() as u32;
+                all_strings.push(FoundString {
+                    text: import.name.clone(),
+                    encoding: Encoding::Utf8,
+                    offset: 0,
+                    rva: None,
+                    section: None,
+                    length,
+                    tags: Vec::new(),
+                    score: 0,
+                    source: StringSource::ImportName,
+                    confidence: 1.0,
+                });
+            }
+
+            // Add export names
+            for export in &container_info.exports {
+                let length = export.name.len() as u32;
+                all_strings.push(FoundString {
+                    text: export.name.clone(),
+                    encoding: Encoding::Utf8,
+                    offset: 0,
+                    rva: None,
+                    section: None,
+                    length,
+                    tags: Vec::new(),
+                    score: 0,
+                    source: StringSource::ExportName,
+                    confidence: 1.0,
+                });
+            }
+        }
+
+        // Apply deduplication if enabled, otherwise convert each string to a canonical form
+        if config.enable_deduplication {
+            Ok(deduplicate(
+                all_strings,
+                config.dedup_threshold,
+                config.preserve_all_occurrences,
+            ))
+        } else {
+            // Convert each FoundString to a CanonicalString with a single occurrence
+            Ok(all_strings
+                .into_iter()
+                .map(|fs| {
+                    let occurrence = found_string_to_occurrence(fs.clone());
+                    CanonicalString {
+                        text: fs.text,
+                        encoding: fs.encoding,
+                        occurrences: vec![occurrence],
+                        merged_tags: fs.tags,
+                        combined_score: fs.score,
+                    }
+                })
+                .collect())
+        }
     }
 
     fn extract_from_section(
