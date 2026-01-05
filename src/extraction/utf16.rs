@@ -706,131 +706,7 @@ fn extract_utf16le_strings_internal(
     data: &[u8],
     config: &Utf16ExtractionConfig,
 ) -> Vec<FoundString> {
-    let mut strings = Vec::new();
-
-    // Need at least 2 bytes for a UTF-16LE character
-    if data.len() < 2 {
-        return strings;
-    }
-
-    // Helper function to scan from a given start offset
-    fn scan_from_offset_le(
-        data: &[u8],
-        config: &Utf16ExtractionConfig,
-        start_offset: usize,
-    ) -> Vec<FoundString> {
-        let mut found_strings = Vec::new();
-        let mut i = start_offset;
-        while i + 1 < data.len() {
-            let mut char_count = 0;
-            let start = i;
-            let mut has_null_terminator = false;
-            let mut chars = Vec::new();
-
-            // Accumulate printable UTF-16LE characters
-            while i + 1 < data.len() {
-                // Read current code unit as u16
-                let code_unit = u16::from_le_bytes([data[i], data[i + 1]]);
-
-                // Check for null terminator (0x0000)
-                if code_unit == 0x0000 {
-                    has_null_terminator = true;
-                    break;
-                }
-
-                // Check if we have a next code unit for surrogate pair detection
-                let next_code_unit = if i + 3 < data.len() {
-                    Some(u16::from_le_bytes([data[i + 2], data[i + 3]]))
-                } else {
-                    None
-                };
-
-                // Check if character is printable (handles surrogate pairs)
-                let (is_printable, consumed_units) =
-                    is_printable_code_unit_or_pair(code_unit, next_code_unit);
-
-                if is_printable {
-                    char_count += 1; // Count as single character (even if surrogate pair)
-                    chars.push(code_unit);
-                    if consumed_units == 2 {
-                        // Surrogate pair - also add the low surrogate
-                        if i + 3 < data.len() {
-                            chars.push(u16::from_le_bytes([data[i + 2], data[i + 3]]));
-                        }
-                    }
-                    i += consumed_units * 2; // Advance by number of bytes (2 per code unit)
-                } else {
-                    // Non-printable character or lone surrogate, end of string candidate
-                    break;
-                }
-            }
-
-            // Check if we found a valid string
-            if char_count >= config.min_length {
-                // Check maximum length if configured
-                if let Some(max_len) = config.max_length
-                    && char_count > max_len
-                {
-                    // Skip this string, move to next position
-                    i += 2;
-                    continue;
-                }
-
-                // Calculate end position (including null terminator if present)
-                let end = if has_null_terminator { i + 2 } else { i };
-
-                // Extract the string bytes (excluding null terminator for decoding)
-                let string_bytes = &data[start..end.min(data.len())];
-                let bytes_for_decoding = if has_null_terminator && string_bytes.len() >= 2 {
-                    &string_bytes[..string_bytes.len() - 2]
-                } else {
-                    string_bytes
-                };
-
-                // Decode to UTF-8 and get u16 vector
-                if let Ok((text, u16_vec)) = decode_utf16le(bytes_for_decoding) {
-                    // Calculate UTF-16-specific confidence
-                    let utf16_confidence = calculate_utf16_confidence(&u16_vec, ByteOrder::LE);
-
-                    // Apply confidence threshold
-                    if utf16_confidence >= config.confidence_threshold {
-                        found_strings.push(FoundString {
-                            text,
-                            encoding: Encoding::Utf16Le,
-                            offset: start as u64,
-                            rva: None,
-                            section: None,
-                            length: bytes_for_decoding.len() as u32,
-                            tags: Vec::new(),
-                            score: 0,
-                            source: StringSource::SectionData,
-                            confidence: utf16_confidence,
-                        });
-                    }
-                }
-            }
-
-            // Move to next potential start position
-            // If we found a null terminator, skip past it
-            if has_null_terminator {
-                i += 2;
-            } else {
-                // Move forward by 2 bytes to try next alignment
-                i += 2;
-            }
-        }
-        found_strings
-    }
-
-    // First pass: scan starting at even offset (index 0)
-    strings.extend(scan_from_offset_le(data, config, 0));
-
-    // Second pass: scan starting at odd offset (index 1) if enabled
-    if config.scan_both_alignments && data.len() >= 3 {
-        strings.extend(scan_from_offset_le(data, config, 1));
-    }
-
-    strings
+    extract_utf16_strings_with_byte_order(data, config, ByteOrder::LE)
 }
 
 /// Extract UTF-16BE strings from a byte slice (internal)
@@ -851,31 +727,41 @@ fn extract_utf16be_strings_internal(
     data: &[u8],
     config: &Utf16ExtractionConfig,
 ) -> Vec<FoundString> {
+    extract_utf16_strings_with_byte_order(data, config, ByteOrder::BE)
+}
+
+/// Generic UTF-16 string extraction with specified byte order
+///
+/// Scans through the byte slice looking for contiguous sequences of printable UTF-16
+/// characters in the specified byte order. Handles both even and odd alignment scanning.
+fn extract_utf16_strings_with_byte_order(
+    data: &[u8],
+    config: &Utf16ExtractionConfig,
+    byte_order: ByteOrder,
+) -> Vec<FoundString> {
     let mut strings = Vec::new();
 
-    // Need at least 2 bytes for a UTF-16BE character
     if data.len() < 2 {
         return strings;
     }
 
     // Helper function to scan from a given start offset
-    fn scan_from_offset_be(
-        data: &[u8],
-        config: &Utf16ExtractionConfig,
-        start_offset: usize,
-    ) -> Vec<FoundString> {
+    let scan_from_offset = |start_offset: usize| -> Vec<FoundString> {
         let mut found_strings = Vec::new();
         let mut i = start_offset;
         while i + 1 < data.len() {
             let mut char_count = 0;
             let start = i;
             let mut has_null_terminator = false;
-            let mut chars = Vec::new();
 
-            // Accumulate printable UTF-16BE characters
+            // Accumulate printable UTF-16 characters
             while i + 1 < data.len() {
-                // Read current code unit as u16 (big-endian)
-                let code_unit = u16::from_be_bytes([data[i], data[i + 1]]);
+                // Read current code unit as u16
+                let code_unit = match byte_order {
+                    ByteOrder::LE => u16::from_le_bytes([data[i], data[i + 1]]),
+                    ByteOrder::BE => u16::from_be_bytes([data[i], data[i + 1]]),
+                    ByteOrder::Auto => unreachable!(),
+                };
 
                 // Check for null terminator (0x0000)
                 if code_unit == 0x0000 {
@@ -885,7 +771,11 @@ fn extract_utf16be_strings_internal(
 
                 // Check if we have a next code unit for surrogate pair detection
                 let next_code_unit = if i + 3 < data.len() {
-                    Some(u16::from_be_bytes([data[i + 2], data[i + 3]]))
+                    Some(match byte_order {
+                        ByteOrder::LE => u16::from_le_bytes([data[i + 2], data[i + 3]]),
+                        ByteOrder::BE => u16::from_be_bytes([data[i + 2], data[i + 3]]),
+                        ByteOrder::Auto => unreachable!(),
+                    })
                 } else {
                     None
                 };
@@ -895,36 +785,23 @@ fn extract_utf16be_strings_internal(
                     is_printable_code_unit_or_pair(code_unit, next_code_unit);
 
                 if is_printable {
-                    char_count += 1; // Count as single character (even if surrogate pair)
-                    chars.push(code_unit);
-                    if consumed_units == 2 {
-                        // Surrogate pair - also add the low surrogate
-                        if i + 3 < data.len() {
-                            chars.push(u16::from_be_bytes([data[i + 2], data[i + 3]]));
-                        }
-                    }
-                    i += consumed_units * 2; // Advance by number of bytes (2 per code unit)
+                    char_count += 1;
+                    i += consumed_units * 2;
                 } else {
-                    // Non-printable character or lone surrogate, end of string candidate
                     break;
                 }
             }
 
             // Check if we found a valid string
             if char_count >= config.min_length {
-                // Check maximum length if configured
                 if let Some(max_len) = config.max_length
                     && char_count > max_len
                 {
-                    // Skip this string, move to next position
                     i += 2;
                     continue;
                 }
 
-                // Calculate end position (including null terminator if present)
                 let end = if has_null_terminator { i + 2 } else { i };
-
-                // Extract the string bytes (excluding null terminator for decoding)
                 let string_bytes = &data[start..end.min(data.len())];
                 let bytes_for_decoding = if has_null_terminator && string_bytes.len() >= 2 {
                     &string_bytes[..string_bytes.len() - 2]
@@ -933,15 +810,23 @@ fn extract_utf16be_strings_internal(
                 };
 
                 // Decode to UTF-8 and get u16 vector
-                if let Ok((text, u16_vec)) = decode_utf16be(bytes_for_decoding) {
-                    // Calculate UTF-16-specific confidence
-                    let utf16_confidence = calculate_utf16_confidence(&u16_vec, ByteOrder::BE);
+                let decode_result = match byte_order {
+                    ByteOrder::LE => decode_utf16le(bytes_for_decoding),
+                    ByteOrder::BE => decode_utf16be(bytes_for_decoding),
+                    ByteOrder::Auto => unreachable!(),
+                };
 
-                    // Apply confidence threshold
+                if let Ok((text, u16_vec)) = decode_result {
+                    let utf16_confidence = calculate_utf16_confidence(&u16_vec, byte_order);
+
                     if utf16_confidence >= config.confidence_threshold {
                         found_strings.push(FoundString {
                             text,
-                            encoding: Encoding::Utf16Be,
+                            encoding: match byte_order {
+                                ByteOrder::LE => Encoding::Utf16Le,
+                                ByteOrder::BE => Encoding::Utf16Be,
+                                ByteOrder::Auto => unreachable!(),
+                            },
                             offset: start as u64,
                             rva: None,
                             section: None,
@@ -956,23 +841,17 @@ fn extract_utf16be_strings_internal(
             }
 
             // Move to next potential start position
-            // If we found a null terminator, skip past it
-            if has_null_terminator {
-                i += 2;
-            } else {
-                // Move forward by 2 bytes to try next alignment
-                i += 2;
-            }
+            i += 2;
         }
         found_strings
-    }
+    };
 
     // First pass: scan starting at even offset (index 0)
-    strings.extend(scan_from_offset_be(data, config, 0));
+    strings.extend(scan_from_offset(0));
 
     // Second pass: scan starting at odd offset (index 1) if enabled
     if config.scan_both_alignments && data.len() >= 3 {
-        strings.extend(scan_from_offset_be(data, config, 1));
+        strings.extend(scan_from_offset(1));
     }
 
     strings
@@ -1005,42 +884,26 @@ pub fn extract_utf16_strings(data: &[u8], config: &Utf16ExtractionConfig) -> Vec
             let le_strings = extract_utf16le_strings_internal(data, config);
             let be_strings = extract_utf16be_strings_internal(data, config);
 
-            // Merge results, deduplicating by (offset, encoding, text) to avoid true duplicates
-            // while retaining distinct strings at the same offset (different encoding or text)
-            // Maintain a Vec and check for exact duplicates manually, preferring higher confidence
-            for string in le_strings {
-                // Check if we already have an exact duplicate
+            // Helper to add string with deduplication
+            let mut add_with_dedup = |string: FoundString| {
                 if let Some(existing) = strings.iter_mut().find(|s| {
                     s.offset == string.offset
                         && s.encoding == string.encoding
                         && s.text == string.text
                 }) {
-                    // Prefer the one with higher confidence
                     if string.confidence > existing.confidence {
                         *existing = string;
                     }
                 } else {
-                    // New distinct string, add it
                     strings.push(string);
                 }
-            }
+            };
 
-            // Add BE strings, preferring higher confidence for exact duplicates
+            for string in le_strings {
+                add_with_dedup(string);
+            }
             for string in be_strings {
-                // Check if we already have an exact duplicate
-                if let Some(existing) = strings.iter_mut().find(|s| {
-                    s.offset == string.offset
-                        && s.encoding == string.encoding
-                        && s.text == string.text
-                }) {
-                    // Prefer the one with higher confidence
-                    if string.confidence > existing.confidence {
-                        *existing = string;
-                    }
-                } else {
-                    // New distinct string, add it
-                    strings.push(string);
-                }
+                add_with_dedup(string);
             }
         }
     }

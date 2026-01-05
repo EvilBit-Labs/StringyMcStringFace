@@ -1,0 +1,63 @@
+---
+inclusion: fileMatch
+fileMatchPattern: ['**/*.rs']
+---
+
+# Error Handling Standards for Stringy
+
+## Error Types
+
+Use `thiserror` for structured error types:
+
+```rust
+#[derive(Debug, thiserror::Error)]
+pub enum StringyError {
+    #[error("Unsupported file format")]
+    UnsupportedFormat,
+
+    #[error("File I/O error: {0}")]
+    IoError(#[from] std::io::Error),
+
+    #[error("Binary parsing error: {0}")]
+    ParseError(String),
+
+    #[error("Invalid encoding in string at offset {offset}")]
+    EncodingError { offset: u64 },
+
+    #[error("Configuration error: {0}")]
+    ConfigError(String),
+
+    #[error("Memory mapping error: {0}")]
+    MemoryMapError(String),
+}
+```
+
+## Error Context
+
+- Provide detailed error messages with actionable suggestions
+- Include relevant context information (file paths, offsets, section names, etc.)
+- Convert `goblin` errors to `StringyError` using `From` implementations
+
+## Error Propagation
+
+- Use `?` operator for error propagation
+- Convert between error types using `From` implementations
+- Avoid `unwrap()` and `expect()` in production code
+
+## Binary Parsing Errors
+
+- Handle malformed binary files gracefully
+- Provide clear error messages indicating what went wrong
+- Include file offset information when available
+
+## Error Recovery
+
+- Continue processing other sections when one section fails
+- Provide partial results when possible
+- Log errors but don't crash on non-critical failures
+
+## Error Testing
+
+- Test all error conditions (invalid formats, malformed binaries, I/O errors)
+- Validate error messages and context
+- Test error propagation through the parsing pipeline

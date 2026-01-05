@@ -53,7 +53,7 @@ Presents the most relevant strings first using a scoring algorithm.
 - **Section targeting**: `.rodata`, `.rdata`, `__cstring`, resources, manifests
 - **Encoding support**: ASCII, UTF-8, UTF-16LE/BE with confidence scoring
 - **Smart classification**:
-  - URLs, domains, IPs
+  - URLs, domains, IPv4/IPv6 addresses (implemented)
   - Filepaths & registry keys
   - GUIDs & user agents
   - Format strings (`%s`, `%d`, etc.)
@@ -172,7 +172,7 @@ This project is in active development. Current implementation status:
 - ✅ **Section Analysis**: Smart classification of string-rich sections
 - ✅ **PE Resource Enumeration**: VERSIONINFO, STRINGTABLE, and MANIFEST resource detection (Phase 1 complete)
 - 🚧 **String Extraction**: ASCII/UTF-8 and UTF-16 extraction engines (framework ready)
-- 🚧 **Semantic Classification**: URL, domain, path, GUID pattern matching (types defined)
+- 🚧 **Semantic Classification**: IPv4/IPv6 detection implemented; URL, domain, path, GUID pattern matching in progress (types defined)
 - 🚧 **Ranking System**: Section-aware scoring algorithm (framework in place)
 - 🚧 **Output Formats**: JSONL, human-readable, and YARA-friendly output (types ready)
 - 🚧 **CLI Interface**: Basic argument parsing implemented, main pipeline in progress

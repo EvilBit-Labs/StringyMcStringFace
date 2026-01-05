@@ -28,10 +28,14 @@ Raw String → Pattern Matching → Context Analysis → Tag Assignment → Conf
 
 #### IP Addresses
 
-- **IPv4 Pattern**: `\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b`
-- **IPv6 Pattern**: `\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b`
-- **Examples**: `192.168.1.1`, `2001:db8::1`
-- **Validation**: Range checking, reserved address detection
+- **IPv4 Pattern**: `\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b`
+- **IPv6 Pattern**: Comprehensive pattern supporting full notation, compressed notation (`::1`), and mixed notation (`::ffff:192.0.2.1`)
+- **Examples**: `192.168.1.1`, `2001:db8::1`, `[::1]:8080`
+- **Validation**: Two-stage validation using regex pre-filter followed by `std::net::IpAddr` parsing for correctness
+- **Port Handling**: IP addresses with ports (e.g., `192.168.1.1:8080`) are supported by automatically stripping the port suffix before validation
+- **IPv6 Bracket Handling**: Bracketed IPv6 addresses (e.g., `[::1]` and `[::1]:8080`) are supported
+- **False Positive Mitigation**: Version numbers like `1.2.3.4` are filtered out using heuristics (all octets < 20)
+- **Implementation**: See `src/classification/semantic.rs` for the complete implementation
 - **Security relevance**: High - infrastructure indicators
 
 ### File System Indicators
