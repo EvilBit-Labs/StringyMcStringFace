@@ -454,7 +454,7 @@ pub fn extract_version_info_strings(data: &[u8]) -> Vec<FoundString> {
 ///
 /// # Returns
 ///
-/// Vector of Option<String>, where Some contains the decoded string and None
+/// Vector of `Option<String>`, where `Some` contains the decoded string and `None`
 /// indicates an empty entry
 fn parse_string_table_block(bytes: &[u8]) -> Vec<Option<String>> {
     let mut strings = Vec::new();

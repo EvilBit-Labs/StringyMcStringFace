@@ -1,0 +1,273 @@
+---
+inclusion: fileMatch
+fileMatchPattern: ['**/benches/**/*.rs', '**/*bench*.rs', '**/*performance*.rs']
+---
+
+# Performance Optimization Standards for Stringy
+
+## High-Performance Binary Processing
+
+Stringy uses idiomatic best practices for high-performance binary analysis:
+
+- **Zero-Copy Parsing**: Use `goblin` for efficient binary format parsing without unnecessary allocations
+- **Memory-Mapped Files**: Consider memory-mapped I/O for large binary files
+- **Lazy Evaluation**: Process sections on-demand rather than loading everything into memory
+- **Efficient String Extraction**: Use slice-based operations for string extraction to avoid allocations
+
+## Performance Targets
+
+Stringy must meet strict performance requirements:
+
+- **Large Binary Processing**: Handle binaries up to several GB efficiently
+- **Memory Usage**: Minimize memory footprint, especially for large binaries
+- **Processing Speed**: Process typical binaries (10-100 MB) in < 1 second
+- **String Extraction**: Extract strings from sections efficiently without excessive allocations
+- **Format Detection**: Detect binary format in < 10ms
+
+## Benchmarking with Criterion
+
+Use Criterion for performance benchmarking:
+
+```rust
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use std::fs;
+
+fn benchmark_format_detection(c: &mut Criterion) {
+    let mut group = c.benchmark_group("format_detection");
+
+    let elf_data = fs::read("test_data/sample.elf").unwrap();
+    let pe_data = fs::read("test_data/sample.exe").unwrap();
+    let macho_data = fs::read("test_data/sample.macho").unwrap();
+
+    group.bench_function("detect_elf", |b| {
+        b.iter(|| black_box(stringy::container::detect_format(&elf_data)))
+    });
+
+    group.bench_function("detect_pe", |b| {
+        b.iter(|| black_box(stringy::container::detect_format(&pe_data)))
+    });
+
+    group.bench_function("detect_macho", |b| {
+        b.iter(|| black_box(stringy::container::detect_format(&macho_data)))
+    });
+
+    group.finish();
+}
+
+fn benchmark_string_extraction(c: &mut Criterion) {
+    let mut group = c.benchmark_group("string_extraction");
+
+    let binary_data = fs::read("test_data/large_binary").unwrap();
+    let container_info = stringy::container::parse_binary(&binary_data).unwrap();
+
+    group.bench_function("extract_strings", |b| {
+        b.iter(|| {
+            black_box(stringy::extraction::extract_strings(
+                &binary_data,
+                &container_info.sections,
+            ))
+        })
+    });
+
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    benchmark_format_detection,
+    benchmark_string_extraction
+);
+criterion_main!(benches);
+```
+
+## Memory Management
+
+Implement efficient memory usage patterns for binary processing:
+
+```rust
+use memmap2::MmapOptions;
+use std::fs::File;
+
+// Memory-mapped file for large binaries
+fn process_large_binary(path: &Path) -> Result<ContainerInfo> {
+    let file = File::open(path)?;
+    let mmap = unsafe { MmapOptions::new().map(&file)? };
+
+    // Process memory-mapped data without loading entire file
+    let format = detect_format(&mmap);
+    let parser = create_parser(format)?;
+    let container_info = parser.parse(&mmap)?;
+
+    Ok(container_info)
+}
+
+// Slice-based string extraction to avoid allocations
+fn extract_strings_efficient(data: &[u8]) -> Vec<FoundString> {
+    let mut strings = Vec::new();
+    let mut i = 0;
+
+    while i < data.len() {
+        if let Some(string) = find_string_at_offset(data, i) {
+            strings.push(string);
+            i += string.length as usize;
+        } else {
+            i += 1;
+        }
+    }
+
+    strings
+}
+```
+
+## Binary Parsing Optimization
+
+Optimize binary format parsing:
+
+```rust
+// Use goblin's zero-copy parsing
+fn parse_elf_efficient(data: &[u8]) -> Result<ContainerInfo> {
+    let elf = goblin::elf::Elf::parse(data)?;
+
+    // Process sections without cloning
+    let sections: Vec<SectionInfo> = elf
+        .section_headers
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, header)| {
+            // Only process sections that are likely to contain strings
+            if is_string_section(&elf, idx) {
+                Some(parse_section_info(&elf, header, idx))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    Ok(ContainerInfo {
+        format: BinaryFormat::Elf,
+        sections,
+        imports: extract_imports(&elf)?,
+        exports: extract_exports(&elf)?,
+    })
+}
+```
+
+## String Extraction Optimization
+
+Optimize string extraction algorithms:
+
+```rust
+// Efficient UTF-8 string extraction
+fn extract_utf8_strings(data: &[u8], min_len: usize) -> Vec<FoundString> {
+    let mut strings = Vec::new();
+    let mut start = None;
+
+    for (i, &byte) in data.iter().enumerate() {
+        if byte.is_ascii() && byte >= 0x20 && byte < 0x7F {
+            if start.is_none() {
+                start = Some(i);
+            }
+        } else if byte == 0 {
+            if let Some(s) = start {
+                let len = i - s;
+                if len >= min_len {
+                    if let Ok(text) = std::str::from_utf8(&data[s..i]) {
+                        strings.push(FoundString {
+                            text: text.to_string(),
+                            offset: s as u64,
+                            length: len as u32,
+                            // ... other fields
+                        });
+                    }
+                }
+            }
+            start = None;
+        } else {
+            start = None;
+        }
+    }
+
+    strings
+}
+```
+
+## Section Processing Optimization
+
+Process sections efficiently:
+
+```rust
+// Process sections in priority order (highest weight first)
+fn process_sections_prioritized(data: &[u8], sections: &[SectionInfo]) -> Vec<FoundString> {
+    let mut sections = sections.to_vec();
+
+    // Sort by weight (descending) to process high-value sections first
+    sections.sort_by(|a, b| b.weight.partial_cmp(&a.weight).unwrap());
+
+    let mut all_strings = Vec::new();
+
+    for section in sections {
+        if let Ok(strings) = extract_strings_from_section(data, &section) {
+            all_strings.extend(strings);
+        }
+    }
+
+    all_strings
+}
+```
+
+## Performance Testing
+
+Include performance regression tests:
+
+```rust
+#[test]
+fn test_format_detection_performance() {
+    let data = include_bytes!("../test_data/sample.elf");
+    let start = Instant::now();
+
+    for _ in 0..1000 {
+        let _format = detect_format(data);
+    }
+
+    let duration = start.elapsed();
+
+    // Must complete 1000 detections in < 100ms
+    assert!(duration < Duration::from_millis(100));
+}
+
+#[test]
+fn test_large_binary_processing() {
+    let data = fs::read("test_data/large_binary").unwrap();
+    let start = Instant::now();
+
+    let format = detect_format(&data);
+    let parser = create_parser(format).unwrap();
+    let _container_info = parser.parse(&data).unwrap();
+
+    let duration = start.elapsed();
+
+    // Must process 100MB binary in < 2 seconds
+    assert!(duration < Duration::from_secs(2));
+}
+```
+
+## Memory Usage Testing
+
+Test memory efficiency:
+
+```rust
+#[test]
+fn test_memory_efficiency() {
+    let data = fs::read("test_data/large_binary").unwrap();
+
+    // Process binary multiple times
+    for _ in 0..10 {
+        let format = detect_format(&data);
+        let parser = create_parser(format).unwrap();
+        let _container_info = parser.parse(&data).unwrap();
+    }
+
+    // Memory should not grow unbounded
+    // (In a real test, you'd measure actual memory usage)
+}
+```
