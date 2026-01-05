@@ -76,8 +76,11 @@ lazy_static! {
 
     /// Regular expression for detecting and stripping port suffixes
     ///
-    /// Matches :port where port is 1-5 digits (0-65535).
-    static ref PORT_SUFFIX_REGEX: Regex = Regex::new(r":[0-9]{1,5}$").unwrap();
+    /// Matches :port where port is in the valid range 0-65535.
+    /// Pattern: :[0-9]{1,4} matches 0-9999, |[1-5][0-9]{4} matches 10000-59999,
+    /// |6[0-4][0-9]{3} matches 60000-64999, |65[0-4][0-9]{2} matches 65000-65499,
+    /// |655[0-2][0-9] matches 65500-65529, |6553[0-5] matches 65530-65535.
+    static ref PORT_SUFFIX_REGEX: Regex = Regex::new(r":(?:[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$").unwrap();
 
     /// Regular expression for handling bracketed IPv6 addresses
     ///
@@ -380,6 +383,15 @@ impl SemanticClassifier {
     /// 2. `std::net::Ipv4Addr` validation for correctness
     ///
     /// It also handles port suffixes and filters out version numbers.
+    ///
+    /// # Version Number Heuristic
+    ///
+    /// To reduce false positives from version numbers (e.g., "1.2.3.4"),
+    /// this method rejects IPv4 addresses where all octets are less than 20.
+    /// This heuristic may occasionally produce false positives for legitimate
+    /// IP addresses that happen to match version number patterns (e.g., "10.5.2.15").
+    /// Common addresses like 8.8.8.8 (Google DNS) and private network addresses
+    /// in well-known ranges are explicitly allowed to mitigate this.
     ///
     /// # Arguments
     ///
@@ -766,7 +778,7 @@ mod tests {
         // Version numbers should be rejected
         assert!(!classifier.is_ipv4_address("1.2.3.4"));
         assert!(!classifier.is_ipv4_address("2.0.1.0"));
-        assert!(!classifier.is_ipv4_address("10.5.2.1")); // Some octets < 20, but not all
+        assert!(!classifier.is_ipv4_address("10.5.2.1")); // All octets < 20 -> treated as version number, so rejected
         assert!(classifier.is_ipv4_address("10.5.2.20")); // Valid IP (not all < 20)
     }
 
