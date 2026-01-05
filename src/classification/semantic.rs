@@ -76,8 +76,11 @@ lazy_static! {
 
     /// Regular expression for detecting and stripping port suffixes
     ///
-    /// Matches :port where port is 1-5 digits (0-65535).
-    static ref PORT_SUFFIX_REGEX: Regex = Regex::new(r":[0-9]{1,5}$").unwrap();
+    /// Matches :port where port is in the valid range 0-65535.
+    /// Pattern: :[0-9]{1,4} matches 0-9999, |[1-5][0-9]{4} matches 10000-59999,
+    /// |6[0-4][0-9]{3} matches 60000-64999, |65[0-4][0-9]{2} matches 65000-65499,
+    /// |655[0-2][0-9] matches 65500-65529, |6553[0-5] matches 65530-65535.
+    static ref PORT_SUFFIX_REGEX: Regex = Regex::new(r":(?:[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$").unwrap();
 
     /// Regular expression for handling bracketed IPv6 addresses
     ///
@@ -379,7 +382,14 @@ impl SemanticClassifier {
     /// 1. Regex pre-filter for performance
     /// 2. `std::net::Ipv4Addr` validation for correctness
     ///
-    /// It also handles port suffixes and filters out version numbers.
+    /// It also handles port suffixes (e.g., "192.168.1.1:8080").
+    ///
+    /// # Note on Version Numbers
+    ///
+    /// This method accepts ALL valid IPv4 addresses in dotted-quad notation,
+    /// even if they could also be interpreted as version numbers (e.g., "1.2.3.4").
+    /// It is the responsibility of the caller to disambiguate between IP addresses
+    /// and version numbers based on context when necessary.
     ///
     /// # Arguments
     ///
@@ -397,7 +407,7 @@ impl SemanticClassifier {
     /// let classifier = SemanticClassifier::new();
     /// assert!(classifier.is_ipv4_address("192.168.1.1"));
     /// assert!(classifier.is_ipv4_address("192.168.1.1:8080"));
-    /// assert!(!classifier.is_ipv4_address("1.2.3.4")); // Version number
+    /// assert!(classifier.is_ipv4_address("1.2.3.4")); // Valid IP (could also be a version number)
     /// assert!(!classifier.is_ipv4_address("256.1.1.1")); // Invalid octet
     /// ```
     pub fn is_ipv4_address(&self, text: &str) -> bool {
@@ -419,37 +429,7 @@ impl SemanticClassifier {
 
         // Validate using std::net::Ipv4Addr for correctness
         // This is the authoritative check - regex is just a pre-filter
-        let ip = match Ipv4Addr::from_str(text_without_port) {
-            Ok(ip) => ip,
-            Err(_) => return false,
-        };
-
-        // Apply false positive mitigation: reject version numbers
-        // Version numbers like 1.2.3.4 or 10.5.2.1 typically have all octets < 20
-        // We use a heuristic: reject if all octets are < 20 (as per plan)
-        // But allow common real IP addresses and private network ranges
-        let octets = ip.octets();
-
-        // Allow 0.0.0.0 (unspecified address) and common single-digit IPs
-        // Also allow specific common private IPs that would otherwise be rejected
-        let common_ips = [
-            [0, 0, 0, 0],  // Unspecified
-            [1, 1, 1, 1],  // Cloudflare DNS
-            [8, 8, 8, 8],  // Google DNS
-            [8, 8, 4, 4],  // Google DNS alt
-            [10, 0, 0, 1], // Common private IP
-        ];
-
-        if common_ips.contains(&octets) {
-            return true;
-        }
-
-        // Reject if all octets are < 20 (likely a version number)
-        if octets.iter().all(|&octet| octet < 20) {
-            return false;
-        }
-
-        true
+        Ipv4Addr::from_str(text_without_port).is_ok()
     }
 
     /// Detects IPv6 addresses in the given text
@@ -763,11 +743,12 @@ mod tests {
     fn test_ipv4_version_numbers() {
         let classifier = SemanticClassifier::new();
 
-        // Version numbers should be rejected
-        assert!(!classifier.is_ipv4_address("1.2.3.4"));
-        assert!(!classifier.is_ipv4_address("2.0.1.0"));
-        assert!(!classifier.is_ipv4_address("10.5.2.1")); // Some octets < 20, but not all
-        assert!(classifier.is_ipv4_address("10.5.2.20")); // Valid IP (not all < 20)
+        // Valid IPv4 addresses that could also be version numbers are accepted
+        // It's the caller's responsibility to disambiguate based on context
+        assert!(classifier.is_ipv4_address("1.2.3.4"));
+        assert!(classifier.is_ipv4_address("2.0.1.0"));
+        assert!(classifier.is_ipv4_address("10.5.2.1"));
+        assert!(classifier.is_ipv4_address("10.5.2.20"));
     }
 
     #[test]

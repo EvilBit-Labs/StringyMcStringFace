@@ -1,6 +1,6 @@
 {
   "enabled": true,
-  "name": "Code Simplicy Checker",
+  "name": "Code Simplicity Checker",
   "description": "When the agent finishes its work, automatically trigger a comprehensive code review to eliminate unnecessary complexity, refactor for simplicity, reduce test bloat, and verify idiomatic style before finalizing any code changes",
   "version": "1",
   "when": {
