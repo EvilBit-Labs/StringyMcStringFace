@@ -18,13 +18,13 @@ Stringy extracts meaningful strings from ELF, PE, and Mach-O binaries using form
 
 ## Module Structure
 
-| Module | Purpose |
-|--------|---------|
-| `container/` | Format detection, section analysis, imports/exports via `goblin` |
-| `extraction/` | ASCII/UTF-8/UTF-16 extraction, deduplication, PE resources |
-| `classification/` | Semantic tagging (URLs, IPs, domains, paths, GUIDs) |
-| `output/` | Formatters (JSON, human-readable, YARA-friendly) |
-| `types/` | Core data structures, error handling with `thiserror` |
+| Module            | Purpose                                                          |
+| ----------------- | ---------------------------------------------------------------- |
+| `container/`      | Format detection, section analysis, imports/exports via `goblin` |
+| `extraction/`     | ASCII/UTF-8/UTF-16 extraction, deduplication, PE resources       |
+| `classification/` | Semantic tagging (URLs, IPs, domains, paths, GUIDs)              |
+| `output/`         | Formatters (JSON, human-readable, YARA-friendly)                 |
+| `types/`          | Core data structures, error handling with `thiserror`            |
 
 ## Key Patterns
 

@@ -12,11 +12,11 @@ Binary → Format Detection (goblin) → Container Parsing → String Extraction
 
 ### Module Organization
 
-- **`container/`** [COMPLETE]: Format detection (ELF/PE/Mach-O), section analysis, imports/exports via `goblin`
-- **`extraction/`** [COMPLETE]: ASCII/UTF-8/UTF-16 string extraction, deduplication, PE resources
-- **`classification/`** [PARTIAL]: Semantic tagging (URLs, IPs, domains, paths, GUIDs, etc.)
-- **`output/`** [PLANNED]: JSON/human-readable/YARA-friendly formatting
-- **`types/`** [COMPLETE]: Core data structures (`FoundString`, `ContainerInfo`, etc.), error handling
+- **`container/`** \[COMPLETE\]: Format detection (ELF/PE/Mach-O), section analysis, imports/exports via `goblin`
+- **`extraction/`** \[COMPLETE\]: ASCII/UTF-8/UTF-16 string extraction, deduplication, PE resources
+- **`classification/`** \[PARTIAL\]: Semantic tagging (URLs, IPs, domains, paths, GUIDs, etc.)
+- **`output/`** \[PLANNED\]: JSON/human-readable/YARA-friendly formatting
+- **`types/`** \[COMPLETE\]: Core data structures (`FoundString`, `ContainerInfo`, etc.), error handling
 
 ## Critical Coding Standards
 
@@ -38,7 +38,7 @@ Use structured errors with detailed context (see `src/types.rs`):
 pub enum StringyError {
     #[error("Binary parsing error: {0}")]
     ParseError(String),
-    
+
     #[error("Invalid encoding at offset {offset}")]
     EncodingError { offset: u64 },
 }
@@ -98,9 +98,12 @@ impl ContainerInfo {
 - **Run tests**: `just test` (uses `cargo nextest`)
 
 Example pattern from `tests/integration_elf.rs`:
+
 ```rust
 fn get_fixture_path(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join(name)
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures")
+        .join(name)
 }
 
 #[test]
@@ -119,6 +122,7 @@ fn test_elf_import_export_extraction() {
 **Setup**: `just setup` (installs rustfmt, clippy, llvm-tools-preview, mdformat)
 
 **Development**:
+
 - `just build` - Debug build
 - `just test` - Run tests with nextest
 - `just lint` - Full lint suite (rustfmt, clippy, actionlint, cspell, markdown)
@@ -126,6 +130,7 @@ fn test_elf_import_export_extraction() {
 - `just run <file>` - Run binary against test file
 
 **Code Quality**:
+
 - `just fmt` - Format Rust/markdown/YAML/JSON
 - `just fix` - Auto-fix clippy warnings with `--fix`
 - `just coverage` - Generate LCOV coverage report
@@ -138,11 +143,11 @@ The `justfile` uses OS annotations (`[windows]`/`[unix]`) for cross-platform com
 
 ## Dependencies & Crates
 
-**Core parsing**: `goblin` (ELF/PE/Mach-O), `pelite` (PE resources)  
-**CLI**: `clap` with derive macros  
-**Error handling**: `thiserror`  
-**Serialization**: `serde`, `serde_json`  
-**Regex**: `regex` for classification  
+**Core parsing**: `goblin` (ELF/PE/Mach-O), `pelite` (PE resources)\
+**CLI**: `clap` with derive macros\
+**Error handling**: `thiserror`\
+**Serialization**: `serde`, `serde_json`\
+**Regex**: `regex` for classification\
 **Testing**: `insta` (snapshots), `criterion` (benchmarks), `tempfile`
 
 ## Import Conventions
@@ -153,16 +158,17 @@ The `justfile` uses OS annotations (`[windows]`/`[unix]`) for cross-platform com
 
 ## What NOT to Do
 
-- Don't use `async` (this is a synchronous CLI tool)  
-- Don't add `unsafe` blocks (forbidden)  
-- Don't ignore clippy warnings (they're errors)  
-- Don't create files >600 lines without splitting  
-- Don't use blanket `#[allow]` on modules/files  
+- Don't use `async` (this is a synchronous CLI tool)
+- Don't add `unsafe` blocks (forbidden)
+- Don't ignore clippy warnings (they're errors)
+- Don't create files >600 lines without splitting
+- Don't use blanket `#[allow]` on modules/files
 - Don't guess at section weights (refer to existing parsers in `container/`)
 
 ## Current Implementation Status
 
 **Complete**:
+
 - ELF/PE/Mach-O format detection and parsing
 - ASCII, UTF-8, UTF-16LE/BE string extraction
 - PE resource string extraction (VERSIONINFO, STRINGTABLE, MANIFEST)
@@ -170,6 +176,7 @@ The `justfile` uses OS annotations (`[windows]`/`[unix]`) for cross-platform com
 - IPv4/IPv6, URL, domain classification
 
 **In Progress**:
+
 - Full semantic classification suite (GUIDs, paths, format strings, Base64)
 - Ranking/scoring algorithm implementation
 - CLI interface (`main.rs` is placeholder)
@@ -178,6 +185,7 @@ The `justfile` uses OS annotations (`[windows]`/`[unix]`) for cross-platform com
 ## Quick Reference Examples
 
 **Adding a new section weight** (in `container/elf.rs`, `pe.rs`, or `macho.rs`):
+
 ```rust
 let weight = match section_name {
     ".mydata" => 8.0,  // New section type
@@ -186,6 +194,7 @@ let weight = match section_name {
 ```
 
 **Extracting strings from a section**:
+
 ```rust
 use stringy::extraction::{extract_ascii_strings, AsciiExtractionConfig};
 let config = AsciiExtractionConfig { min_length: 4, max_length: 1024 };
@@ -193,6 +202,7 @@ let strings = extract_ascii_strings(&section_data, &config);
 ```
 
 **Adding a semantic tag**:
+
 1. Add variant to `Tag` enum in `types.rs`
 2. Implement pattern matching in `classification/semantic.rs`
 3. Update deduplication tag merging if needed
