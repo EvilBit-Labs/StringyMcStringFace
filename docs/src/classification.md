@@ -5,7 +5,7 @@ Stringy's classification system applies semantic analysis to extracted strings, 
 ## Classification Pipeline
 
 ```text
-Raw String → Pattern Matching → Context Analysis → Tag Assignment → Confidence Scoring
+Raw String -> Pattern Matching -> Tag Assignment
 ```
 
 ## Semantic Categories
@@ -14,14 +14,14 @@ Raw String → Pattern Matching → Context Analysis → Tag Assignment → Conf
 
 #### URLs
 
-- **Pattern**: `https?://[^\s]+`
+- **Pattern**: `` https?://[^\s<>"{}|\\^\[\]\`]+ ``
 - **Examples**: `https://api.example.com/v1/users`, `http://malware.com/payload`
-- **Confidence factors**: Valid TLD, path structure, parameter format
+- **Validation**: URL format check with safe character filtering
 - **Security relevance**: High - indicates network communication
 
 #### Domain Names
 
-- **Pattern**: `[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}`
+- **Pattern**: `\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b`
 - **Examples**: `api.example.com`, `malware-c2.net`
 - **Validation**: TLD checking, DNS format compliance
 - **Security relevance**: High - C2 domains, legitimate services
@@ -34,7 +34,7 @@ Raw String → Pattern Matching → Context Analysis → Tag Assignment → Conf
 - **Validation**: Two-stage validation using regex pre-filter followed by `std::net::IpAddr` parsing for correctness
 - **Port Handling**: IP addresses with ports (e.g., `192.168.1.1:8080`) are supported by automatically stripping the port suffix before validation
 - **IPv6 Bracket Handling**: Bracketed IPv6 addresses (e.g., `[::1]` and `[::1]:8080`) are supported
-- **False Positive Mitigation**: Version numbers like `1.2.3.4` are filtered out using heuristics (all octets < 20)
+- **False Positive Mitigation**: Version numbers like `1.2.3.4` are accepted as IPv4 addresses by design
 - **Implementation**: See `src/classification/semantic.rs` for the complete implementation
 - **Security relevance**: High - infrastructure indicators
 
@@ -42,16 +42,34 @@ Raw String → Pattern Matching → Context Analysis → Tag Assignment → Conf
 
 #### File Paths
 
-- **POSIX Pattern**: `/[^\0\n\r]*`
-- **Windows Pattern**: `[A-Za-z]:\\[^\0\n\r]*`
-- **Examples**: `/usr/bin/malware`, `C:\Windows\System32\evil.dll`
-- **Context**: Section type, surrounding strings
-- **Security relevance**: Medium-High - persistence locations
+- **POSIX Pattern**: `^/[^\0\n\r]*`
+- **Windows Pattern**: `^[A-Za-z]:\\[^\0\n\r]*`
+- **UNC Pattern**: `^\\\\[a-zA-Z0-9.-]+\\[^\0\n\r]*`
+- **Examples**: `/usr/bin/malware`, `C:\\Windows\\System32\\evil.dll`, `\\\\server\\share\\file.txt`
+- **Validation rules**: Rejects null bytes, newlines, carriage returns; rejects double path separators (`//` for POSIX, `\\` for Windows); applies a reasonable length limit (4096 max, stricter for unknown prefixes); POSIX paths must be absolute (start with `/`); Windows paths must use backslashes and a valid drive letter
+- **Suspicious path examples**: `/etc/cron.d/`, `/etc/init.d/`, `/usr/local/bin/`, `/tmp/`, `/var/tmp/`; `C:\\Windows\\System32\\`, `C:\\Windows\\Temp\\`, `...\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\`
+- **Security relevance**: Medium-High - persistence and execution locations
 
 #### Registry Paths
 
-- **Pattern**: `HKEY_[A-Z_]+\\[^\0\n\r]*`
-- **Examples**: `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run`
+- **Full root pattern**: `^HKEY_[A-Z_]+\\[^\0\n\r]*`
+- **Abbreviated root pattern**: `^HK(LM|CU|CR|U|CC)\\[^\0\n\r]*`
+- **Supported root keys**:
+  - `HKEY_LOCAL_MACHINE`
+  - `HKEY_CURRENT_USER`
+  - `HKEY_CLASSES_ROOT`
+  - `HKEY_USERS`
+  - `HKEY_CURRENT_CONFIG`
+- **Supported abbreviations**:
+  - `HKLM`, `HKCU`, `HKCR`, `HKU`, `HKCC`
+- **Suspicious registry paths**:
+  - `\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run`
+  - `\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce`
+  - `\\System\\CurrentControlSet\\Services`
+  - `\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon`
+- **Examples**:
+  - `HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run`
+  - `HKCU\\Software\\Microsoft`
 - **Security relevance**: High - persistence mechanisms
 
 ### Identifiers
@@ -92,211 +110,99 @@ Raw String → Pattern Matching → Context Analysis → Tag Assignment → Conf
 - **Examples**: `Mozilla/5.0 (Windows NT 10.0; Win64; x64)`
 - **Security relevance**: Medium - network fingerprinting
 
-## Implementation Details
+### Method Signatures
 
 ### Pattern Matching Engine
 
+The semantic classifier uses cached regex patterns via `lazy_static!` and applies validation checks to reduce false positives.
+
 ```rust
-pub struct SemanticClassifier {
-    url_regex: Regex,
-    domain_regex: Regex,
-    ipv4_regex: Regex,
-    ipv6_regex: Regex,
-    guid_regex: Regex,
-    email_regex: Regex,
-    format_regex: Regex,
-    base64_regex: Regex,
+use lazy_static::lazy_static;
+use regex::Regex;
+
+lazy_static! {
+    static ref URL_REGEX: Regex = Regex::new(r#"https?://[^\s<>"{}|\\^\[\]\`]+"#).unwrap();
 }
 
 impl SemanticClassifier {
-    pub fn classify(&self, text: &str, context: &StringContext) -> Vec<Tag> {
+    pub fn classify(&self, string: &FoundString) -> Vec<Tag> {
         let mut tags = Vec::new();
 
-        // Network indicators
-        if self.url_regex.is_match(text) {
+        if self.classify_url(&string.text).is_some() {
             tags.push(Tag::Url);
         }
 
-        if self.domain_regex.is_match(text) && !tags.contains(&Tag::Url) {
+        if self.classify_domain(&string.text).is_some() {
             tags.push(Tag::Domain);
         }
 
-        // File system
-        if self.is_file_path(text) {
+        tags.extend(self.classify_ip_addresses(&string.text));
+
+        if self.classify_posix_path(&string.text).is_some()
+            || self.classify_windows_path(&string.text).is_some()
+            || self.classify_unc_path(&string.text).is_some()
+        {
             tags.push(Tag::FilePath);
         }
 
-        if self.is_registry_path(text) {
+        if self.classify_registry_path(&string.text).is_some() {
             tags.push(Tag::RegistryPath);
         }
 
-        // Continue for other patterns...
-
         tags
     }
 }
 ```
 
-### Context-Aware Classification
+## Implementation Details
 
-Classification considers the context where strings are found:
+The classifier relies on `lazy_static!` to compile regex patterns once and reuse them across classification calls. Helper methods validate strings before assigning tags.
+
+Key method signatures:
 
 ```rust
-pub struct StringContext {
-    pub section_type: SectionType,
-    pub section_name: Option<String>,
-    pub surrounding_strings: Vec<String>,
-    pub binary_format: BinaryFormat,
-    pub encoding: Encoding,
-}
-
-impl SemanticClassifier {
-    fn classify_with_context(&self, text: &str, context: &StringContext) -> Vec<Tag> {
-        let mut tags = self.classify_patterns(text);
-
-        // Boost confidence based on context
-        match context.section_type {
-            SectionType::Resources => {
-                if self.looks_like_version_string(text) {
-                    tags.push(Tag::Version);
-                }
-            }
-            SectionType::StringData => {
-                // Higher confidence for semantic patterns
-                self.boost_pattern_confidence(&mut tags);
-            }
-            _ => {}
-        }
-
-        tags
-    }
-}
+pub fn classify(&self, string: &FoundString) -> Vec<Tag>;
+pub fn classify_posix_path(&self, text: &str) -> Option<Tag>;
+pub fn classify_windows_path(&self, text: &str) -> Option<Tag>;
+pub fn classify_unc_path(&self, text: &str) -> Option<Tag>;
+pub fn classify_registry_path(&self, text: &str) -> Option<Tag>;
 ```
 
-### Symbol Classification
-
-Import and export symbols get special handling:
+## Using the Classification System
 
 ```rust
-pub struct SymbolClassifier {
-    known_apis: HashSet<String>,
-    crypto_apis: HashSet<String>,
-    network_apis: HashSet<String>,
-}
+use stringy::classification::SemanticClassifier;
+use stringy::types::{Encoding, FoundString, StringSource, Tag};
 
-impl SymbolClassifier {
-    pub fn classify_symbol(&self, name: &str, is_import: bool) -> Vec<Tag> {
-        let mut tags = Vec::new();
+let classifier = SemanticClassifier::new();
+let found_string = FoundString {
+    text: "C:\\Windows\\System32\\cmd.exe".to_string(),
+    encoding: Encoding::Ascii,
+    offset: 0,
+    rva: None,
+    section: None,
+    length: 27,
+    tags: Vec::new(),
+    score: 0,
+    source: StringSource::SectionData,
+    confidence: 1.0,
+};
 
-        if is_import {
-            tags.push(Tag::Import);
-        } else {
-            tags.push(Tag::Export);
-        }
-
-        // Add semantic tags based on API name
-        if self.crypto_apis.contains(name) {
-            tags.push(Tag::Crypto);
-        }
-
-        if self.network_apis.contains(name) {
-            tags.push(Tag::Network);
-        }
-
-        tags
-    }
-}
-```
-
-### Rust Symbol Demangling
-
-```rust
-use rustc_demangle::demangle;
-
-pub fn classify_rust_symbol(mangled: &str) -> Vec<Tag> {
-    let mut tags = vec![Tag::Export];
-
-    if let Ok(demangled) = demangle(mangled) {
-        let demangled_str = demangled.to_string();
-
-        // Look for common Rust patterns
-        if demangled_str.contains("::main") {
-            tags.push(Tag::EntryPoint);
-        }
-
-        if demangled_str.contains("panic") {
-            tags.push(Tag::ErrorHandling);
-        }
-    }
-
-    tags
+let tags = classifier.classify(&found_string);
+if tags.contains(&Tag::FilePath) {
+    // Handle file path indicator
 }
 ```
 
 ## Confidence Scoring
 
-Each classification receives a confidence score:
+The current implementation returns tags without explicit confidence scores. Confidence is implicit in the validation and matching logic. A future update may introduce explicit confidence values per tag.
 
-```rust
-pub struct ClassificationResult {
-    pub tag: Tag,
-    pub confidence: f32, // 0.0 to 1.0
-    pub evidence: Vec<String>,
-}
+## Planned Enhancements
 
-impl SemanticClassifier {
-    fn calculate_confidence(&self, text: &str, tag: &Tag, context: &StringContext) -> f32 {
-        let mut confidence = 0.5; // Base confidence
-
-        match tag {
-            Tag::Url => {
-                if text.starts_with("https://") {
-                    confidence += 0.3;
-                }
-                if self.has_valid_tld(text) {
-                    confidence += 0.2;
-                }
-            }
-            Tag::FilePath => {
-                if context.section_type == SectionType::StringData {
-                    confidence += 0.2;
-                }
-                if self.has_valid_path_structure(text) {
-                    confidence += 0.2;
-                }
-            } // ... other tag-specific confidence calculations
-        }
-
-        confidence.min(1.0)
-    }
-}
-```
-
-## Advanced Classification Features
-
-### Multi-Pattern Matching
-
-Some strings match multiple patterns:
-
-```rust
-fn classify_multi_pattern(&self, text: &str) -> Vec<Tag> {
-    let mut tags = Vec::new();
-
-    // A string can be both a URL and contain Base64
-    if self.url_regex.is_match(text) {
-        tags.push(Tag::Url);
-
-        // Check if URL contains Base64 parameters
-        if let Some(query) = self.extract_url_query(text) {
-            if self.base64_regex.is_match(query) {
-                tags.push(Tag::Base64);
-            }
-        }
-    }
-
-    tags
-}
-```
+- Context-aware classification
+- Symbol classification
+- Additional semantic patterns (GUIDs, email addresses, base64, format strings)
 
 ### Language-Specific Patterns
 

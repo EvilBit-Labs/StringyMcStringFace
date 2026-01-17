@@ -5,6 +5,12 @@
 //! The classifier uses compiled regular expressions for efficient pattern
 //! matching and includes TLD validation to reduce false positives.
 //!
+//! Current capabilities include:
+//! - URLs and domain names
+//! - IPv4 and IPv6 addresses
+//! - POSIX and Windows file paths (including UNC paths)
+//! - Windows registry paths
+//!
 //! # Usage
 //!
 //! ```rust
@@ -86,6 +92,114 @@ lazy_static! {
     ///
     /// Matches [IPv6] format used in URLs like [::1]:8080.
     static ref IPV6_BRACKETS_REGEX: Regex = Regex::new(r"^\[(.+)\]").unwrap();
+
+    /// Regular expression for matching POSIX file paths
+    ///
+    /// Pattern matches absolute POSIX paths starting with / followed by any characters
+    /// except null bytes, newlines, or carriage returns.
+    static ref POSIX_PATH_REGEX: Regex = Regex::new(r"^/[^\x00\n\r]*").unwrap();
+
+    /// Regular expression for matching Windows file paths
+    ///
+    /// Pattern matches Windows absolute paths starting with drive letter (C:\)
+    /// followed by any characters except null bytes, newlines, or carriage returns.
+    static ref WINDOWS_PATH_REGEX: Regex = Regex::new(r"^[A-Za-z]:\\[^\x00\n\r]*").unwrap();
+
+    /// Regular expression for matching UNC network paths
+    ///
+    /// Pattern matches UNC paths starting with \\ followed by server name and share.
+    static ref UNC_PATH_REGEX: Regex = Regex::new(r"^\\\\[a-zA-Z0-9.-]+\\[^\x00\n\r]*").unwrap();
+
+    /// Regular expression for matching full Windows registry paths
+    ///
+    /// Pattern matches registry paths starting with HKEY_ root keys.
+    static ref REGISTRY_PATH_REGEX: Regex = Regex::new(r"^HKEY_[A-Z_]+\\[^\x00\n\r]*").unwrap();
+
+    /// Regular expression for matching abbreviated registry paths
+    ///
+    /// Pattern matches abbreviated registry forms like HKLM, HKCU, etc.
+    static ref REGISTRY_ABBREV_REGEX: Regex = Regex::new(r"^HK(LM|CU|CR|U|CC)\\[^\x00\n\r]*").unwrap();
+}
+
+lazy_static! {
+    /// Common suspicious POSIX path prefixes for persistence detection
+    static ref SUSPICIOUS_POSIX_PATHS: std::collections::HashSet<&'static str> = {
+        let mut set = std::collections::HashSet::new();
+        set.insert("/etc/cron.d/");
+        set.insert("/etc/init.d/");
+        set.insert("/usr/local/bin/");
+        set.insert("/tmp/");
+        set.insert("/var/tmp/");
+        set.insert("/etc/rc.d/");
+        set.insert("/etc/crontab");
+        set.insert("/etc/systemd/system/");
+        set.insert("~/.config/autostart/");
+        set.insert("/Library/LaunchDaemons/");
+        set.insert("/Library/LaunchAgents/");
+        set
+    };
+
+    /// Common suspicious Windows path prefixes for persistence detection
+    static ref SUSPICIOUS_WINDOWS_PATHS: std::collections::HashSet<&'static str> = {
+        let mut set = std::collections::HashSet::new();
+        set.insert("C:\\Windows\\System32\\");
+        set.insert("C:\\Windows\\Temp\\");
+        set.insert("\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\");
+        set.insert("C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\");
+        set.insert("C:\\Windows\\SysWOW64\\");
+        set
+    };
+
+    /// Known valid POSIX path prefixes
+    static ref KNOWN_POSIX_PREFIXES: std::collections::HashSet<&'static str> = {
+        let mut set = std::collections::HashSet::new();
+        set.insert("/usr/");
+        set.insert("/etc/");
+        set.insert("/var/");
+        set.insert("/home/");
+        set.insert("/opt/");
+        set.insert("/bin/");
+        set.insert("/sbin/");
+        set.insert("/lib/");
+        set.insert("/dev/");
+        set.insert("/proc/");
+        set.insert("/sys/");
+        set.insert("/tmp/");
+        set
+    };
+
+    /// Known valid Windows path prefixes
+    static ref KNOWN_WINDOWS_PREFIXES: std::collections::HashSet<&'static str> = {
+        let mut set = std::collections::HashSet::new();
+        set.insert("C:\\Windows\\");
+        set.insert("C:\\Program Files\\");
+        set.insert("C:\\Program Files (x86)\\");
+        set.insert("C:\\Users\\");
+        set.insert("C:\\ProgramData\\");
+        set
+    };
+
+    /// Valid Windows registry root keys
+    static ref VALID_REGISTRY_ROOTS: std::collections::HashSet<&'static str> = {
+        let mut set = std::collections::HashSet::new();
+        set.insert("HKEY_LOCAL_MACHINE");
+        set.insert("HKEY_CURRENT_USER");
+        set.insert("HKEY_CLASSES_ROOT");
+        set.insert("HKEY_USERS");
+        set.insert("HKEY_CURRENT_CONFIG");
+        set
+    };
+
+    /// Suspicious Windows registry paths for persistence detection
+    static ref SUSPICIOUS_REGISTRY_PATHS: std::collections::HashSet<&'static str> = {
+        let mut set = std::collections::HashSet::new();
+        set.insert("\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
+        set.insert("\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce");
+        set.insert("\\System\\CurrentControlSet\\Services");
+        set.insert("\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon");
+        set.insert("\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders");
+        set
+    };
 }
 
 /// Semantic classifier for identifying network indicators in extracted strings
@@ -99,10 +213,39 @@ lazy_static! {
 #[derive(Debug, Default)]
 pub struct SemanticClassifier;
 
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RegexCacheAddresses {
+    pub url: usize,
+    pub domain: usize,
+    pub ipv4: usize,
+    pub ipv6: usize,
+    pub posix_path: usize,
+    pub windows_path: usize,
+    pub unc_path: usize,
+    pub registry_full: usize,
+    pub registry_abbrev: usize,
+}
+
 impl SemanticClassifier {
     /// Create a new instance of the semantic classifier
     pub fn new() -> Self {
         Self
+    }
+
+    #[doc(hidden)]
+    pub fn regex_cache_addresses(&self) -> RegexCacheAddresses {
+        RegexCacheAddresses {
+            url: &*URL_REGEX as *const Regex as usize,
+            domain: &*DOMAIN_REGEX as *const Regex as usize,
+            ipv4: &*IPV4_REGEX as *const Regex as usize,
+            ipv6: &*IPV6_REGEX as *const Regex as usize,
+            posix_path: &*POSIX_PATH_REGEX as *const Regex as usize,
+            windows_path: &*WINDOWS_PATH_REGEX as *const Regex as usize,
+            unc_path: &*UNC_PATH_REGEX as *const Regex as usize,
+            registry_full: &*REGISTRY_PATH_REGEX as *const Regex as usize,
+            registry_abbrev: &*REGISTRY_ABBREV_REGEX as *const Regex as usize,
+        }
     }
 
     /// Detects HTTP/HTTPS URLs in the given text
@@ -236,6 +379,24 @@ impl SemanticClassifier {
         // Check for IP addresses (IPv4 and IPv6)
         let ip_tags = self.classify_ip_addresses(&string.text);
         tags.extend(ip_tags);
+
+        // Check for file paths (POSIX, Windows, UNC)
+        if let Some(tag) = self.classify_posix_path(&string.text) {
+            tags.push(tag);
+        }
+
+        if let Some(tag) = self.classify_windows_path(&string.text) {
+            tags.push(tag);
+        }
+
+        if let Some(tag) = self.classify_unc_path(&string.text) {
+            tags.push(tag);
+        }
+
+        // Check for registry paths
+        if let Some(tag) = self.classify_registry_path(&string.text) {
+            tags.push(tag);
+        }
 
         tags
     }
@@ -493,6 +654,206 @@ impl SemanticClassifier {
         // Validate using std::net::Ipv6Addr for canonical validation
         // This handles all IPv6 formats: full, compressed, mixed notation
         Ipv6Addr::from_str(processed).is_ok()
+    }
+
+    /// Detects POSIX file paths in the given text
+    ///
+    /// Returns `Some(Tag::FilePath)` if a POSIX path is detected and valid.
+    pub fn classify_posix_path(&self, text: &str) -> Option<Tag> {
+        if !POSIX_PATH_REGEX.is_match(text) {
+            return None;
+        }
+
+        if !self.is_valid_posix_path(text) {
+            return None;
+        }
+
+        Some(Tag::FilePath)
+    }
+
+    /// Detects Windows file paths in the given text
+    ///
+    /// Returns `Some(Tag::FilePath)` if a Windows path is detected and valid.
+    pub fn classify_windows_path(&self, text: &str) -> Option<Tag> {
+        if !WINDOWS_PATH_REGEX.is_match(text) {
+            return None;
+        }
+
+        if !self.is_valid_windows_path(text) {
+            return None;
+        }
+
+        Some(Tag::FilePath)
+    }
+
+    /// Detects UNC network paths in the given text
+    ///
+    /// Returns `Some(Tag::FilePath)` if a UNC path is detected and valid.
+    pub fn classify_unc_path(&self, text: &str) -> Option<Tag> {
+        if !UNC_PATH_REGEX.is_match(text) {
+            return None;
+        }
+
+        let trimmed = text.trim_start_matches('\\');
+        let mut parts = trimmed.split('\\');
+        let server = parts.next().unwrap_or("");
+        let share = parts.next().unwrap_or("");
+
+        if server.is_empty() || share.is_empty() {
+            return None;
+        }
+
+        Some(Tag::FilePath)
+    }
+
+    /// Detects Windows registry paths in the given text
+    ///
+    /// Returns `Some(Tag::RegistryPath)` if a registry path is detected and valid.
+    pub fn classify_registry_path(&self, text: &str) -> Option<Tag> {
+        if !REGISTRY_PATH_REGEX.is_match(text) && !REGISTRY_ABBREV_REGEX.is_match(text) {
+            return None;
+        }
+
+        if !self.is_valid_registry_path(text) {
+            return None;
+        }
+
+        Some(Tag::RegistryPath)
+    }
+
+    /// Checks if the POSIX path matches known suspicious locations
+    pub fn is_suspicious_posix_path(&self, text: &str) -> bool {
+        SUSPICIOUS_POSIX_PATHS
+            .iter()
+            .any(|prefix| text.starts_with(prefix))
+    }
+
+    /// Checks if the Windows path matches known suspicious locations
+    pub fn is_suspicious_windows_path(&self, text: &str) -> bool {
+        SUSPICIOUS_WINDOWS_PATHS.iter().any(|prefix| {
+            if prefix.starts_with('\\') {
+                text.contains(prefix)
+            } else {
+                text.starts_with(prefix)
+            }
+        })
+    }
+
+    /// Checks if the registry path matches known persistence locations
+    pub fn is_suspicious_registry_path(&self, text: &str) -> bool {
+        let text_lower = text.to_ascii_lowercase();
+        SUSPICIOUS_REGISTRY_PATHS
+            .iter()
+            .any(|path| text_lower.contains(&path.to_ascii_lowercase()))
+    }
+
+    /// Detects printf-style placeholders to reduce false positives
+    fn contains_printf_placeholder(&self, text: &str) -> bool {
+        let mut chars = text.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if ch == '%'
+                && let Some(next) = chars.peek()
+                && matches!(next, 's' | 'd' | 'x' | 'o' | 'u' | 'f')
+            {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Validates POSIX path structure
+    pub fn is_valid_posix_path(&self, text: &str) -> bool {
+        if text.len() > 4096 {
+            return false;
+        }
+
+        if text.contains('\0') || text.contains('\n') || text.contains('\r') {
+            return false;
+        }
+
+        if text.contains("//") {
+            return false;
+        }
+
+        if text.contains('\\') {
+            return false;
+        }
+
+        if self.contains_printf_placeholder(text) {
+            return false;
+        }
+
+        let has_known_prefix = KNOWN_POSIX_PREFIXES
+            .iter()
+            .any(|prefix| text.starts_with(prefix));
+        let is_suspicious = self.is_suspicious_posix_path(text);
+
+        if !has_known_prefix && !is_suspicious && text.len() > 2048 {
+            return false;
+        }
+
+        true
+    }
+
+    /// Validates Windows path structure
+    pub fn is_valid_windows_path(&self, text: &str) -> bool {
+        if text.len() > 4096 {
+            return false;
+        }
+
+        if text.contains('/') {
+            return false;
+        }
+
+        if text.contains("\\\\") {
+            return false;
+        }
+
+        if self.contains_printf_placeholder(text) {
+            return false;
+        }
+
+        let has_known_prefix = KNOWN_WINDOWS_PREFIXES
+            .iter()
+            .any(|prefix| text.starts_with(prefix));
+        let is_suspicious = self.is_suspicious_windows_path(text);
+
+        if !has_known_prefix && !is_suspicious && text.len() > 2048 {
+            return false;
+        }
+
+        true
+    }
+
+    /// Validates Windows registry path structure
+    pub fn is_valid_registry_path(&self, text: &str) -> bool {
+        if text.contains('/') {
+            return false;
+        }
+
+        if text.contains("\\\\") {
+            return false;
+        }
+
+        let root = text.split('\\').next().unwrap_or("");
+        let root_upper = root.to_ascii_uppercase();
+
+        if root_upper.starts_with("HKEY_") {
+            return VALID_REGISTRY_ROOTS
+                .iter()
+                .any(|valid| valid.eq_ignore_ascii_case(&root_upper));
+        }
+
+        if root_upper.starts_with("HK") {
+            return matches!(
+                root_upper.as_str(),
+                "HKLM" | "HKCU" | "HKCR" | "HKU" | "HKCC"
+            );
+        }
+
+        false
     }
 
     /// Classifies IP addresses (IPv4 and IPv6) in the given text
@@ -871,5 +1232,299 @@ mod tests {
         let tags = classifier.classify(&found_string);
         assert_eq!(tags.len(), 1);
         assert!(matches!(tags[0], Tag::IPv6));
+    }
+
+    #[test]
+    fn test_posix_absolute_path() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_posix_path("/usr/bin/bash"),
+            Some(Tag::FilePath)
+        );
+        assert_eq!(
+            classifier.classify_posix_path("/etc/passwd"),
+            Some(Tag::FilePath)
+        );
+    }
+
+    #[test]
+    fn test_posix_home_directory() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_posix_path("/home/user/.bashrc"),
+            Some(Tag::FilePath)
+        );
+        assert_eq!(
+            classifier.classify_posix_path("/home/user/.config/app"),
+            Some(Tag::FilePath)
+        );
+    }
+
+    #[test]
+    fn test_posix_with_spaces() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_posix_path("/Users/John Doe/Documents/file.txt"),
+            Some(Tag::FilePath)
+        );
+    }
+
+    #[test]
+    fn test_posix_system_directories() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(classifier.classify_posix_path("/usr/"), Some(Tag::FilePath));
+        assert_eq!(classifier.classify_posix_path("/etc/"), Some(Tag::FilePath));
+        assert_eq!(classifier.classify_posix_path("/var/"), Some(Tag::FilePath));
+    }
+
+    #[test]
+    fn test_posix_suspicious_paths() {
+        let classifier = SemanticClassifier::new();
+
+        assert!(classifier.is_suspicious_posix_path("/tmp/malware"));
+        assert!(classifier.is_suspicious_posix_path("/etc/cron.d/backdoor"));
+    }
+
+    #[test]
+    fn test_posix_too_short() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(classifier.classify_posix_path("/a"), Some(Tag::FilePath));
+    }
+
+    #[test]
+    fn test_posix_invalid() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(classifier.classify_posix_path("usr/bin/bash"), None);
+    }
+
+    #[test]
+    fn test_posix_with_null_bytes() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(classifier.classify_posix_path("/tmp/evil\0bin"), None);
+    }
+
+    #[test]
+    fn test_windows_absolute_path() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_windows_path("C:\\Windows\\System32\\cmd.exe"),
+            Some(Tag::FilePath)
+        );
+    }
+
+    #[test]
+    fn test_windows_program_files() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_windows_path("C:\\Program Files (x86)\\App"),
+            Some(Tag::FilePath)
+        );
+    }
+
+    #[test]
+    fn test_windows_with_spaces() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_windows_path("D:\\My Documents\\file.txt"),
+            Some(Tag::FilePath)
+        );
+    }
+
+    #[test]
+    fn test_windows_different_drives() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_windows_path("D:\\"),
+            Some(Tag::FilePath)
+        );
+        assert_eq!(
+            classifier.classify_windows_path("E:\\Data\\"),
+            Some(Tag::FilePath)
+        );
+    }
+
+    #[test]
+    fn test_windows_suspicious_paths() {
+        let classifier = SemanticClassifier::new();
+
+        assert!(classifier.is_suspicious_windows_path("C:\\Windows\\Temp\\evil.exe"));
+    }
+
+    #[test]
+    fn test_windows_case_insensitive() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_windows_path("c:\\windows\\"),
+            Some(Tag::FilePath)
+        );
+    }
+
+    #[test]
+    fn test_windows_invalid() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(classifier.classify_windows_path("C:/forward/slash"), None);
+    }
+
+    #[test]
+    fn test_windows_invalid_drive() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(classifier.classify_windows_path("1:\\path"), None);
+    }
+
+    #[test]
+    fn test_unc_path() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_unc_path("\\\\server\\share\\file.txt"),
+            Some(Tag::FilePath)
+        );
+    }
+
+    #[test]
+    fn test_unc_with_domain() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_unc_path("\\\\server.domain.com\\share\\"),
+            Some(Tag::FilePath)
+        );
+    }
+
+    #[test]
+    fn test_unc_invalid() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(classifier.classify_unc_path("\\\\\\\\"), None);
+        assert_eq!(classifier.classify_unc_path("\\\\server"), None);
+    }
+
+    #[test]
+    fn test_registry_run_key() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_registry_path(
+                "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"
+            ),
+            Some(Tag::RegistryPath)
+        );
+    }
+
+    #[test]
+    fn test_registry_current_user() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_registry_path("HKEY_CURRENT_USER\\Software\\App\\Settings"),
+            Some(Tag::RegistryPath)
+        );
+    }
+
+    #[test]
+    fn test_registry_abbreviated_hklm() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_registry_path("HKLM\\System\\CurrentControlSet"),
+            Some(Tag::RegistryPath)
+        );
+    }
+
+    #[test]
+    fn test_registry_abbreviated_hkcu() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_registry_path("HKCU\\Software\\Microsoft"),
+            Some(Tag::RegistryPath)
+        );
+    }
+
+    #[test]
+    fn test_registry_persistence_run() {
+        let classifier = SemanticClassifier::new();
+
+        assert!(classifier.is_suspicious_registry_path(
+            "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"
+        ));
+    }
+
+    #[test]
+    fn test_registry_invalid_root() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(
+            classifier.classify_registry_path("HKEY_INVALID\\Path"),
+            None
+        );
+    }
+
+    #[test]
+    fn test_registry_forward_slash() {
+        let classifier = SemanticClassifier::new();
+
+        assert_eq!(classifier.classify_registry_path("HKLM/Software"), None);
+    }
+
+    #[test]
+    fn test_classify_mixed_strings() {
+        let classifier = SemanticClassifier::new();
+        let found_string = create_test_string("https://example.com");
+
+        let tags = classifier.classify(&found_string);
+        assert!(tags.contains(&Tag::Url));
+    }
+
+    #[test]
+    fn test_classify_posix_path_in_found_string() {
+        let classifier = SemanticClassifier::new();
+        let found_string = create_test_string("/usr/bin/bash");
+
+        let tags = classifier.classify(&found_string);
+        assert!(tags.contains(&Tag::FilePath));
+    }
+
+    #[test]
+    fn test_classify_windows_path_in_found_string() {
+        let classifier = SemanticClassifier::new();
+        let found_string = create_test_string("C:\\Windows\\System32\\cmd.exe");
+
+        let tags = classifier.classify(&found_string);
+        assert!(tags.contains(&Tag::FilePath));
+    }
+
+    #[test]
+    fn test_classify_registry_path_in_found_string() {
+        let classifier = SemanticClassifier::new();
+        let found_string = create_test_string(
+            "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+        );
+
+        let tags = classifier.classify(&found_string);
+        assert!(tags.contains(&Tag::RegistryPath));
+    }
+
+    #[test]
+    fn test_no_false_positives_on_random_data() {
+        let classifier = SemanticClassifier::new();
+        let found_string = create_test_string("x9qz1p0t8v7w6r5y4u3i2o1p");
+
+        let tags = classifier.classify(&found_string);
+        assert!(tags.is_empty());
     }
 }
