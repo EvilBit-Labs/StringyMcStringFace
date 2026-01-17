@@ -46,7 +46,7 @@ Raw String -> Pattern Matching -> Tag Assignment
 - **Windows Pattern**: `^[A-Za-z]:\\[^\0\n\r]*`
 - **UNC Pattern**: `^\\\\[a-zA-Z0-9.-]+\\[^\0\n\r]*`
 - **Examples**: `/usr/bin/malware`, `C:\\Windows\\System32\\evil.dll`, `\\\\server\\share\\file.txt`
-- **Validation rules**: Rejects null bytes, newlines, carriage returns; rejects double path separators (`//` for POSIX, `\\` for Windows); applies a reasonable length limit (4096 max, stricter for unknown prefixes); POSIX paths must be absolute (start with `/`); Windows paths must use backslashes and a valid drive letter
+- **Validation rules**: Rejects null bytes, newlines, carriage returns; rejects consecutive path separators in POSIX paths (`//`) and consecutive backslashes in Windows paths (for example, `folder\\\\file.txt`), while allowing UNC paths that start with `\\\\`; applies a reasonable length limit (4096 max, stricter for unknown prefixes); POSIX paths must be absolute (start with `/`); Windows paths must use backslashes and a valid drive letter
 - **Suspicious path examples**: `/etc/cron.d/`, `/etc/init.d/`, `/usr/local/bin/`, `/tmp/`, `/var/tmp/`; `C:\\Windows\\System32\\`, `C:\\Windows\\Temp\\`, `...\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\`
 - **Security relevance**: Medium-High - persistence and execution locations
 

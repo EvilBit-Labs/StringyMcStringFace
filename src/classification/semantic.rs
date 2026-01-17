@@ -380,17 +380,12 @@ impl SemanticClassifier {
         let ip_tags = self.classify_ip_addresses(&string.text);
         tags.extend(ip_tags);
 
-        // Check for file paths (POSIX, Windows, UNC)
-        if let Some(tag) = self.classify_posix_path(&string.text) {
-            tags.push(tag);
-        }
-
-        if let Some(tag) = self.classify_windows_path(&string.text) {
-            tags.push(tag);
-        }
-
-        if let Some(tag) = self.classify_unc_path(&string.text) {
-            tags.push(tag);
+        // Check for file paths (POSIX, Windows, UNC) - only add FilePath tag once
+        if self.classify_posix_path(&string.text).is_some()
+            || self.classify_windows_path(&string.text).is_some()
+            || self.classify_unc_path(&string.text).is_some()
+        {
+            tags.push(Tag::FilePath);
         }
 
         // Check for registry paths
@@ -741,10 +736,27 @@ impl SemanticClassifier {
 
     /// Checks if the registry path matches known persistence locations
     pub fn is_suspicious_registry_path(&self, text: &str) -> bool {
-        let text_lower = text.to_ascii_lowercase();
         SUSPICIOUS_REGISTRY_PATHS
             .iter()
-            .any(|path| text_lower.contains(&path.to_ascii_lowercase()))
+            .any(|path| self.contains_ascii_case_insensitive(text, path))
+    }
+
+    /// Case-insensitive ASCII substring search without allocations
+    fn contains_ascii_case_insensitive(&self, haystack: &str, needle: &str) -> bool {
+        if needle.is_empty() {
+            return true;
+        }
+
+        let haystack_bytes = haystack.as_bytes();
+        let needle_bytes = needle.as_bytes();
+
+        if needle_bytes.len() > haystack_bytes.len() {
+            return false;
+        }
+
+        haystack_bytes
+            .windows(needle_bytes.len())
+            .any(|window| window.eq_ignore_ascii_case(needle_bytes))
     }
 
     /// Detects printf-style placeholders to reduce false positives
