@@ -6,7 +6,7 @@ Stringy is a **smarter strings tool** for extracting meaningful strings from ELF
 
 ## Architecture & Data Flow
 
-```
+```text
 Binary → Format Detection (goblin) → Container Parsing → String Extraction → Deduplication → Classification → Ranking → Output
 ```
 
@@ -25,7 +25,7 @@ Binary → Format Detection (goblin) → Container Parsing → String Extraction
 - **No `unsafe` code**: `#![forbid(unsafe_code)]` enforced at package level
 - **Zero warnings**: `cargo clippy -- -D warnings` must pass (`#![deny(warnings)]` enforced)
 - **Rust 2024 Edition**: MSRV 1.85+, always use latest edition features
-- **File size limit**: Keep files ≤500-600 lines; split larger files into focused modules
+- **File size limit**: Keep files \<=500-600 lines; split larger files into focused modules
 - **No blanket `#[allow]`**: Any `allow` attribute requires inline justification and cannot apply to entire files/modules
 - **Character restrictions**: Never use emojis, em-dashes (—), or other non-Latin characters in code or documentation. Use standard ASCII punctuation (hyphens, quotes, etc.)
 
@@ -69,7 +69,7 @@ Strings are grouped by `(text, encoding)` tuple in a `HashMap<(String, Encoding)
 - **Preserve all occurrences**: Each occurrence captures offset, RVA, section, source, tags, score, confidence
 - **Tag merging**: Union all tags via `HashSet`, then sort
 - **Combined scoring formula**:
-  ```
+  ```text
   base_score = max(occurrence.original_score)
   occurrence_bonus = 5 * (count - 1)
   cross_section_bonus = 10 (if >1 unique section)
