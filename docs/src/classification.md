@@ -110,8 +110,6 @@ Raw String -> Pattern Matching -> Tag Assignment
 - **Examples**: `Mozilla/5.0 (Windows NT 10.0; Win64; x64)`
 - **Security relevance**: Medium - network fingerprinting
 
-### Method Signatures
-
 ### Pattern Matching Engine
 
 The semantic classifier uses cached regex patterns via `lazy_static!` and applies validation checks to reduce false positives.
@@ -158,6 +156,8 @@ impl SemanticClassifier {
 
 The classifier relies on `lazy_static!` to compile regex patterns once and reuse them across classification calls. Helper methods validate strings before assigning tags.
 
+### Method Signatures
+
 Key method signatures:
 
 ```rust
@@ -198,11 +198,11 @@ if tags.contains(&Tag::FilePath) {
 
 The current implementation returns tags without explicit confidence scores. Confidence is implicit in the validation and matching logic. A future update may introduce explicit confidence values per tag.
 
-## Planned Enhancements
+## Planned Enhancements (implementation pending)
 
 - Context-aware classification
 - Symbol classification
-- Additional semantic patterns (GUIDs, email addresses, base64, format strings)
+- Additional semantic patterns (GUIDs, email addresses, base64, format strings) - documented above, implementation pending
 
 ### Language-Specific Patterns
 

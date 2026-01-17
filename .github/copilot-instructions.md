@@ -24,7 +24,7 @@ Binary → Format Detection (goblin) → Container Parsing → String Extraction
 
 - **No `unsafe` code**: `#![forbid(unsafe_code)]` enforced at package level
 - **Zero warnings**: `cargo clippy -- -D warnings` must pass (`#![deny(warnings)]` enforced)
-- **Rust 2024 Edition**: MSRV 1.91+, always use latest edition features
+- **Rust 2024 Edition**: MSRV 1.85+, always use latest edition features
 - **File size limit**: Keep files ≤500-600 lines; split larger files into focused modules
 - **No blanket `#[allow]`**: Any `allow` attribute requires inline justification and cannot apply to entire files/modules
 - **Character restrictions**: Never use emojis, em-dashes (—), or other non-Latin characters in code or documentation. Use standard ASCII punctuation (hyphens, quotes, etc.)
@@ -179,7 +179,7 @@ The `justfile` uses OS annotations (`[windows]`/`[unix]`) for cross-platform com
 
 - Full semantic classification suite (GUIDs, paths, format strings, Base64)
 - Ranking/scoring algorithm implementation
-- CLI interface (`main.rs` is placeholder)
+- CLI (`main.rs` is placeholder)
 - Output formatters (JSON, YARA-friendly, human-readable)
 
 ## Quick Reference Examples
