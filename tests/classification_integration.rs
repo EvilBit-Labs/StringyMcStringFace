@@ -88,6 +88,10 @@ fn test_classification_performance() {
     }
     let elapsed = start.elapsed();
 
+    // Timeout is set to 500ms to accommodate slower CI environments while still detecting
+    // performance regressions. This processes 1050 samples (350 iterations x 3 samples each).
+    // The timeout is higher than typical development performance (~50-100ms) to ensure
+    // CI stability across different runner configurations and load conditions.
     assert!(elapsed < Duration::from_millis(500));
 }
 
