@@ -2,32 +2,38 @@
 
 ## 1. Project Overview
 
-**Stringy** is a smarter alternative to the standard `strings` command that extracts meaningful strings from ELF, PE, and Mach-O binaries using format-specific knowledge and semantic classification.
+**Stringy** is a smarter alternative to the standard `strings` command that
+extracts meaningful strings from ELF, PE, and Mach-O binaries using
+format-specific knowledge and semantic classification.
 
 ### Key Differentiators
 
-- **Data-Structure Aware**: Extracts strings from actual binary data structures, not arbitrary byte runs
-- **Section-Aware**: Prioritizes high-value sections (`.rodata`, `.rdata`, `__cstring`) with weight-based scoring
+- **Data-Structure Aware**: Extracts strings from actual binary data structures,
+  not arbitrary byte runs
+- **Section-Aware**: Prioritizes high-value sections (`.rodata`, `.rdata`,
+  `__cstring`) with weight-based scoring
 - **Encoding-Aware**: Supports ASCII, UTF-8, UTF-16LE/BE with confidence scoring
-- **Semantically Tagged**: Identifies URLs, domains, IPs, file paths, registry keys, GUIDs, and more
-- **Ranked Output**: Presents most relevant strings first using a scoring algorithm
+- **Semantically Tagged**: Identifies URLs, domains, IPs, file paths, registry
+  keys, GUIDs, and more
+- **Ranked Output**: Presents most relevant strings first using a scoring
+  algorithm
 
 ### Project Metadata
 
-| Attribute     | Value                                           |
-| ------------- | ----------------------------------------------- |
-| Language      | Rust 2024 Edition                               |
-| MSRV          | 1.85+                                           |
-| License       | Apache-2.0                                      |
-| Repository    | <https://github.com/EvilBit-Labs/Stringy>         |
-| Version       | 0.1.0 (in development)                          |
-| Total LoC     | ~11,153 (src) + ~5,254 (tests) = ~16,407 lines  |
+| Attribute  | Value                                          |
+| ---------- | ---------------------------------------------- |
+| Language   | Rust 2024 Edition                              |
+| MSRV       | 1.85+                                          |
+| License    | Apache-2.0                                     |
+| Repository | <https://github.com/EvilBit-Labs/Stringy>      |
+| Version    | 0.1.0 (in development)                         |
+| Total LoC  | ~11,153 (src) + ~5,254 (tests) = ~16,407 lines |
 
 ---
 
 ## 2. Directory Structure Analysis
 
-```
+```text
 D:\Stringy\
 |-- .github/
 |   |-- copilot-instructions.md    # AI agent guidelines
@@ -141,8 +147,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Core data structures with comprehensive type definitions:
 
-| Type            | Purpose                                              |
-| --------------- | ---------------------------------------------------- |
+| Type            | Purpose                                             |
+| --------------- | --------------------------------------------------- |
 | `Tag`           | Semantic classification tags (Url, Domain, IPv4...) |
 | `Encoding`      | String encoding (Ascii, Utf8, Utf16Le, Utf16Be)     |
 | `BinaryFormat`  | Binary format (Elf, Pe, MachO, Unknown)             |
@@ -173,35 +179,35 @@ pub fn create_parser(format: BinaryFormat) -> Result<Box<dyn ContainerParser>> {
 
 ELF binary parser with section weight system:
 
-| Section Pattern      | Weight | Description           |
-| -------------------- | ------ | --------------------- |
-| `.rodata`            | 10.0   | Read-only data        |
-| `.comment`, `.note`  | 9.0    | Build info            |
-| `.data.rel.ro`       | 7.0    | Relocated read-only   |
-| `.data`              | 5.0    | Writable data         |
-| `.dynstr`, `.strtab` | 8.0    | String tables         |
+| Section Pattern      | Weight | Description         |
+| -------------------- | ------ | ------------------- |
+| `.rodata`            | 10.0   | Read-only data      |
+| `.comment`, `.note`  | 9.0    | Build info          |
+| `.data.rel.ro`       | 7.0    | Relocated read-only |
+| `.data`              | 5.0    | Writable data       |
+| `.dynstr`, `.strtab` | 8.0    | String tables       |
 
 #### `src/container/pe.rs` (661 lines)
 
 PE binary parser with Windows-specific handling:
 
-| Section Pattern | Weight | Description        |
-| --------------- | ------ | ------------------ |
-| `.rdata`        | 10.0   | Read-only data     |
-| `.rsrc`         | 9.0    | Resources          |
-| `.text`         | 3.0    | Code section       |
-| `.data`         | 5.0-7.0| Data (by perms)    |
+| Section Pattern | Weight  | Description     |
+| --------------- | ------- | --------------- |
+| `.rdata`        | 10.0    | Read-only data  |
+| `.rsrc`         | 9.0     | Resources       |
+| `.text`         | 3.0     | Code section    |
+| `.data`         | 5.0-7.0 | Data (by perms) |
 
 #### `src/container/macho.rs` (574 lines)
 
 Mach-O parser for macOS/iOS binaries:
 
-| Segment/Section          | Weight | Description       |
-| ------------------------ | ------ | ----------------- |
-| `__TEXT,__cstring`       | 10.0   | C strings         |
-| `__TEXT,__const`         | 9.0    | Constants         |
-| `__DATA_CONST`           | 7.0    | Const data        |
-| `__DATA,__data`          | 5.0    | Writable data     |
+| Segment/Section    | Weight | Description   |
+| ------------------ | ------ | ------------- |
+| `__TEXT,__cstring` | 10.0   | C strings     |
+| `__TEXT,__const`   | 9.0    | Constants     |
+| `__DATA_CONST`     | 7.0    | Const data    |
+| `__DATA,__data`    | 5.0    | Writable data |
 
 ### Extraction Module (`src/extraction/`)
 
@@ -233,7 +239,7 @@ UTF-16LE/BE extraction with confidence scoring and BOM detection.
 
 Deduplication with occurrence tracking and score aggregation:
 
-```
+```text
 Score = max(base_scores) + 5*(count-1) + 10*(cross_section) + 15*(multi_source) + confidence_boost
 ```
 
@@ -251,21 +257,22 @@ Noise filtering to reduce false positives.
 
 Semantic classifier with pattern matching:
 
-| Pattern Type   | Implementation                                    |
-| -------------- | ------------------------------------------------- |
-| URLs           | Regex with safe character filtering               |
-| Domains        | TLD validation, DNS format compliance             |
-| IPv4/IPv6      | Regex pre-filter + `std::net::IpAddr` validation  |
-| POSIX Paths    | `/path` format with validation rules              |
-| Windows Paths  | `C:\path` format with drive letter validation     |
-| UNC Paths      | `\\server\share` format                           |
-| Registry Paths | HKEY_*/HK* prefix detection                       |
+| Pattern Type   | Implementation                                   |
+| -------------- | ------------------------------------------------ |
+| URLs           | Regex with safe character filtering              |
+| Domains        | TLD validation, DNS format compliance            |
+| IPv4/IPv6      | Regex pre-filter + `std::net::IpAddr` validation |
+| POSIX Paths    | `/path` format with validation rules             |
+| Windows Paths  | `C:\path` format with drive letter validation    |
+| UNC Paths      | `\\server\share` format                          |
+| Registry Paths | HKEY__/HK_ prefix detection                      |
 
 ---
 
 ## 4. API Endpoints Analysis
 
-**N/A** - Stringy is a command-line tool, not a web service. The public API is exposed as a Rust library:
+**N/A** - Stringy is a command-line tool, not a web service. The public API is
+exposed as a Rust library:
 
 ```rust
 // Library usage
@@ -291,7 +298,7 @@ for s in &strings {
 
 ### Data Flow Pipeline
 
-```
+```text
 Binary File
     |
     v
@@ -344,15 +351,17 @@ Binary File
 
 ### Design Patterns
 
-1. **Trait-Based Polymorphism**: `ContainerParser` and `StringExtractor` traits enable format extensibility
+1. **Trait-Based Polymorphism**: `ContainerParser` and `StringExtractor` traits
+   enable format extensibility
 2. **Builder Pattern**: Extraction configs use builder-style construction
-3. **Non-Exhaustive Enums/Structs**: Public API stability via `#[non_exhaustive]`
+3. **Non-Exhaustive Enums/Structs**: Public API stability via
+   `#[non_exhaustive]`
 4. **Lazy Static Regex**: Compiled once via `lazy_static!` for performance
 5. **Error Propagation**: `thiserror` for structured error handling with context
 
 ### Module Dependencies
 
-```
+```text
 types.rs (core data structures)
     ^
     |
@@ -405,12 +414,12 @@ just check       # Pre-commit checks
 
 ### CI Pipeline (`.github/workflows/ci.yml`)
 
-| Job          | Description                                    |
-| ------------ | ---------------------------------------------- |
-| `check`      | Format check, clippy, build                    |
-| `test`       | Run tests on ubuntu-latest, windows-latest    |
-| `coverage`   | Generate LCOV coverage report                  |
-| `docs`       | Build mdBook documentation                     |
+| Job        | Description                                |
+| ---------- | ------------------------------------------ |
+| `check`    | Format check, clippy, build                |
+| `test`     | Run tests on ubuntu-latest, windows-latest |
+| `coverage` | Generate LCOV coverage report              |
+| `docs`     | Build mdBook documentation                 |
 
 ### Environment Variables
 
@@ -425,42 +434,42 @@ None required for basic operation. CI uses:
 
 ### Core Dependencies
 
-| Crate        | Version | Purpose                              |
-| ------------ | ------- | ------------------------------------ |
-| `goblin`     | 0.10.4  | ELF/PE/Mach-O parsing                |
-| `pelite`     | 0.10.0  | PE resource extraction               |
-| `clap`       | 4.5.54  | CLI argument parsing (derive macros) |
-| `regex`      | 1.12.2  | Pattern matching for classification  |
-| `lazy_static`| 1.5     | Compile-time regex caching           |
-| `serde`      | 1.0.228 | Serialization (JSON output)          |
-| `serde_json` | 1.0.148 | JSON formatting                      |
-| `thiserror`  | 2.0.17  | Error handling with derives          |
-| `entropy`    | 0.4.2   | Entropy calculation for filtering    |
+| Crate         | Version | Purpose                              |
+| ------------- | ------- | ------------------------------------ |
+| `goblin`      | 0.10.4  | ELF/PE/Mach-O parsing                |
+| `pelite`      | 0.10.0  | PE resource extraction               |
+| `clap`        | 4.5.54  | CLI argument parsing (derive macros) |
+| `regex`       | 1.12.2  | Pattern matching for classification  |
+| `lazy_static` | 1.5     | Compile-time regex caching           |
+| `serde`       | 1.0.228 | Serialization (JSON output)          |
+| `serde_json`  | 1.0.148 | JSON formatting                      |
+| `thiserror`   | 2.0.17  | Error handling with derives          |
+| `entropy`     | 0.4.2   | Entropy calculation for filtering    |
 
 ### Development Dependencies
 
-| Crate      | Version | Purpose                   |
-| ---------- | ------- | ------------------------- |
-| `criterion`| 0.8.1   | Benchmarking framework    |
-| `insta`    | 1.46.0  | Snapshot testing          |
-| `tempfile` | 3.24.0  | Temporary file handling   |
+| Crate       | Version | Purpose                 |
+| ----------- | ------- | ----------------------- |
+| `criterion` | 0.8.1   | Benchmarking framework  |
+| `insta`     | 1.46.0  | Snapshot testing        |
+| `tempfile`  | 3.24.0  | Temporary file handling |
 
 ### Build Tools
 
-| Tool       | Purpose                                |
-| ---------- | -------------------------------------- |
-| `just`     | Cross-platform task runner             |
-| `nextest`  | Fast test runner                       |
-| `mdformat` | Markdown formatting                    |
-| `mdbook`   | Documentation generation               |
-| `cspell`   | Spell checking                         |
-| `actionlint`| GitHub Actions linting                |
+| Tool         | Purpose                    |
+| ------------ | -------------------------- |
+| `just`       | Cross-platform task runner |
+| `nextest`    | Fast test runner           |
+| `mdformat`   | Markdown formatting        |
+| `mdbook`     | Documentation generation   |
+| `cspell`     | Spell checking             |
+| `actionlint` | GitHub Actions linting     |
 
 ---
 
 ## 8. Visual Architecture Diagram
 
-```
+```text
 +===========================================================================+
 |                              STRINGY ARCHITECTURE                         |
 +===========================================================================+
@@ -548,58 +557,72 @@ None required for basic operation. CI uses:
 
 ### Strengths
 
-1. **Solid Foundation**: Well-structured module organization with clear separation of concerns
-2. **Type Safety**: Comprehensive error handling with `thiserror` and extensive use of Rust's type system
-3. **Extensibility**: Trait-based design (`ContainerParser`, `StringExtractor`) enables easy format additions
-4. **Performance Focus**: Regex caching via `lazy_static!`, section weight prioritization
-5. **Testing Coverage**: Snapshot tests with `insta`, benchmarks with `criterion`, integration tests for all formats
-6. **Code Quality**: `#![forbid(unsafe_code)]`, `#![deny(warnings)]`, comprehensive linting
+1. **Solid Foundation**: Well-structured module organization with clear
+   separation of concerns
+2. **Type Safety**: Comprehensive error handling with `thiserror` and extensive
+   use of Rust's type system
+3. **Extensibility**: Trait-based design (`ContainerParser`, `StringExtractor`)
+   enables easy format additions
+4. **Performance Focus**: Regex caching via `lazy_static!`, section weight
+   prioritization
+5. **Testing Coverage**: Snapshot tests with `insta`, benchmarks with
+   `criterion`, integration tests for all formats
+6. **Code Quality**: `#![forbid(unsafe_code)]`, `#![deny(warnings)]`,
+   comprehensive linting
 
 ### Areas for Completion
 
-1. **CLI Implementation**: `main.rs` is a placeholder - full pipeline integration needed
-2. **Output Formatters**: `output/mod.rs` is empty - JSON, human-readable, YARA outputs pending
-3. **Additional Classifiers**: GUIDs, email addresses, Base64, format strings documented but not implemented
-4. **Ranking System**: Score-based prioritization framework exists but needs completion
+1. **CLI Implementation**: `main.rs` is a placeholder - full pipeline
+   integration needed
+2. **Output Formatters**: `output/mod.rs` is empty - JSON, human-readable, YARA
+   outputs pending
+3. **Additional Classifiers**: GUIDs, email addresses, Base64, format strings
+   documented but not implemented
+4. **Ranking System**: Score-based prioritization framework exists but needs
+   completion
 
 ### Recommendations
 
-1. **Complete CLI Pipeline**: Wire up container parsing -> extraction -> classification -> output
-2. **Implement Output Formatters**: Start with JSON (most requested for pipelines)
-3. **Add Missing Classifiers**: GUID and email detection are straightforward additions
-4. **Performance Benchmarks**: Expand benchmarks to cover full pipeline, not just parsing
+1. **Complete CLI Pipeline**: Wire up container parsing -> extraction ->
+   classification -> output
+2. **Implement Output Formatters**: Start with JSON (most requested for
+   pipelines)
+3. **Add Missing Classifiers**: GUID and email detection are straightforward
+   additions
+4. **Performance Benchmarks**: Expand benchmarks to cover full pipeline, not
+   just parsing
 5. **Documentation**: Complete mdBook documentation with usage examples
 
 ### Code Metrics Summary
 
-| Category       | Files | Lines  | Status      |
-| -------------- | ----- | ------ | ----------- |
-| Source (`src/`)| 19    | 11,153 | Active      |
-| Tests          | 10    | 5,254  | Active      |
-| Benchmarks     | 3     | ~300   | Active      |
-| Documentation  | 5+    | ~1,000 | In Progress |
-| **Total**      | ~37   | ~17,707| In Progress |
+| Category        | Files | Lines   | Status      |
+| --------------- | ----- | ------- | ----------- |
+| Source (`src/`) | 19    | 11,153  | Active      |
+| Tests           | 10    | 5,254   | Active      |
+| Benchmarks      | 3     | ~300    | Active      |
+| Documentation   | 5+    | ~1,000  | In Progress |
+| **Total**       | ~37   | ~17,707 | In Progress |
 
 ### Implementation Status
 
-| Component            | Status      | Completion |
-| -------------------- | ----------- | ---------- |
-| Format Detection     | Complete    | 100%       |
-| Container Parsers    | Complete    | 100%       |
-| ASCII Extraction     | Complete    | 100%       |
-| UTF-16 Extraction    | Complete    | 100%       |
-| PE Resources         | Complete    | 100%       |
-| Deduplication        | Complete    | 100%       |
-| IP Classification    | Complete    | 100%       |
-| URL/Domain           | Complete    | 100%       |
-| Path Classification  | Complete    | 100%       |
-| Registry Paths       | Complete    | 100%       |
-| GUIDs/Email/Base64   | Planned     | 0%         |
-| Ranking System       | In Progress | 50%        |
-| Output Formatters    | Planned     | 0%         |
-| CLI Integration      | In Progress | 20%        |
+| Component           | Status      | Completion |
+| ------------------- | ----------- | ---------- |
+| Format Detection    | Complete    | 100%       |
+| Container Parsers   | Complete    | 100%       |
+| ASCII Extraction    | Complete    | 100%       |
+| UTF-16 Extraction   | Complete    | 100%       |
+| PE Resources        | Complete    | 100%       |
+| Deduplication       | Complete    | 100%       |
+| IP Classification   | Complete    | 100%       |
+| URL/Domain          | Complete    | 100%       |
+| Path Classification | Complete    | 100%       |
+| Registry Paths      | Complete    | 100%       |
+| GUIDs/Email/Base64  | Planned     | 0%         |
+| Ranking System      | In Progress | 50%        |
+| Output Formatters   | Planned     | 0%         |
+| CLI Integration     | In Progress | 20%        |
 
 ---
 
-*Generated: 2026-01-17*
-*Analysis performed on branch: `17-implement-file-path-classification-for-posix-windows-and-registry-paths`*
+_Generated: 2026-01-17_ _Analysis performed on branch:
+`17-implement-file-path-classification-for-posix-windows-and-registry-paths`_
