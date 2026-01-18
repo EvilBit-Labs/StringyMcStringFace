@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::types::{FoundString, SectionInfo, SectionType, Tag};
 
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct RankingConfig {
     pub section_weights: HashMap<SectionType, i32>,
     pub tag_boosts: HashMap<Tag, i32>,
@@ -59,6 +60,7 @@ impl Default for RankingConfig {
 }
 
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct RankingEngine {
     config: RankingConfig,
     debug_mode: bool,
@@ -108,6 +110,11 @@ impl RankingEngine {
         }
     }
 
+    /// Sorts strings by their precomputed score in descending order.
+    ///
+    /// Call `calculate_score` for each `FoundString` before invoking this method,
+    /// otherwise ordering will reflect uninitialized or stale scores. This is an
+    /// unstable sort, so the relative order of equal scores is not preserved.
     pub fn rank_strings(&self, strings: &mut [FoundString]) {
         strings.sort_by(|a, b| b.score.cmp(&a.score));
     }
