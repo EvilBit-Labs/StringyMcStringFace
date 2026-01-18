@@ -39,6 +39,9 @@ pub struct StringOccurrence {
     pub rva: Option<u64>,
     /// Section name where string was found
     pub section: Option<String>,
+    /// Original text before demangling (if applicable)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub original_text: Option<String>,
     /// Extraction source type
     pub source: StringSource,
     /// Tags from this specific occurrence
@@ -80,7 +83,7 @@ pub struct StringOccurrence {
 pub fn deduplicate(
     strings: Vec<FoundString>,
     dedup_threshold: Option<usize>,
-    preserve_all_occurrences: bool,
+    _preserve_all_occurrences: bool,
 ) -> Vec<CanonicalString> {
     if strings.is_empty() {
         return Vec::new();
@@ -109,22 +112,10 @@ pub fn deduplicate(
             // All strings in group have same encoding, use first one
             let encoding = found_strings[0].encoding;
 
-            let occurrences: Vec<StringOccurrence> = if preserve_all_occurrences {
-                // Store full occurrence metadata
-                found_strings
-                    .into_iter()
-                    .map(found_string_to_occurrence)
-                    .collect()
-            } else {
-                // Store only the first occurrence as representative, but we still need
-                // the count for scoring, so we'll keep all but mark them as "count only"
-                // For now, we'll still store all occurrences but this could be optimized
-                // to store just a count field in the future
-                found_strings
-                    .into_iter()
-                    .map(found_string_to_occurrence)
-                    .collect()
-            };
+            let occurrences: Vec<StringOccurrence> = found_strings
+                .into_iter()
+                .map(found_string_to_occurrence)
+                .collect();
 
             let merged_tags = merge_tags(&occurrences);
 
@@ -254,6 +245,7 @@ pub fn found_string_to_occurrence(fs: FoundString) -> StringOccurrence {
         offset: fs.offset,
         rva: fs.rva,
         section: fs.section,
+        original_text: fs.original_text,
         source: fs.source,
         original_tags: fs.tags,
         original_score: fs.score,
@@ -282,7 +274,7 @@ impl CanonicalString {
 
         FoundString {
             text: self.text.clone(),
-            original_text: None,
+            original_text: first_occurrence.original_text.clone(),
             encoding: self.encoding,
             offset: first_occurrence.offset,
             rva: first_occurrence.rva,

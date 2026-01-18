@@ -32,6 +32,8 @@ pub enum Tag {
     FormatString,
     #[serde(rename = "user-agent-ish")]
     UserAgent,
+    #[serde(rename = "demangled")]
+    DemangledSymbol,
     Import,
     Export,
     Version,
