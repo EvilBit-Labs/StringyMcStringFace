@@ -176,3 +176,48 @@ jobs:
         with:
           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
           files: target/lcov.info
+
+  # Gate job for branch protection - always runs and reports aggregate status
+  # Use this as the required status check instead of individual jobs
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    needs: [quality, msrv, test, test-cross-platform, coverage]
+    if: always()
+    steps:
+      - name: Check job results
+        run: |
+          echo "Quality: ${{ needs.quality.result }}"
+          echo "MSRV: ${{ needs.msrv.result }}"
+          echo "Test: ${{ needs.test.result }}"
+          echo "Test Cross-Platform: ${{ needs.test-cross-platform.result }}"
+          echo "Coverage: ${{ needs.coverage.result }}"
+
+          # Fail if any required job failed
+          # Jobs that were skipped (due to path filters) are OK
+          if [[ "${{ needs.quality.result }}" == "failure" || "${{ needs.quality.result }}" == "cancelled" ]]; then
+            echo "::error::Quality checks failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.msrv.result }}" == "failure" || "${{ needs.msrv.result }}" == "cancelled" ]]; then
+            echo "::error::MSRV check failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.test.result }}" == "failure" || "${{ needs.test.result }}" == "cancelled" ]]; then
+            echo "::error::Tests failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.test-cross-platform.result }}" == "failure" || "${{ needs.test-cross-platform.result }}" == "cancelled" ]]; then
+            echo "::error::Cross-platform tests failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.coverage.result }}" == "failure" || "${{ needs.coverage.result }}" == "cancelled" ]]; then
+            echo "::error::Coverage generation failed"
+            exit 1
+          fi
+
+          echo "All CI checks passed (or were skipped due to no relevant changes)"
