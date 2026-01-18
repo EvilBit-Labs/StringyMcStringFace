@@ -223,10 +223,23 @@ pub struct ResourceStringEntry {
 }
 
 /// A string found in the binary with metadata
+///
+/// The `original_text` field preserves the pre-demangled text when demangling
+/// is applied. Debug-only fields provide transparency into how the final score
+/// was produced and are only populated when debug mode is enabled.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct FoundString {
     /// The extracted string text
     pub text: String,
+    /// Original text before demangling (if applicable)
+    ///
+    /// When a string is identified as a mangled symbol (e.g., C++ or Rust mangled names),
+    /// this field preserves the original mangled form before demangling is applied.
+    /// The `text` field will contain the demangled version. This is `None` for strings
+    /// that are not mangled symbols or when demangling is not performed.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub original_text: Option<String>,
     /// The encoding used for this string
     pub encoding: Encoding,
     /// File offset where the string was found
@@ -241,6 +254,30 @@ pub struct FoundString {
     pub tags: Vec<Tag>,
     /// Relevance score for ranking
     pub score: i32,
+    /// Section weight contribution to the final score (debug only)
+    ///
+    /// When debug mode is enabled, this field contains the weight assigned based on
+    /// the section where the string was found. Higher weights indicate sections more
+    /// likely to contain meaningful strings (e.g., .rodata vs .text). This is `None`
+    /// unless explicitly populated by the ranking system in debug mode.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub section_weight: Option<i32>,
+    /// Semantic classification boost to the final score (debug only)
+    ///
+    /// When debug mode is enabled, this field contains the score boost applied based on
+    /// semantic tags (URLs, file paths, GUIDs, etc.). Strings with valuable semantic
+    /// meaning receive positive boosts. This is `None` unless explicitly populated by
+    /// the ranking system in debug mode.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub semantic_boost: Option<i32>,
+    /// Noise penalty applied to the final score (debug only)
+    ///
+    /// When debug mode is enabled, this field contains the penalty applied for noise
+    /// characteristics (low confidence, repetitive patterns, etc.). Higher penalties
+    /// indicate strings more likely to be noise. This is `None` unless explicitly
+    /// populated by the ranking system in debug mode.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub noise_penalty: Option<i32>,
     /// Source of the string (section data, import, etc.)
     pub source: StringSource,
     /// Confidence score from noise filtering (0.0-1.0)
@@ -254,6 +291,109 @@ pub struct FoundString {
 }
 
 impl FoundString {
+    /// Creates a new FoundString with required fields and sensible defaults
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - The extracted string text
+    /// * `encoding` - The encoding used for this string
+    /// * `offset` - File offset where the string was found
+    /// * `length` - Length of the string in bytes
+    /// * `source` - Source of the string (section data, import, etc.)
+    ///
+    /// # Returns
+    ///
+    /// A new FoundString with optional fields set to None/empty and confidence
+    /// set to 1.0
+    #[must_use]
+    pub fn new(
+        text: String,
+        encoding: Encoding,
+        offset: u64,
+        length: u32,
+        source: StringSource,
+    ) -> Self {
+        Self {
+            text,
+            original_text: None,
+            encoding,
+            offset,
+            rva: None,
+            section: None,
+            length,
+            tags: Vec::new(),
+            score: 0,
+            section_weight: None,
+            semantic_boost: None,
+            noise_penalty: None,
+            source,
+            confidence: 1.0,
+        }
+    }
+
+    /// Sets the RVA (Relative Virtual Address)
+    #[must_use]
+    pub fn with_rva(mut self, rva: u64) -> Self {
+        self.rva = Some(rva);
+        self
+    }
+
+    /// Sets the section name
+    #[must_use]
+    pub fn with_section(mut self, section: String) -> Self {
+        self.section = Some(section);
+        self
+    }
+
+    /// Sets the tags
+    #[must_use]
+    pub fn with_tags(mut self, tags: Vec<Tag>) -> Self {
+        self.tags = tags;
+        self
+    }
+
+    /// Sets the score
+    #[must_use]
+    pub fn with_score(mut self, score: i32) -> Self {
+        self.score = score;
+        self
+    }
+
+    /// Sets the confidence
+    #[must_use]
+    pub fn with_confidence(mut self, confidence: f32) -> Self {
+        self.confidence = confidence;
+        self
+    }
+
+    /// Sets the original text (for demangled symbols)
+    #[must_use]
+    pub fn with_original_text(mut self, original_text: String) -> Self {
+        self.original_text = Some(original_text);
+        self
+    }
+
+    /// Sets the section weight (debug mode)
+    #[must_use]
+    pub fn with_section_weight(mut self, weight: i32) -> Self {
+        self.section_weight = Some(weight);
+        self
+    }
+
+    /// Sets the semantic boost (debug mode)
+    #[must_use]
+    pub fn with_semantic_boost(mut self, boost: i32) -> Self {
+        self.semantic_boost = Some(boost);
+        self
+    }
+
+    /// Sets the noise penalty (debug mode)
+    #[must_use]
+    pub fn with_noise_penalty(mut self, penalty: i32) -> Self {
+        self.noise_penalty = Some(penalty);
+        self
+    }
+
     /// Returns true if confidence is high (>= 0.7)
     pub fn is_high_confidence(&self) -> bool {
         self.confidence >= 0.7
@@ -305,5 +445,112 @@ impl From<pelite::Error> for StringyError {
 impl From<pelite::resources::FindError> for StringyError {
     fn from(err: pelite::resources::FindError) -> Self {
         StringyError::ParseError(format!("Resource lookup error: {}", err))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Creates a test FoundString with all optional fields set to None
+    fn create_test_found_string() -> FoundString {
+        FoundString {
+            text: "test_string".to_string(),
+            original_text: None,
+            encoding: Encoding::Ascii,
+            offset: 0x1000,
+            rva: Some(0x2000),
+            section: Some(".rodata".to_string()),
+            length: 11,
+            tags: vec![Tag::Url],
+            score: 100,
+            section_weight: None,
+            semantic_boost: None,
+            noise_penalty: None,
+            source: StringSource::SectionData,
+            confidence: 0.85,
+        }
+    }
+
+    #[test]
+    fn test_found_string_serde_optional_fields_none() {
+        // Test that optional fields are skipped when None
+        let found_string = create_test_found_string();
+        let json = serde_json::to_string(&found_string).expect("Serialization failed");
+
+        // Verify optional fields are not present in JSON
+        assert!(!json.contains("original_text"));
+        assert!(!json.contains("section_weight"));
+        assert!(!json.contains("semantic_boost"));
+        assert!(!json.contains("noise_penalty"));
+
+        // Verify required fields are present
+        assert!(json.contains("text"));
+        assert!(json.contains("encoding"));
+        assert!(json.contains("offset"));
+    }
+
+    #[test]
+    fn test_found_string_serde_optional_fields_some() {
+        // Test that optional fields are included when Some
+        let mut found_string = create_test_found_string();
+        found_string.original_text = Some("_ZN4test6mangled".to_string());
+        found_string.section_weight = Some(50);
+        found_string.semantic_boost = Some(25);
+        found_string.noise_penalty = Some(-10);
+
+        let json = serde_json::to_string(&found_string).expect("Serialization failed");
+
+        // Verify optional fields are present in JSON
+        assert!(json.contains("original_text"));
+        assert!(json.contains("_ZN4test6mangled"));
+        assert!(json.contains("section_weight"));
+        assert!(json.contains("semantic_boost"));
+        assert!(json.contains("noise_penalty"));
+    }
+
+    #[test]
+    fn test_found_string_serde_roundtrip() {
+        // Test serialization/deserialization roundtrip with all fields
+        let mut found_string = create_test_found_string();
+        found_string.original_text = Some("mangled_name".to_string());
+        found_string.section_weight = Some(75);
+        found_string.semantic_boost = Some(30);
+        found_string.noise_penalty = Some(-5);
+
+        let json = serde_json::to_string(&found_string).expect("Serialization failed");
+        let deserialized: FoundString =
+            serde_json::from_str(&json).expect("Deserialization failed");
+
+        assert_eq!(found_string.text, deserialized.text);
+        assert_eq!(found_string.original_text, deserialized.original_text);
+        assert_eq!(found_string.section_weight, deserialized.section_weight);
+        assert_eq!(found_string.semantic_boost, deserialized.semantic_boost);
+        assert_eq!(found_string.noise_penalty, deserialized.noise_penalty);
+    }
+
+    #[test]
+    fn test_found_string_deserialize_missing_optional_fields() {
+        // Test that missing optional fields default to None during deserialization
+        let json = r#"{
+            "text": "test",
+            "encoding": "Ascii",
+            "offset": 0,
+            "rva": null,
+            "section": null,
+            "length": 4,
+            "tags": [],
+            "score": 0,
+            "source": "SectionData",
+            "confidence": 1.0
+        }"#;
+
+        let deserialized: FoundString = serde_json::from_str(json).expect("Deserialization failed");
+
+        assert_eq!(deserialized.text, "test");
+        assert_eq!(deserialized.original_text, None);
+        assert_eq!(deserialized.section_weight, None);
+        assert_eq!(deserialized.semantic_boost, None);
+        assert_eq!(deserialized.noise_penalty, None);
     }
 }

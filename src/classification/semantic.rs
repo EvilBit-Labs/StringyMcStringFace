@@ -20,6 +20,7 @@
 //! let classifier = SemanticClassifier::new();
 //! let found_string = FoundString {
 //!     text: "https://example.com/api".to_string(),
+//!     original_text: None,
 //!     encoding: Encoding::Ascii,
 //!     offset: 0,
 //!     rva: None,
@@ -27,6 +28,9 @@
 //!     length: 24,
 //!     tags: Vec::new(),
 //!     score: 0,
+//!     section_weight: None,
+//!     semantic_boost: None,
+//!     noise_penalty: None,
 //!     source: StringSource::SectionData,
 //!     confidence: 1.0,
 //! };
@@ -348,6 +352,7 @@ impl SemanticClassifier {
     /// let classifier = SemanticClassifier::new();
     /// let found_string = FoundString {
     ///     text: "https://example.com".to_string(),
+    ///     original_text: None,
     ///     encoding: Encoding::Ascii,
     ///     offset: 0,
     ///     rva: None,
@@ -355,6 +360,9 @@ impl SemanticClassifier {
     ///     length: 19,
     ///     tags: Vec::new(),
     ///     score: 0,
+    ///     section_weight: None,
+    ///     semantic_boost: None,
+    ///     noise_penalty: None,
     ///     source: StringSource::SectionData,
     ///     confidence: 1.0,
     /// };
@@ -1010,6 +1018,7 @@ mod tests {
     fn create_test_string(text: &str) -> FoundString {
         FoundString {
             text: text.to_string(),
+            original_text: None,
             encoding: Encoding::Ascii,
             offset: 0,
             rva: None,
@@ -1017,6 +1026,9 @@ mod tests {
             length: text.len() as u32,
             tags: Vec::new(),
             score: 0,
+            section_weight: None,
+            semantic_boost: None,
+            noise_penalty: None,
             source: StringSource::SectionData,
             confidence: 1.0,
         }

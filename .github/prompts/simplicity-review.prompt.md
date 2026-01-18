@@ -1,6 +1,13 @@
+---
+agent: agent
+name: Simplicity Review
+description: This prompt is used to review and simplify code changes by applying principles of simplicity, idiomatic coding, and test proportionality.
+model: OpenAI GPT-5.2-Codex
+---
+
 CODE SIMPLIFICATION REVIEW
 
-Start by examining the uncommitted changes in the current codebase.
+Start by examining the uncommitted changes (or the changes in the current branch if there are no uncommitted changes) in the current codebase.
 
 ANALYSIS STEPS:
 

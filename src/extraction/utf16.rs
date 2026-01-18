@@ -822,6 +822,7 @@ fn extract_utf16_strings_with_byte_order(
                     if utf16_confidence >= config.confidence_threshold {
                         found_strings.push(FoundString {
                             text,
+                            original_text: None,
                             encoding: match byte_order {
                                 ByteOrder::LE => Encoding::Utf16Le,
                                 ByteOrder::BE => Encoding::Utf16Be,
@@ -833,6 +834,9 @@ fn extract_utf16_strings_with_byte_order(
                             length: bytes_for_decoding.len() as u32,
                             tags: Vec::new(),
                             score: 0,
+                            section_weight: None,
+                            semantic_boost: None,
+                            noise_penalty: None,
                             source: StringSource::SectionData,
                             confidence: utf16_confidence,
                         });

@@ -56,7 +56,7 @@ The ELF parser now provides comprehensive symbol extraction with:
 
 ### Implementation Details
 
-```rust
+```text
 impl ElfParser {
     fn classify_section(section: &SectionHeader, name: &str) -> SectionType {
         // Check executable flag first
@@ -231,7 +231,7 @@ PE resources are particularly rich sources of strings. The PE parser now provide
 
 #### Usage Example
 
-```rust
+```text
 use stringy::extraction::extract_resource_strings;
 use stringy::types::Tag;
 
@@ -251,7 +251,7 @@ let ui_strings: Vec<_> = strings.iter()
 
 ### Implementation Details
 
-```rust
+```text
 impl PeParser {
     fn classify_section(section: &SectionTable) -> SectionType {
         let name = String::from_utf8_lossy(&section.name);
@@ -349,7 +349,7 @@ Mach-O load commands contain valuable strings:
 
 ### Implementation Details
 
-```rust
+```text
 impl MachoParser {
     fn classify_section(segment_name: &str, section_name: &str) -> SectionType {
         match (segment_name, section_name) {
@@ -382,7 +382,7 @@ impl MachoParser {
 
 Different formats require different weighting strategies:
 
-```rust
+```text
 fn calculate_section_weight(format: BinaryFormat, section_type: SectionType) -> i32 {
     match (format, section_type) {
         (BinaryFormat::Elf, SectionType::StringData) => 10, // .rodata
@@ -397,7 +397,7 @@ fn calculate_section_weight(format: BinaryFormat, section_type: SectionType) -> 
 
 Stringy uses `goblin` for robust format detection:
 
-```rust
+```text
 pub fn detect_format(data: &[u8]) -> BinaryFormat {
     match Object::parse(data) {
         Ok(Object::Elf(_)) => BinaryFormat::Elf,

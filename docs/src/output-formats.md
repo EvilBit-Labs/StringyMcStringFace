@@ -38,7 +38,7 @@ Machine-readable format with one JSON object per line, ideal for automation and 
 
 ### Example Output
 
-```json
+```text
 {"text":"https://api.example.com/v1/users","encoding":"utf-8","offset":4096,"rva":4096,"section":".rdata","length":31,"tags":["url"],"score":95,"source":"SectionData"}
 {"text":"{12345678-1234-1234-1234-123456789abc}","encoding":"utf-8","offset":8192,"rva":8192,"section":".rdata","length":38,"tags":["guid"],"score":87,"source":"SectionData"}
 ```

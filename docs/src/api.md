@@ -8,7 +8,7 @@ This page provides an overview of Stringy's public API. For complete API documen
 
 The primary data structure representing an extracted string with metadata.
 
-```rust
+```text
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FoundString {
     /// The extracted string text
@@ -36,7 +36,7 @@ pub struct FoundString {
 
 Supported string encodings.
 
-```rust
+```text
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Encoding {
     Ascii,
@@ -50,7 +50,7 @@ pub enum Encoding {
 
 Semantic classification tags.
 
-```rust
+```text
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Tag {
     Url,
@@ -78,7 +78,7 @@ pub enum Tag {
 
 Extract strings from binary data.
 
-```rust
+```text
 pub fn extract_strings(
     data: &[u8], 
     config: &ExtractionConfig
@@ -96,7 +96,7 @@ pub fn extract_strings(
 
 **Example:**
 
-```rust
+```text
 use stringy::{extract_strings, ExtractionConfig};
 
 let data = std::fs::read("binary.exe")?;
@@ -112,7 +112,7 @@ for string in strings {
 
 Detect the binary format of the given data.
 
-```rust
+```text
 pub fn detect_format(data: &[u8]) -> BinaryFormat
 ```
 
@@ -126,7 +126,7 @@ pub fn detect_format(data: &[u8]) -> BinaryFormat
 
 **Example:**
 
-```rust
+```text
 use stringy::detect_format;
 
 let data = std::fs::read("binary")?;
@@ -140,7 +140,7 @@ println!("Detected format: {:?}", format);
 
 Configuration options for string extraction.
 
-```rust
+```text
 pub struct ExtractionConfig {
     /// Minimum length for ASCII strings
     pub min_ascii_len: usize,
@@ -180,7 +180,7 @@ impl Default for ExtractionConfig {
 
 Configuration for semantic classification.
 
-```rust
+```text
 pub struct ClassificationConfig {
     /// Enable URL detection
     pub detect_urls: bool,
@@ -209,7 +209,7 @@ pub struct ClassificationConfig {
 
 Trait for implementing binary format parsers.
 
-```rust
+```text
 pub trait ContainerParser {
     /// Detect if this parser can handle the given data
     fn detect(data: &[u8]) -> bool
@@ -225,7 +225,7 @@ pub trait ContainerParser {
 
 Information about a parsed binary container.
 
-```rust
+```text
 pub struct ContainerInfo {
     /// The binary format detected
     pub format: BinaryFormat,
@@ -242,7 +242,7 @@ pub struct ContainerInfo {
 
 Information about a section within the binary.
 
-```rust
+```text
 pub struct SectionInfo {
     /// Section name
     pub name: String,
@@ -267,7 +267,7 @@ pub struct SectionInfo {
 
 Trait for implementing output formatters.
 
-```rust
+```text
 pub trait OutputFormatter {
     /// Format the strings for output
     fn format(&self, strings: &[FoundString], config: &OutputConfig) -> Result<String>;
@@ -276,7 +276,7 @@ pub trait OutputFormatter {
 
 ### Built-in Formatters
 
-```rust
+```text
 // Human-readable table format
 pub struct HumanFormatter;
 
@@ -289,7 +289,7 @@ pub struct YaraFormatter;
 
 **Example:**
 
-```rust
+```text
 use stringy::output::{JsonFormatter, OutputFormatter, OutputConfig};
 
 let formatter = JsonFormatter::new();
@@ -304,7 +304,7 @@ println!("{}", output);
 
 Comprehensive error type for the library.
 
-```rust
+```text
 #[derive(Debug, thiserror::Error)]
 pub enum StringyError {
     #[error("Unsupported file format")]
@@ -331,7 +331,7 @@ pub enum StringyError {
 
 Convenient result type alias.
 
-```rust
+```text
 pub type Result<T> = std::result::Result<T, StringyError>;
 ```
 
@@ -341,7 +341,7 @@ pub type Result<T> = std::result::Result<T, StringyError>;
 
 Implement custom semantic classifiers:
 
-```rust
+```text
 use stringy::classification::{ClassificationResult, Classifier};
 
 pub struct CustomClassifier {
@@ -360,7 +360,7 @@ impl Classifier for CustomClassifier {
 
 For large files, use memory mapping:
 
-```rust
+```text
 use memmap2::Mmap;
 use std::fs::File;
 
@@ -373,7 +373,7 @@ let strings = extract_strings(&mmap[..], &config)?;
 
 Process multiple files in parallel:
 
-```rust
+```text
 use rayon::prelude::*;
 
 let files = vec!["file1.exe", "file2.dll", "file3.so"];
@@ -390,7 +390,7 @@ let results: Vec<_> = files
 
 Optional features can be enabled in `Cargo.toml`:
 
-```toml
+```text
 [dependencies]
 stringy = { version = "0.1", features = ["pe-resources", "dwarf-debug"] }
 ```
@@ -406,7 +406,7 @@ Available features:
 
 ### Basic String Extraction
 
-```rust
+```text
 use stringy::{ExtractionConfig, extract_strings};
 
 fn main() -> stringy::Result<()> {
@@ -425,7 +425,7 @@ fn main() -> stringy::Result<()> {
 
 ### Filtered Extraction
 
-```rust
+```text
 use stringy::{Encoding, ExtractionConfig, Tag, extract_strings};
 
 fn extract_network_indicators(data: &[u8]) -> stringy::Result<Vec<String>> {
@@ -454,7 +454,7 @@ fn extract_network_indicators(data: &[u8]) -> stringy::Result<Vec<String>> {
 
 ### Custom Output Format
 
-```rust
+```text
 use serde_json::json;
 use stringy::output::{OutputConfig, OutputFormatter};
 

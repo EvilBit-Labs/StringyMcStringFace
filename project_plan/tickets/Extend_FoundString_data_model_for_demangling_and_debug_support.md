@@ -22,12 +22,12 @@ Update the `FoundString` struct in file:src/types.rs to support symbol demanglin
 
 ## Acceptance Criteria
 
-- [ ] FoundString struct includes original_text field
-- [ ] FoundString struct includes optional breakdown fields (section_weight, semantic_boost, noise_penalty)
-- [ ] All fields properly serialize/deserialize with serde
-- [ ] Existing tests updated and passing
-- [ ] Documentation updated with field descriptions and usage examples
-- [ ] No breaking changes to existing code that creates FoundString instances
+- [x] FoundString struct includes original_text field
+- [x] FoundString struct includes optional breakdown fields (section_weight, semantic_boost, noise_penalty)
+- [x] All fields properly serialize/deserialize with serde
+- [x] Existing tests updated and passing
+- [x] Documentation updated with field descriptions and usage examples
+- [x] No breaking changes to existing code that creates FoundString instances
 
 ## References
 

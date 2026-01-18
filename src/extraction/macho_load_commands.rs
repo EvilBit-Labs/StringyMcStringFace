@@ -100,6 +100,7 @@ fn extract_dylib_strings(macho: &MachO) -> Vec<FoundString> {
 
         strings.push(FoundString {
             text: lib.to_string(),
+            original_text: None,
             encoding: Encoding::Utf8,
             source: StringSource::LoadCommand,
             tags,
@@ -108,6 +109,9 @@ fn extract_dylib_strings(macho: &MachO) -> Vec<FoundString> {
             rva: None,
             length,
             score: 0,
+            section_weight: None,
+            semantic_boost: None,
+            noise_penalty: None,
             confidence: 1.0,
         });
     }
@@ -129,6 +133,7 @@ fn extract_rpath_strings(macho: &MachO) -> Vec<FoundString> {
 
         strings.push(FoundString {
             text: rpath.to_string(),
+            original_text: None,
             encoding: Encoding::Utf8,
             source: StringSource::LoadCommand,
             tags,
@@ -137,6 +142,9 @@ fn extract_rpath_strings(macho: &MachO) -> Vec<FoundString> {
             rva: None,
             length,
             score: 0,
+            section_weight: None,
+            semantic_boost: None,
+            noise_penalty: None,
             confidence: 1.0,
         });
     }

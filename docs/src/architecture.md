@@ -31,7 +31,7 @@ Handles binary format detection and parsing using the `goblin` crate with compre
 
 The parsers implement intelligent section prioritization:
 
-```rust
+```text
 // Example: ELF section weights
 ".rodata" | ".rodata.str1.*" => 10.0  // Highest priority
 ".comment" | ".note.*"       => 9.0   // Build info, very likely strings
@@ -109,7 +109,7 @@ Formats results for different use cases with consistent data structures.
 
 ### 1. Binary Analysis Phase ✅ **Implemented**
 
-```rust
+```text
 // Format detection using goblin
 let format = detect_format(&data);  // Returns BinaryFormat enum
 let parser = create_parser(format)?; // Creates appropriate parser
@@ -128,7 +128,7 @@ let container_info = parser.parse(&data)?;
 
 ### 2. String Extraction Phase 🚧 **Framework Ready**
 
-```rust
+```text
 // Extract strings from prioritized sections (by weight)
 let mut all_strings = Vec::new();
 for section in container_info.sections.iter().filter(|s| s.weight > 5.0) {
@@ -151,7 +151,7 @@ let unique_strings = deduplicate(all_strings);
 
 ### 3. Classification Phase 🚧 **Types Ready**
 
-```rust
+```text
 // Apply semantic classification with context awareness
 for string in &mut unique_strings {
     let context = StringContext {
@@ -167,7 +167,7 @@ for string in &mut unique_strings {
 
 ### 4. Output Phase 🚧 **Interfaces Defined**
 
-```rust
+```text
 // Sort by relevance score (descending)
 unique_strings.sort_by_key(|s| std::cmp::Reverse(s.score));
 
@@ -207,7 +207,7 @@ pub trait ContainerParser {
 
 Each parser implements intelligent section classification:
 
-```rust
+```text
 // ELF Example
 fn classify_section(section: &SectionHeader, name: &str) -> SectionType {
     if section.sh_flags & SHF_EXECINSTR != 0 {
