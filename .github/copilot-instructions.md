@@ -52,7 +52,7 @@ Convert external errors with `From` implementations. Provide offsets, section na
 
 Container parsers assign weights (1.0-10.0) to sections based on string likelihood:
 
-```rust
+```text
 // ELF example from container/elf.rs
 ".rodata" | ".rodata.str1.*" => 10.0  // Highest priority
 ".comment" | ".note.*"       => 9.0   // Build info
@@ -83,10 +83,24 @@ Use `#[non_exhaustive]` for public API structs like `ContainerInfo` and provide 
 
 ```rust
 #[non_exhaustive]
-pub struct ContainerInfo { /* fields */ }
+pub struct ContainerInfo {/* fields */}
 
 impl ContainerInfo {
-    pub fn new(format: BinaryFormat, sections: Vec<SectionInfo>, ...) -> Self { ... }
+    pub fn new(
+        format: BinaryFormat,
+        sections: Vec<SectionInfo>,
+        imports: Vec<ImportInfo>,
+        exports: Vec<ExportInfo>,
+        resources: Option<Vec<ResourceMetadata>>,
+    ) -> Self {
+        Self {
+            format,
+            sections,
+            imports,
+            exports,
+            resources,
+        }
+    }
 }
 ```
 
@@ -186,7 +200,7 @@ The `justfile` uses OS annotations (`[windows]`/`[unix]`) for cross-platform com
 
 **Adding a new section weight** (in `container/elf.rs`, `pe.rs`, or `macho.rs`):
 
-```rust
+```text
 let weight = match section_name {
     ".mydata" => 8.0,  // New section type
     _ => existing_match_arms
@@ -195,7 +209,7 @@ let weight = match section_name {
 
 **Extracting strings from a section**:
 
-```rust
+```text
 use stringy::extraction::{extract_ascii_strings, AsciiExtractionConfig};
 let config = AsciiExtractionConfig { min_length: 4, max_length: 1024 };
 let strings = extract_ascii_strings(&section_data, &config);
