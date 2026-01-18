@@ -82,7 +82,7 @@ sequenceDiagram
 
 **Output Format (TTY):**
 
-```
+```text
 String                                    Tags        Score  Section
 https://malicious-c2.example.com/api     url         95     .rdata
 C:\Windows\System32\kernel32.dll         filepath    88     .rdata
@@ -106,14 +106,19 @@ core::fmt::Display::fmt                  export      85     .text
 **Steps:**
 
 1. User invokes Stringy with filtering flags
+
 2. System performs standard analysis pipeline (Parsing... Extracting... Classifying... Ranking...)
+
 3. System applies filters with AND logic:
+
    - String must have tag "url" OR "ipv4"
    - String length must be >= 10 characters
    - String encoding must be UTF-16
 
 4. System outputs filtered results in table format
+
 5. If no strings match filters, system displays to stderr: "Analyzed 1,234 strings, 0 matched filters"
+
 6. If strings match, system outputs table with matching strings only
 
 **Filter Combination Rules:**
@@ -174,7 +179,7 @@ If multiple output format flags are specified (e.g., --json and --yara), the sys
 
 **JSON Format:**
 
-```json
+```text
 {"text":"https://example.com","encoding":"Ascii","offset":4096,"rva":8192,"section":".rdata","length":19,"tags":["url","domain"],"score":95,"source":"SectionData","confidence":1.0}
 {"text":"C:\\Windows\\System32","encoding":"Utf16Le","offset":8192,"rva":12288,"section":".data","length":38,"tags":["filepath"],"score":88,"source":"SectionData","confidence":0.95}
 ```
@@ -198,21 +203,27 @@ If multiple output format flags are specified (e.g., --json and --yara), the sys
 **Steps:**
 
 1. User invokes Stringy with --yara flag
+
 2. System performs standard analysis pipeline
+
 3. Progress indicators go to stderr
+
 4. System generates complete YARA rule template to stdout
+
 5. Rule includes:
+
    - Rule name (derived from binary filename)
    - Metadata section (file hash, analysis date, tool version)
    - Strings section with properly escaped strings
    - Condition section (basic template)
 
 6. Strings are escaped according to YARA syntax rules
+
 7. Very long strings (>200 chars) are truncated with comment
 
 **YARA Output Format:**
 
-```
+```text
 rule binary_strings {
     meta:
         description = "Strings extracted from binary.exe"
@@ -268,7 +279,7 @@ rule binary_strings {
 
 **Output Format (Non-TTY):**
 
-```
+```text
 https://malicious-c2.example.com/api
 C:\Windows\System32\kernel32.dll
 core::fmt::Display::fmt
