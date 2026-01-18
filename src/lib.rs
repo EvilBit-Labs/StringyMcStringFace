@@ -87,5 +87,6 @@ pub use extraction::{
 
 // Re-export output infrastructure types
 pub use output::{
-    OutputFormat, OutputMetadata, format_json, format_output, format_table_with_mode, format_yara,
+    OutputFormat, OutputFormatter, OutputMetadata, format_json, format_output,
+    format_table_with_mode, format_yara,
 };

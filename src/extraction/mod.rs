@@ -315,18 +315,21 @@ impl ExtractionConfig {
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,no_run
 /// use stringy::extraction::{BasicExtractor, ExtractionConfig, StringExtractor};
 /// use stringy::container::{detect_format, create_parser};
 ///
-/// let data = std::fs::read("binary_file")?;
-/// let format = detect_format(&data);
-/// let parser = create_parser(format)?;
-/// let container_info = parser.parse(&data)?;
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let data = std::fs::read("binary_file")?;
+///     let format = detect_format(&data);
+///     let parser = create_parser(format)?;
+///     let container_info = parser.parse(&data)?;
 ///
-/// let extractor = BasicExtractor::new();
-/// let config = ExtractionConfig::default();
-/// let strings = extractor.extract(&data, &container_info, &config)?;
+///     let extractor = BasicExtractor::new();
+///     let config = ExtractionConfig::default();
+///     let strings = extractor.extract(&data, &container_info, &config)?;
+///     Ok(())
+/// }
 /// ```
 pub trait StringExtractor {
     /// Extract strings from entire binary using container metadata
@@ -409,31 +412,34 @@ pub trait StringExtractor {
 /// use stringy::extraction::{BasicExtractor, ExtractionConfig, StringExtractor};
 /// use stringy::types::{ContainerInfo, SectionInfo, SectionType, BinaryFormat};
 ///
-/// let extractor = BasicExtractor::new();
-/// let config = ExtractionConfig::default();
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let extractor = BasicExtractor::new();
+///     let config = ExtractionConfig::default();
 ///
-/// // Create a simple container info for testing
-/// let section = SectionInfo {
-///     name: ".rodata".to_string(),
-///     offset: 0,
-///     size: 100,
-///     rva: Some(0x1000),
-///     section_type: SectionType::StringData,
-///     is_executable: false,
-///     is_writable: false,
-///     weight: 1.0,
-/// };
+///     // Create a simple container info for testing
+///     let section = SectionInfo {
+///         name: ".rodata".to_string(),
+///         offset: 0,
+///         size: 100,
+///         rva: Some(0x1000),
+///         section_type: SectionType::StringData,
+///         is_executable: false,
+///         is_writable: false,
+///         weight: 1.0,
+///     };
 ///
-/// let container_info = ContainerInfo::new(
-///     BinaryFormat::Elf,
-///     vec![section],
-///     vec![],
-///     vec![],
-///     None,
-/// );
+///     let container_info = ContainerInfo::new(
+///         BinaryFormat::Elf,
+///         vec![section],
+///         vec![],
+///         vec![],
+///         None,
+///     );
 ///
-/// let data = b"Hello World\0Test String\0";
-/// let strings = extractor.extract(data, &container_info, &config)?;
+///     let data = b"Hello World\0Test String\0";
+///     let strings = extractor.extract(data, &container_info, &config)?;
+///     Ok(())
+/// }
 /// ```
 #[derive(Debug, Clone)]
 pub struct BasicExtractor;

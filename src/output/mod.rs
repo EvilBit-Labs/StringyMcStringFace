@@ -44,7 +44,49 @@ pub use json::format_json;
 pub use table::{format_table, format_table_with_mode};
 pub use yara::format_yara;
 
+/// Trait for output formatters.
+///
+/// Implementations of this trait provide different output formats for extracted
+/// strings. This trait enables extensibility by allowing custom formatters to be
+/// added without modifying the core dispatch logic.
+///
+/// # Example
+///
+/// ```rust
+/// use stringy::output::{OutputFormatter, OutputMetadata};
+/// use stringy::types::{FoundString, Result};
+///
+/// struct CustomFormatter;
+///
+/// impl OutputFormatter for CustomFormatter {
+///     fn format(&self, strings: &[FoundString], metadata: &OutputMetadata) -> Result<String> {
+///         Ok(format!("Custom: {} strings from {}", strings.len(), metadata.binary_name))
+///     }
+///
+///     fn name(&self) -> &'static str {
+///         "custom"
+///     }
+/// }
+/// ```
+pub trait OutputFormatter {
+    /// Format the extracted strings into the output representation.
+    ///
+    /// # Arguments
+    ///
+    /// * `strings` - The extracted strings to format.
+    /// * `metadata` - Output context including binary name and format settings.
+    ///
+    /// # Returns
+    ///
+    /// A formatted string on success, or an error if formatting fails.
+    fn format(&self, strings: &[FoundString], metadata: &OutputMetadata) -> Result<String>;
+
+    /// Returns the name of this formatter for identification purposes.
+    fn name(&self) -> &'static str;
+}
+
 /// Output format selection for Stringy formatters.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
     /// Human-readable table format with TTY detection.

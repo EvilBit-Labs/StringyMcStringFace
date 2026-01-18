@@ -46,7 +46,7 @@ Module layout:
 - `classification/` handles semantic tagging and ranking
 - `output/` handles output formatters
 - `types.rs` contains core data structures and error types
-  
+
 Key patterns:
 
 - Section weights: add new section weights in `container/*.rs` using existing match patterns. Higher weight means more likely to contain useful strings.
