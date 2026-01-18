@@ -35,48 +35,35 @@
 
 - [x] 4. Implement PE section classification
 
-  - Enhance PE parser to classify sections (.rdata, .data) by string likelihood ✅
+  - Enhance PE parser to classify sections (.rdata, .data) by string likelihood
 
-  - Add section weight assignment for PE-specific sections ✅
+  - Add section weight assignment for PE-specific sections
 
-  - Implement basic PE import/export table parsing ✅
+  - Implement basic PE import/export table parsing
 
-  - Add benchmarks and snapshot tests ✅
+  - Add benchmarks and snapshot tests
 
   - _Requirements: 1.2, 1.4_
 
-  - _Completed: Issue #3_
-
   - [x] 4.1 Add PE resource extraction foundation
 
-    - Add pelite dependency to Cargo.toml ✅
-    - Implement basic PE resource enumeration ✅
-    - Create framework for extracting VERSIONINFO and STRINGTABLE resources ✅
-    - Add comprehensive unit tests covering edge cases ✅
+    - Add pelite dependency to Cargo.toml
+    - Implement basic PE resource enumeration
+    - Create framework for extracting VERSIONINFO and STRINGTABLE resources
+    - Add comprehensive unit tests covering edge cases
     - _Requirements: 1.2_
-    - _Completed: Issue #4 - Phase 1 Foundation_
 
   - [x] 4.2 Implement PE resource string extraction
 
-    - Extract strings from VERSIONINFO resources ✅
-    - Extract strings from STRINGTABLE resources ✅
-    - Add manifest resource string extraction ✅
-    - Implement UTF-16LE decoding utilities ✅
-    - Add comprehensive unit tests ✅
-    - Add integration tests with fixtures ✅
+    - Extract strings from VERSIONINFO resources
+    - Extract strings from STRINGTABLE resources
+    - Add manifest resource string extraction
+    - Implement UTF-16LE decoding utilities
+    - Add comprehensive unit tests
+    - Add integration tests with fixtures
     - _Requirements: 1.2_
-    - _Completed: Issue #5 - Phase 2 String Extraction_
 
-    **Implementation Notes:**
-
-    - VERSIONINFO: Uses pelite's `version_info()` API to extract all StringFileInfo key-value pairs
-    - STRINGTABLE: Manual parsing of RT_STRING blocks (16 strings per block, UTF-16LE)
-    - MANIFEST: Encoding detection (UTF-8/UTF-16LE/UTF-16BE) and XML extraction
-    - All strings tagged appropriately (`Tag::Version`, `Tag::Manifest`, `Tag::Resource`)
-    - Graceful error handling throughout (returns empty Vec on errors)
-    - Test coverage includes both unit tests and integration tests with real fixtures
-
-- [ ] 5. Implement Mach-O section classification
+- [x] 5. Implement Mach-O section classification
 
   - Enhance Mach-O parser to identify string-containing sections
 
@@ -86,63 +73,68 @@
 
   - _Requirements: 1.3, 1.4_
 
-  - [ ] 5.1 Add Mach-O load command processing
+  - [x] 5.1 Add Mach-O load command processing
 
-    - Add object crate dependency for enhanced Mach-O support
-    - Extract strings from load commands
+    - Extract strings from load commands (LC_LOAD_DYLIB, LC_RPATH)
     - Implement load command string classification and tagging
+    - Add comprehensive unit tests and integration tests
     - _Requirements: 1.3_
 
-- [ ] 6. Create string extraction framework
+- [x] 6. Create string extraction framework
 
   - Create StringExtractor trait in src/extraction/mod.rs
 
-  - Define RawString struct for extracted string data with metadata
+  - Define ExtractionConfig struct for configurable parameters
 
-  - Create ExtractionConfig struct for configurable parameters
+  - Implement BasicExtractor with section-aware extraction
 
   - _Requirements: 2.1_
 
-  - [ ] 6.1 Implement basic ASCII string extraction
+  - [x] 6.1 Implement basic ASCII string extraction
 
     - Create src/extraction/ascii.rs with ASCII extraction logic
     - Implement scanning for printable character runs (0x20-0x7E)
     - Add configurable minimum length filtering
-    - Add unit tests for basic ASCII extraction
+    - Add comprehensive unit tests for basic ASCII extraction
+    - Implement section-aware extraction with metadata population
     - _Requirements: 2.1_
 
-  - [ ] 6.2 Add ASCII noise filtering
+  - [x] 6.2 Add ASCII noise filtering
 
-    - Implement heuristics to distinguish legitimate strings from binary noise
-    - Add logic to avoid extracting from obvious padding or table data
-    - Consider section context when determining string legitimacy
+    - Implement CompositeNoiseFilter with multiple heuristics
+    - Add entropy-based filtering for random data detection
+    - Add pattern-based filtering for padding and table data
+    - Integrate noise filtering into extraction pipeline with confidence scoring
     - _Requirements: 1.4, 2.1_
 
-- [ ] 7. Implement UTF-16LE string extraction
+- [x] 7. Implement UTF-16 string extraction
 
-  - Create src/extraction/utf16.rs with UTF-16LE extraction logic
+  - Create src/extraction/utf16.rs with UTF-16 extraction logic
 
-  - Implement detection of even-length sequences with mostly-zero high bytes
+  - Implement detection of UTF-16LE and UTF-16BE sequences
 
   - Add configurable minimum length for wide character strings
 
-  - Add unit tests for UTF-16LE extraction
+  - Add comprehensive unit tests for UTF-16 extraction
 
   - _Requirements: 2.2_
 
-  - [ ] 7.1 Add UTF-16BE support and confidence scoring
+  - [x] 7.1 Add UTF-16BE support and confidence scoring
 
     - Extend UTF-16 extractor to handle big-endian byte order
     - Implement confidence scoring to avoid false positives
     - Add detection of null-interleaved text patterns
+    - Add surrogate pair handling for proper Unicode support
     - _Requirements: 2.3, 2.4_
 
-- [ ] 8. Implement string deduplication
+- [x] 8. Implement string deduplication
 
   - Create src/extraction/dedup.rs with deduplication logic
   - Implement string canonicalization while preserving metadata
   - Handle multiple instances of same string in different sections
-  - Add unit tests for deduplication with metadata preservation
+  - Add comprehensive unit tests for deduplication with metadata preservation
+  - Implement CanonicalString and StringOccurrence types
+  - Add occurrence-based scoring bonuses
   - _Requirements: 2.5_
 
 - [ ] 9. Create semantic classification framework
@@ -157,17 +149,16 @@
 
   - [ ] 9.1 Implement URL and domain classification
 
-    - Add regex dependency to Cargo.toml
     - Create src/classification/semantic.rs with URL pattern matching
-    - Implement domain name detection and validation
-    - Add unit tests for URL and domain classification
+    - Implement domain name detection and validation with TLD checking
+    - Add comprehensive unit tests for URL and domain classification
     - _Requirements: 3.1, 3.2_
 
   - [ ] 9.2 Implement IP address classification
 
     - Add IPv4 address pattern matching to semantic classifier
-    - Add IPv6 address pattern matching
-    - Include unit tests for IP address detection
+    - Add IPv6 address pattern matching with bracketed notation support
+    - Include comprehensive unit tests for IP address detection
     - _Requirements: 3.3_
 
   - [x] 9.3 Implement file path classification
@@ -175,14 +166,9 @@
     - Add POSIX file path pattern matching
     - Add Windows file path pattern matching
     - Include registry path detection
-    - Add unit tests for path classification
-    - Completed:
-      - POSIX file path pattern matching implemented
-      - Windows file path pattern matching implemented
-      - UNC path detection implemented
-      - Registry path detection implemented
-      - Comprehensive unit tests added
-      - Integration tests added
+    - Add UNC path detection
+    - Add comprehensive unit tests for path classification
+    - Add integration tests
     - _Requirements: 3.4, 3.5_
 
   - [ ] 9.4 Implement remaining semantic patterns
@@ -325,13 +311,13 @@
     - Add performance benchmarks for regex caching
     - _Requirements: 8.3_
 
-- [ ] 15. Create basic test infrastructure
+- [ ] 15. Create comprehensive test infrastructure
 
-  - Create tests/fixtures/ directory with sample binary files
+  - Expand tests/fixtures/ directory with additional sample binary files
 
-  - Add basic integration test framework
+  - Add comprehensive integration test framework
 
-  - Create simple ELF, PE, and Mach-O test binaries
+  - Create diverse ELF, PE, and Mach-O test binaries
 
   - _Requirements: All requirements validation_
 
@@ -339,7 +325,7 @@
 
     - Add criterion dependency for performance benchmarks
     - Implement end-to-end CLI functionality tests
-    - Add insta dependency for snapshot testing
+    - Expand insta snapshot testing coverage
     - Create cross-platform validation tests
     - _Requirements: All requirements validation_
 
