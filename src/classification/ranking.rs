@@ -272,8 +272,8 @@ impl RankingEngine {
     /// Sorts strings by their precomputed score in descending order.
     ///
     /// Call `calculate_score` for each `FoundString` before invoking this method,
-    /// otherwise ordering will reflect uninitialized or stale scores. This is an
-    /// unstable sort, so the relative order of equal scores is not preserved.
+    /// otherwise ordering will reflect uninitialized or stale scores. This uses
+    /// a stable sort, so the relative order of equal scores is preserved.
     pub fn rank_strings(&self, strings: &mut [FoundString]) {
         strings.sort_by(|a, b| b.score.cmp(&a.score));
     }
