@@ -24,7 +24,6 @@ expression: snapshot
     (
         "C:\\Windows\\System32\\cmd.exe",
         [
-            "Domain",
             "FilePath",
         ],
     ),

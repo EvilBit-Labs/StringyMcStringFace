@@ -1,4 +1,4 @@
-//! Symbol demangling for Rust and C++ symbols
+//! Symbol demangling for Rust symbols
 //!
 //! This module provides functionality to detect and demangle mangled symbols
 //! from compiled Rust binaries. When a mangled symbol is detected, the original

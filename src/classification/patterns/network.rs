@@ -30,7 +30,7 @@ const COMMON_TLDS: &[&str] = &[
     "info", "biz", "name", "pro", "aero", "coop", "museum", "travel", "jobs", "mobi", "tel",
     "asia", "cat", "xxx", "app", "dev", "page", "blog", "shop", "store", "online", "site",
     "website", "tech", "cloud", "ai", "ml", "tv", "me", "cc", "ws", "bz", "nu", "tk", "ga", "cf",
-    "gq", "exe", "dll", "sys", "bin", "dat", "log", "tmp", "bak",
+    "gq",
 ];
 
 /// Checks if the domain has a valid TLD
@@ -165,5 +165,18 @@ mod tests {
 
         // IP-like domains (should be handled by IP classifier)
         assert!(classify_domain("192.168.1.1").is_none());
+    }
+
+    #[test]
+    fn test_file_extensions_not_domains() {
+        // File extensions should NOT be treated as valid TLDs
+        assert!(classify_domain("cmd.exe").is_none());
+        assert!(classify_domain("kernel32.dll").is_none());
+        assert!(classify_domain("ntoskrnl.sys").is_none());
+        assert!(classify_domain("program.bin").is_none());
+        assert!(classify_domain("data.dat").is_none());
+        assert!(classify_domain("debug.log").is_none());
+        assert!(classify_domain("temp.tmp").is_none());
+        assert!(classify_domain("backup.bak").is_none());
     }
 }
