@@ -2,21 +2,15 @@
 
 ## 1. Project Overview
 
-**Stringy** is a smarter alternative to the standard `strings` command that
-extracts meaningful strings from ELF, PE, and Mach-O binaries using
-format-specific knowledge and semantic classification.
+**Stringy** is a smarter alternative to the standard `strings` command that extracts meaningful strings from ELF, PE, and Mach-O binaries using format-specific knowledge and semantic classification.
 
 ### Key Differentiators
 
-- **Data-Structure Aware**: Extracts strings from actual binary data structures,
-  not arbitrary byte runs
-- **Section-Aware**: Prioritizes high-value sections (`.rodata`, `.rdata`,
-  `__cstring`) with weight-based scoring
+- **Data-Structure Aware**: Extracts strings from actual binary data structures, not arbitrary byte runs
+- **Section-Aware**: Prioritizes high-value sections (`.rodata`, `.rdata`, `__cstring`) with weight-based scoring
 - **Encoding-Aware**: Supports ASCII, UTF-8, UTF-16LE/BE with confidence scoring
-- **Semantically Tagged**: Identifies URLs, domains, IPs, file paths, registry
-  keys, GUIDs, and more
-- **Ranked Output**: Presents most relevant strings first using a scoring
-  algorithm
+- **Semantically Tagged**: Identifies URLs, domains, IPs, file paths, registry keys, GUIDs, and more
+- **Ranked Output**: Presents most relevant strings first using a scoring algorithm
 
 ### Project Metadata
 
@@ -119,9 +113,9 @@ pub mod types;
 
 // Re-exports for ergonomic imports
 pub use classification::SemanticClassifier;
-pub use container::{create_parser, detect_format, ContainerParser};
-pub use extraction::{BasicExtractor, StringExtractor, /* ... */};
-pub use types::{BinaryFormat, ContainerInfo, Encoding, FoundString, /* ... */};
+pub use container::{ContainerParser, create_parser, detect_format};
+pub use extraction::{BasicExtractor, StringExtractor /* ... */};
+pub use types::{BinaryFormat, ContainerInfo, Encoding, FoundString /* ... */};
 ```
 
 #### `src/main.rs` (23 lines)
@@ -167,12 +161,16 @@ Defines the `ContainerParser` trait and format detection.
 
 ```rust
 pub trait ContainerParser {
-    fn detect(data: &[u8]) -> bool where Self: Sized;
+    fn detect(data: &[u8]) -> bool
+    where
+        Self: Sized;
     fn parse(&self, data: &[u8]) -> Result<ContainerInfo>;
 }
 
-pub fn detect_format(data: &[u8]) -> BinaryFormat { /* ... */ }
-pub fn create_parser(format: BinaryFormat) -> Result<Box<dyn ContainerParser>> { /* ... */ }
+pub fn detect_format(data: &[u8]) -> BinaryFormat { /* ... */
+}
+pub fn create_parser(format: BinaryFormat) -> Result<Box<dyn ContainerParser>> { /* ... */
+}
 ```
 
 #### `src/container/elf.rs` (627 lines)
@@ -265,14 +263,13 @@ Semantic classifier with pattern matching:
 | POSIX Paths    | `/path` format with validation rules             |
 | Windows Paths  | `C:\path` format with drive letter validation    |
 | UNC Paths      | `\\server\share` format                          |
-| Registry Paths | HKEY__/HK_ prefix detection                      |
+| Registry Paths | HKEY\_\_/HK\_ prefix detection                   |
 
 ---
 
 ## 4. API Endpoints Analysis
 
-**N/A** - Stringy is a command-line tool, not a web service. The public API is
-exposed as a Rust library:
+**N/A** - Stringy is a command-line tool, not a web service. The public API is exposed as a Rust library:
 
 ```rust
 // Library usage
@@ -351,11 +348,9 @@ Binary File
 
 ### Design Patterns
 
-1. **Trait-Based Polymorphism**: `ContainerParser` and `StringExtractor` traits
-   enable format extensibility
+1. **Trait-Based Polymorphism**: `ContainerParser` and `StringExtractor` traits enable format extensibility
 2. **Builder Pattern**: Extraction configs use builder-style construction
-3. **Non-Exhaustive Enums/Structs**: Public API stability via
-   `#[non_exhaustive]`
+3. **Non-Exhaustive Enums/Structs**: Public API stability via `#[non_exhaustive]`
 4. **Lazy Static Regex**: Compiled once via `lazy_static!` for performance
 5. **Error Propagation**: `thiserror` for structured error handling with context
 
@@ -557,40 +552,26 @@ None required for basic operation. CI uses:
 
 ### Strengths
 
-1. **Solid Foundation**: Well-structured module organization with clear
-   separation of concerns
-2. **Type Safety**: Comprehensive error handling with `thiserror` and extensive
-   use of Rust's type system
-3. **Extensibility**: Trait-based design (`ContainerParser`, `StringExtractor`)
-   enables easy format additions
-4. **Performance Focus**: Regex caching via `lazy_static!`, section weight
-   prioritization
-5. **Testing Coverage**: Snapshot tests with `insta`, benchmarks with
-   `criterion`, integration tests for all formats
-6. **Code Quality**: `#![forbid(unsafe_code)]`, `#![deny(warnings)]`,
-   comprehensive linting
+1. **Solid Foundation**: Well-structured module organization with clear separation of concerns
+2. **Type Safety**: Comprehensive error handling with `thiserror` and extensive use of Rust's type system
+3. **Extensibility**: Trait-based design (`ContainerParser`, `StringExtractor`) enables easy format additions
+4. **Performance Focus**: Regex caching via `lazy_static!`, section weight prioritization
+5. **Testing Coverage**: Snapshot tests with `insta`, benchmarks with `criterion`, integration tests for all formats
+6. **Code Quality**: `#![forbid(unsafe_code)]`, `#![deny(warnings)]`, comprehensive linting
 
 ### Areas for Completion
 
-1. **CLI Implementation**: `main.rs` is a placeholder - full pipeline
-   integration needed
-2. **Output Formatters**: `output/mod.rs` is empty - JSON, human-readable, YARA
-   outputs pending
-3. **Additional Classifiers**: GUIDs, email addresses, Base64, format strings
-   documented but not implemented
-4. **Ranking System**: Score-based prioritization framework exists but needs
-   completion
+1. **CLI Implementation**: `main.rs` is a placeholder - full pipeline integration needed
+2. **Output Formatters**: `output/mod.rs` is empty - JSON, human-readable, YARA outputs pending
+3. **Additional Classifiers**: GUIDs, email addresses, Base64, format strings documented but not implemented
+4. **Ranking System**: Score-based prioritization framework exists but needs completion
 
 ### Recommendations
 
-1. **Complete CLI Pipeline**: Wire up container parsing -> extraction ->
-   classification -> output
-2. **Implement Output Formatters**: Start with JSON (most requested for
-   pipelines)
-3. **Add Missing Classifiers**: GUID and email detection are straightforward
-   additions
-4. **Performance Benchmarks**: Expand benchmarks to cover full pipeline, not
-   just parsing
+1. **Complete CLI Pipeline**: Wire up container parsing -> extraction -> classification -> output
+2. **Implement Output Formatters**: Start with JSON (most requested for pipelines)
+3. **Add Missing Classifiers**: GUID and email detection are straightforward additions
+4. **Performance Benchmarks**: Expand benchmarks to cover full pipeline, not just parsing
 5. **Documentation**: Complete mdBook documentation with usage examples
 
 ### Code Metrics Summary
@@ -624,5 +605,4 @@ None required for basic operation. CI uses:
 
 ---
 
-_Generated: 2026-01-17_ _Analysis performed on branch:
-`17-implement-file-path-classification-for-posix-windows-and-registry-paths`_
+_Generated: 2026-01-17_ _Analysis performed on branch: `17-implement-file-path-classification-for-posix-windows-and-registry-paths`_

@@ -855,7 +855,7 @@ impl SemanticClassifier {
         if root_upper.starts_with("HKEY_") {
             return VALID_REGISTRY_ROOTS
                 .iter()
-                .any(|valid| valid.eq_ignore_ascii_case(&root_upper));
+                .any(|valid| *valid == root_upper);
         }
 
         if root_upper.starts_with("HK") {
