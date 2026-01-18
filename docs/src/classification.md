@@ -76,51 +76,54 @@ Raw String -> Pattern Matching -> Tag Assignment
 
 #### GUIDs/UUIDs
 
-- **Pattern**: `\{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\}`
-- **Examples**: `{12345678-1234-1234-1234-123456789abc}`
-- **Validation**: Format compliance, version checking
+- **Pattern**: `\{?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\}?`
+- **Examples**: `{12345678-1234-1234-1234-123456789abc}`, `12345678-1234-1234-1234-123456789abc`
+- **Validation**: Format compliance
 - **Security relevance**: Medium - component identification
 
 #### Email Addresses
 
 - **Pattern**: `[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}`
 - **Examples**: `admin@malware.com`, `support@legitimate.org`
-- **Validation**: RFC compliance, domain validation
+- **Validation**: Basic format validation
 - **Security relevance**: Medium - contact information
 
 ### Code Artifacts
 
 #### Format Strings
 
-- **Pattern**: `%[sdxo]|%\d+[sdxo]|\{\d+\}`
-- **Examples**: `Error: %s at line %d`, `User {0} logged in`
-- **Context**: Proximity to other format strings
+- **Pattern**: `%[-+0 #]*(\d+|\*)?(\.(\d+|\*))?(hh?|ll?|[Lzjt])?[diouxXeEfFgGaAcspn%]`
+- **Examples**: `Error: %s at line %d`, `Name: %s, Age: %d, Score: %.2f`
+- **Context**: Presence of real format specifiers (%% alone is ignored)
 - **Security relevance**: Low-Medium - debugging information
 
 #### Base64 Data
 
-- **Pattern**: `[A-Za-z0-9+/]{20,}={0,2}`
+- **Pattern**: Character set validation with padding rules
 - **Examples**: `SGVsbG8gV29ybGQ=`
-- **Validation**: Length divisibility, padding correctness
+- **Validation**: Length >= 16, Base64 character set, valid padding, reject length mod 4 of 1
 - **Security relevance**: Variable - encoded payloads
 
-### User Agents
+#### User Agents
 
-- **Pattern**: `Mozilla/[0-9.]+|Chrome/[0-9.]+|Safari/[0-9.]+`
-- **Examples**: `Mozilla/5.0 (Windows NT 10.0; Win64; x64)`
+- **Pattern**: Prefix match for common agents (Mozilla, curl, Wget, python-requests, libwww-perl, Java, Apache-HttpClient, okhttp, PostmanRuntime)
+- **Examples**: `Mozilla/5.0 (Windows NT 10.0; Win64; x64)`, `curl/7.68.0`
 - **Security relevance**: Medium - network fingerprinting
 
-### Pattern Matching Engine
+## Tag Specificity
 
-The semantic classifier uses cached regex patterns via `lazy_static!` and applies validation checks to reduce false positives.
+Tags are treated as either specific or broad. Specific tags indicate high confidence matches (for example URL, domain, IP, file path, GUID, email, format string, and user agent). Base64 is a broad tag and should be treated as ambiguous due to higher false positive risk.
+
+## Pattern Matching Engine
+
+The semantic classifier uses cached regex patterns via `once_cell::sync::Lazy` and applies validation checks to reduce false positives.
 
 ```rust
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::Regex;
 
-lazy_static! {
-    static ref URL_REGEX: Regex = Regex::new(r#"https?://[^\s<>"{}|\\^\[\]\`]+"#).unwrap();
-}
+static URL_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"https?://[^\s<>"{}|\\^\[\]\`]+"#).unwrap());
 
 impl SemanticClassifier {
     pub fn classify(&self, string: &FoundString) -> Vec<Tag> {
@@ -198,11 +201,10 @@ if tags.contains(&Tag::FilePath) {
 
 The current implementation returns tags without explicit confidence scores. Confidence is implicit in the validation and matching logic. A future update may introduce explicit confidence values per tag.
 
-## Planned Enhancements (implementation pending)
+## Planned Enhancements
 
 - Context-aware classification
-- Symbol classification
-- Additional semantic patterns (GUIDs, email addresses, base64, format strings) - documented above, implementation pending
+- Language-specific refinements
 
 ### Language-Specific Patterns
 

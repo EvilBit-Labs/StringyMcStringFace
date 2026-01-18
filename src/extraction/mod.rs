@@ -123,6 +123,7 @@
 //! let load_command_strings = extract_load_command_strings(&macho_data);
 //! ```
 
+use crate::classification::{SemanticClassifier, SymbolDemangler};
 use crate::types::{
     ContainerInfo, Encoding, FoundString, Result, SectionInfo, SectionType, StringSource,
 };
@@ -521,6 +522,19 @@ impl StringExtractor for BasicExtractor {
             }
         }
 
+        // Apply demangling and semantic classification before deduplication
+        let classifier = SemanticClassifier::new();
+        let demangler = SymbolDemangler::new();
+        for string in &mut all_strings {
+            demangler.demangle(string);
+            let tags = classifier.classify(string);
+            for tag in tags {
+                if !string.tags.contains(&tag) {
+                    string.tags.push(tag);
+                }
+            }
+        }
+
         // Apply deduplication if enabled
         if config.enable_deduplication {
             let canonical_strings = deduplicate(
@@ -622,6 +636,19 @@ impl StringExtractor for BasicExtractor {
                     source: StringSource::ExportName,
                     confidence: 1.0,
                 });
+            }
+        }
+
+        // Apply demangling and semantic classification before deduplication
+        let classifier = SemanticClassifier::new();
+        let demangler = SymbolDemangler::new();
+        for string in &mut all_strings {
+            demangler.demangle(string);
+            let tags = classifier.classify(string);
+            for tag in tags {
+                if !string.tags.contains(&tag) {
+                    string.tags.push(tag);
+                }
             }
         }
 

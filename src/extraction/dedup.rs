@@ -39,6 +39,9 @@ pub struct StringOccurrence {
     pub rva: Option<u64>,
     /// Section name where string was found
     pub section: Option<String>,
+    /// Original text before demangling (if applicable)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub original_text: Option<String>,
     /// Extraction source type
     pub source: StringSource,
     /// Tags from this specific occurrence
@@ -254,6 +257,7 @@ pub fn found_string_to_occurrence(fs: FoundString) -> StringOccurrence {
         offset: fs.offset,
         rva: fs.rva,
         section: fs.section,
+        original_text: fs.original_text,
         source: fs.source,
         original_tags: fs.tags,
         original_score: fs.score,
@@ -282,7 +286,7 @@ impl CanonicalString {
 
         FoundString {
             text: self.text.clone(),
-            original_text: None,
+            original_text: first_occurrence.original_text.clone(),
             encoding: self.encoding,
             offset: first_occurrence.offset,
             rva: first_occurrence.rva,
