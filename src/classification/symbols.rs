@@ -1,14 +1,15 @@
-//! Symbol demangling for Rust symbols
+//! Symbol demangling for Rust and C++ symbols
 //!
 //! This module provides functionality to detect and demangle mangled symbols
-//! from compiled Rust binaries. When a mangled symbol is detected, the original
-//! mangled form is preserved in `FoundString.original_text` while the demangled
-//! human-readable form replaces `FoundString.text`.
+//! from compiled Rust and C++ binaries. When a mangled symbol is detected, the
+//! original mangled form is preserved in `FoundString.original_text` while the
+//! demangled human-readable form replaces `FoundString.text`.
 //!
 //! # Supported Symbol Formats
 //!
 //! - **Rust legacy mangling**: Symbols starting with `_ZN` (uses Itanium ABI-like encoding)
 //! - **Rust v0 mangling**: Symbols starting with `_R` (new Rust-specific encoding)
+//! - **C++ Itanium ABI**: Symbols starting with `_Z` (used by GCC, Clang, and others)
 //!
 //! # Usage
 //!
@@ -41,11 +42,13 @@
 //! ```
 
 use crate::types::{FoundString, Tag};
+use cpp_demangle::Symbol as CppSymbol;
 
-/// Symbol demangler for Rust symbols
+/// Symbol demangler for Rust and C++ symbols
 ///
-/// Uses the `rustc-demangle` crate to convert mangled Rust symbols into
-/// human-readable form while preserving the original mangled text.
+/// Uses the `rustc-demangle` crate for Rust symbols and the `cpp_demangle`
+/// crate for C++ symbols. Converts mangled symbols into human-readable form
+/// while preserving the original mangled text.
 #[derive(Debug, Default, Clone)]
 pub struct SymbolDemangler;
 
@@ -56,11 +59,12 @@ impl SymbolDemangler {
         Self
     }
 
-    /// Check if a symbol appears to be a mangled Rust symbol
+    /// Check if a symbol appears to be a mangled Rust or C++ symbol
     ///
-    /// Returns `true` if the symbol starts with known Rust mangling prefixes:
-    /// - `_ZN` - Rust legacy mangling (Itanium ABI-like)
+    /// Returns `true` if the symbol starts with known mangling prefixes:
+    /// - `_ZN` - Rust legacy mangling or C++ nested names (Itanium ABI)
     /// - `_R` - Rust v0 mangling scheme
+    /// - `_Z` - C++ Itanium ABI mangling (used by GCC, Clang)
     ///
     /// # Arguments
     ///
@@ -76,19 +80,24 @@ impl SymbolDemangler {
     /// use stringy::classification::SymbolDemangler;
     ///
     /// let demangler = SymbolDemangler::new();
+    /// // Rust symbols
     /// assert!(demangler.is_mangled("_ZN4core3fmt5Write9write_str17h1234567890abcdefE"));
     /// assert!(demangler.is_mangled("_RNvNtCs123_4core3fmt5write"));
+    /// // C++ symbols
+    /// assert!(demangler.is_mangled("_ZN3foo3barEv"));
+    /// assert!(demangler.is_mangled("_Z3foov"));
     /// assert!(!demangler.is_mangled("printf"));
     /// ```
     #[must_use]
     pub fn is_mangled(&self, symbol: &str) -> bool {
-        // Rust legacy mangling (Itanium ABI-like)
-        if symbol.starts_with("_ZN") {
+        // Rust v0 mangling scheme (Rust-specific, check first)
+        if symbol.starts_with("_R") {
             return true;
         }
 
-        // Rust v0 mangling scheme
-        if symbol.starts_with("_R") {
+        // Itanium ABI mangling (used by both Rust legacy and C++)
+        // This includes _ZN (nested names), _ZL (local), _ZTV (vtable), etc.
+        if symbol.starts_with("_Z") {
             return true;
         }
 
@@ -97,11 +106,14 @@ impl SymbolDemangler {
 
     /// Attempt to demangle a symbol in a `FoundString`
     ///
-    /// If the string appears to be a mangled Rust symbol and can be successfully
-    /// demangled:
+    /// If the string appears to be a mangled Rust or C++ symbol and can be
+    /// successfully demangled:
     /// - The original mangled form is stored in `original_text`
     /// - The demangled form replaces `text`
     /// - `Tag::DemangledSymbol` is added to the tags
+    ///
+    /// The demangler tries Rust demangling first (for `_R` and `_ZN` prefixes),
+    /// then falls back to C++ demangling for `_Z` prefixes.
     ///
     /// If demangling fails or the symbol is not mangled, the `FoundString` is
     /// left unchanged.
@@ -144,15 +156,11 @@ impl SymbolDemangler {
             return;
         }
 
-        // Attempt to demangle using rustc-demangle
-        let demangled = rustc_demangle::demangle(&string.text);
-        let demangled_str = demangled.to_string();
-
-        // Check if demangling actually produced a different result
-        // If the demangled form equals the original, demangling failed
-        if demangled_str == string.text {
-            return;
-        }
+        // Try to demangle
+        let demangled_str = match self.try_demangle_internal(&string.text) {
+            Some(s) => s,
+            None => return,
+        };
 
         // Store original mangled form and replace with demangled
         string.original_text = Some(string.text.clone());
@@ -164,9 +172,59 @@ impl SymbolDemangler {
         }
     }
 
+    /// Internal demangling logic that tries Rust then C++
+    fn try_demangle_internal(&self, symbol: &str) -> Option<String> {
+        // For Rust v0 symbols (_R prefix), only try Rust demangling
+        if symbol.starts_with("_R") {
+            return self.try_rust_demangle(symbol);
+        }
+
+        // For _Z prefixed symbols, try Rust first (for legacy Rust symbols),
+        // then fall back to C++ if Rust demangling doesn't work
+        if symbol.starts_with("_Z") {
+            // Try Rust first (handles _ZN Rust legacy symbols)
+            if let Some(demangled) = self.try_rust_demangle(symbol) {
+                return Some(demangled);
+            }
+
+            // Fall back to C++ demangling
+            return self.try_cpp_demangle(symbol);
+        }
+
+        None
+    }
+
+    /// Try to demangle as a Rust symbol
+    fn try_rust_demangle(&self, symbol: &str) -> Option<String> {
+        let demangled = rustc_demangle::demangle(symbol);
+        let demangled_str = demangled.to_string();
+
+        // Check if demangling actually produced a different result
+        if demangled_str != symbol {
+            Some(demangled_str)
+        } else {
+            None
+        }
+    }
+
+    /// Try to demangle as a C++ symbol
+    fn try_cpp_demangle(&self, symbol: &str) -> Option<String> {
+        // Parse the symbol using cpp_demangle
+        let parsed = CppSymbol::new(symbol).ok()?;
+        let demangled_str = parsed.demangle().ok()?;
+
+        // Check if demangling actually produced a different result
+        if demangled_str != symbol {
+            Some(demangled_str)
+        } else {
+            None
+        }
+    }
+
     /// Try to demangle a symbol string directly
     ///
     /// This is a convenience method for demangling without a `FoundString`.
+    /// Supports both Rust and C++ mangled symbols.
     ///
     /// # Arguments
     ///
@@ -183,9 +241,16 @@ impl SymbolDemangler {
     /// use stringy::classification::SymbolDemangler;
     ///
     /// let demangler = SymbolDemangler::new();
+    ///
+    /// // Rust symbol
     /// let result = demangler.try_demangle("_ZN4core3fmt5Write9write_str17h1234567890abcdefE");
     /// assert!(result.is_some());
     ///
+    /// // C++ symbol
+    /// let result = demangler.try_demangle("_ZN3foo3barEv");
+    /// assert!(result.is_some());
+    ///
+    /// // Not mangled
     /// let result = demangler.try_demangle("printf");
     /// assert!(result.is_none());
     /// ```
@@ -195,15 +260,7 @@ impl SymbolDemangler {
             return None;
         }
 
-        let demangled = rustc_demangle::demangle(symbol);
-        let demangled_str = demangled.to_string();
-
-        // Check if demangling actually worked
-        if demangled_str == symbol {
-            return None;
-        }
-
-        Some(demangled_str)
+        self.try_demangle_internal(symbol)
     }
 }
 
@@ -357,5 +414,95 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    // C++ demangling tests
+
+    #[test]
+    fn test_is_mangled_cpp_symbols() {
+        let demangler = SymbolDemangler::new();
+
+        // C++ Itanium ABI mangled symbols
+        assert!(demangler.is_mangled("_ZN3foo3barEv")); // foo::bar()
+        assert!(demangler.is_mangled("_Z3foov")); // foo()
+        assert!(demangler.is_mangled("_ZN9__gnu_cxx13new_allocatorIcE10deallocateEPcm"));
+        assert!(demangler.is_mangled("_ZNSt6vectorIiSaIiEE9push_backERKi"));
+        assert!(demangler.is_mangled("_ZTV5MyClass")); // vtable for MyClass
+        assert!(demangler.is_mangled("_ZTI5MyClass")); // typeinfo for MyClass
+    }
+
+    #[test]
+    fn test_demangle_cpp_symbol() {
+        let demangler = SymbolDemangler::new();
+        let mut found_string = create_test_string("_ZN3foo3barEv");
+
+        demangler.demangle(&mut found_string);
+
+        // Should have been demangled
+        assert!(found_string.original_text.is_some());
+        assert_eq!(
+            found_string.original_text.as_ref().unwrap(),
+            "_ZN3foo3barEv"
+        );
+        assert!(found_string.tags.contains(&Tag::DemangledSymbol));
+        // Demangled text should contain "foo" and "bar"
+        assert!(found_string.text.contains("foo"));
+        assert!(found_string.text.contains("bar"));
+    }
+
+    #[test]
+    fn test_try_demangle_cpp_success() {
+        let demangler = SymbolDemangler::new();
+
+        // Simple C++ function
+        let result = demangler.try_demangle("_Z3foov");
+        assert!(result.is_some());
+        let demangled = result.unwrap();
+        assert!(demangled.contains("foo"));
+
+        // Namespaced C++ function
+        let result = demangler.try_demangle("_ZN3foo3barEv");
+        assert!(result.is_some());
+        let demangled = result.unwrap();
+        assert!(demangled.contains("foo"));
+        assert!(demangled.contains("bar"));
+    }
+
+    #[test]
+    fn test_demangle_cpp_with_parameters() {
+        let demangler = SymbolDemangler::new();
+
+        // C++ function with int parameter: void foo(int)
+        let result = demangler.try_demangle("_Z3fooi");
+        assert!(result.is_some());
+        let demangled = result.unwrap();
+        assert!(demangled.contains("foo"));
+        assert!(demangled.contains("int"));
+    }
+
+    #[test]
+    fn test_demangle_cpp_template() {
+        let demangler = SymbolDemangler::new();
+
+        // C++ template: std::vector<int>
+        let result = demangler.try_demangle("_ZNSt6vectorIiSaIiEEC1Ev");
+        assert!(result.is_some());
+        let demangled = result.unwrap();
+        assert!(demangled.contains("vector"));
+    }
+
+    #[test]
+    fn test_cpp_symbol_in_found_string() {
+        let demangler = SymbolDemangler::new();
+        let mut found_string = create_test_string("_Z3fooi");
+        found_string.tags.push(Tag::Export);
+
+        demangler.demangle(&mut found_string);
+
+        // Should have been demangled and preserved existing tags
+        assert!(found_string.original_text.is_some());
+        assert!(found_string.tags.contains(&Tag::Export));
+        assert!(found_string.tags.contains(&Tag::DemangledSymbol));
+        assert!(found_string.text.contains("foo"));
     }
 }
