@@ -1,0 +1,43 @@
+---
+source: tests/classification_integration.rs
+assertion_line: 150
+expression: snapshot
+---
+[
+    (
+        "https://example.com",
+        [
+            "Url",
+        ],
+    ),
+    (
+        "192.168.1.1",
+        [
+            "IPv4",
+        ],
+    ),
+    (
+        "/usr/bin/bash",
+        [
+            "FilePath",
+        ],
+    ),
+    (
+        "C:\\Windows\\System32\\cmd.exe",
+        [
+            "FilePath",
+        ],
+    ),
+    (
+        "\\\\server\\share\\file.txt",
+        [
+            "FilePath",
+        ],
+    ),
+    (
+        "HKCU\\Software\\Microsoft",
+        [
+            "RegistryPath",
+        ],
+    ),
+]
