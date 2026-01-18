@@ -6,7 +6,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Format strings as YARA rule templates.
 pub fn format_yara(_strings: &[FoundString], _metadata: &OutputMetadata) -> Result<String> {
-    let timestamp = current_timestamp();
+    let timestamp = _metadata
+        .generated_at
+        .clone()
+        .unwrap_or_else(current_timestamp);
     let base_rule_name = sanitize_rule_name(&_metadata.binary_name);
     let rule_name = format!("{}_strings", base_rule_name);
 
@@ -53,14 +56,26 @@ pub fn format_yara(_strings: &[FoundString], _metadata: &OutputMetadata) -> Resu
             let counter = counters.entry(var_tag.clone()).or_insert(0);
             *counter += 1;
             let var_name = format!("${}_{}", var_tag, *counter);
-            let escaped = escape_yara_string(&item.text);
-            let modifier = get_yara_modifier(item.encoding);
-
             strings_block.push_str(&format!("    // score: {}\n", item.score));
-            strings_block.push_str(&format!(
-                "    {} = \"{}\" {}\n",
-                var_name, escaped, modifier
-            ));
+
+            match item.encoding {
+                Encoding::Utf16Be => {
+                    let hex = utf16be_hex_string(&item.text);
+                    strings_block.push_str(&format!("    {} = {}\n", var_name, hex));
+                }
+                Encoding::Utf16Le => {
+                    let escaped = escape_yara_unicode_literal(&item.text);
+                    strings_block.push_str(&format!("    {} = \"{}\" wide\n", var_name, escaped));
+                }
+                Encoding::Ascii | Encoding::Utf8 => {
+                    let escaped = escape_yara_string(&item.text);
+                    let modifier = get_yara_modifier(item.encoding);
+                    strings_block.push_str(&format!(
+                        "    {} = \"{}\" {}\n",
+                        var_name, escaped, modifier
+                    ));
+                }
+            }
             included += 1;
         }
     }
@@ -142,6 +157,50 @@ fn escape_yara_string(text: &str) -> String {
         }
     }
     escaped
+}
+
+fn escape_yara_unicode_literal(text: &str) -> String {
+    let mut escaped = String::new();
+    for ch in text.chars() {
+        match ch {
+            '\\' => escaped.push_str("\\\\"),
+            '"' => escaped.push_str("\\\""),
+            '\n' => escaped.push_str("\\n"),
+            '\r' => escaped.push_str("\\r"),
+            '\t' => escaped.push_str("\\t"),
+            _ if ch.is_control() => {
+                let mut buf = [0; 4];
+                let encoded = ch.encode_utf8(&mut buf);
+                for byte in encoded.as_bytes() {
+                    escaped.push_str(&format!("\\x{:02x}", byte));
+                }
+            }
+            _ => escaped.push(ch),
+        }
+    }
+    escaped
+}
+
+fn utf16be_hex_string(text: &str) -> String {
+    let mut bytes = Vec::new();
+    for unit in text.encode_utf16() {
+        bytes.extend_from_slice(&unit.to_be_bytes());
+    }
+
+    if bytes.is_empty() {
+        return "{ }".to_string();
+    }
+
+    let mut hex = String::new();
+    hex.push_str("{ ");
+    for (idx, byte) in bytes.iter().enumerate() {
+        if idx > 0 {
+            hex.push(' ');
+        }
+        hex.push_str(&format!("{:02x}", byte));
+    }
+    hex.push_str(" }");
+    hex
 }
 
 fn get_yara_modifier(encoding: Encoding) -> &'static str {

@@ -18,6 +18,7 @@ fn make_string(text: &str) -> FoundString {
 
 fn make_metadata(binary_name: &str, count: usize) -> OutputMetadata {
     OutputMetadata::new(binary_name.to_string(), OutputFormat::Yara, count, count)
+        .with_generated_at("0".to_string())
 }
 
 #[test]

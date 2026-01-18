@@ -70,6 +70,10 @@ pub struct OutputMetadata {
     pub total_strings: usize,
     /// Number of strings after filtering.
     pub filtered_strings: usize,
+    /// Optional generated-at timestamp for deterministic outputs.
+    ///
+    /// When set, formatters may use this value instead of runtime timestamps.
+    pub generated_at: Option<String>,
 }
 
 impl OutputMetadata {
@@ -86,7 +90,15 @@ impl OutputMetadata {
             format,
             total_strings,
             filtered_strings,
+            generated_at: None,
         }
+    }
+
+    /// Set an explicit generated-at timestamp for deterministic outputs.
+    #[must_use]
+    pub fn with_generated_at(mut self, generated_at: String) -> Self {
+        self.generated_at = Some(generated_at);
+        self
     }
 }
 
