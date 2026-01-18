@@ -7,6 +7,7 @@ Create the ranking system that calculates relevance scores for strings based on 
 ## Scope
 
 **In Scope:**
+
 - Create file:src/classification/ranking.rs with RankingEngine
 - Define RankingConfig with hardcoded defaults:
   - Section weight mappings (SectionType -> i32)
@@ -22,6 +23,7 @@ Create the ranking system that calculates relevance scores for strings based on 
 - Split into submodules if exceeds 500 lines (section_weights.rs, semantic_boosts.rs, noise_penalties.rs)
 
 **Out of Scope:**
+
 - User-configurable ranking (hardcoded defaults only)
 - CLI integration (separate ticket)
 - Output formatting (separate ticket)

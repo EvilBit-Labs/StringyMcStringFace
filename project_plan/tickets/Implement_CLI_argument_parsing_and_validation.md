@@ -7,6 +7,7 @@ Complete the CLI interface with all filtering flags, output format selection, an
 ## Scope
 
 **In Scope:**
+
 - Extend Cli struct in file:src/main.rs with all flags:
   - --min-len N
   - --enc ENCODING (accept: ascii, utf8, utf16, utf16le, utf16be)
@@ -27,6 +28,7 @@ Complete the CLI interface with all filtering flags, output format selection, an
 - Wire CLI to Pipeline
 
 **Out of Scope:**
+
 - Pipeline implementation (separate ticket)
 - Filter execution logic (handled in Pipeline)
 - Output formatting (separate ticket)

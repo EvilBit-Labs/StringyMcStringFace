@@ -7,6 +7,7 @@ Extend the semantic classification system to detect all required patterns (GUIDs
 ## Scope
 
 **In Scope:**
+
 - Extend file:src/classification/semantic.rs with new pattern detection:
   - GUID pattern matching
   - Email address validation
@@ -24,6 +25,7 @@ Extend the semantic classification system to detect all required patterns (GUIDs
 - Split file:src/classification/semantic.rs if it exceeds 500 lines
 
 **Out of Scope:**
+
 - Ranking/scoring logic (separate ticket)
 - CLI integration (separate ticket)
 - Output formatting (separate ticket)

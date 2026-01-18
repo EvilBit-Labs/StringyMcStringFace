@@ -7,6 +7,7 @@ Update the `FoundString` struct in file:src/types.rs to support symbol demanglin
 ## Scope
 
 **In Scope:**
+
 - Add `original_text: Option<String>` field to preserve mangled symbols
 - Add optional breakdown fields: `section_weight: Option<i32>`, `semantic_boost: Option<i32>`, `noise_penalty: Option<i32>`
 - Update serde serialization to handle new fields correctly
@@ -14,6 +15,7 @@ Update the `FoundString` struct in file:src/types.rs to support symbol demanglin
 - Update documentation with field descriptions
 
 **Out of Scope:**
+
 - Actual demangling logic (handled in separate ticket)
 - Score calculation logic (handled in separate ticket)
 - CLI --debug flag implementation (handled in pipeline ticket)

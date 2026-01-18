@@ -7,6 +7,7 @@ Create comprehensive integration tests that validate the complete pipeline with 
 ## Scope
 
 **In Scope:**
+
 - Expand tests/fixtures/ with diverse test binaries:
   - ELF binaries with various string types
   - PE binaries with resources and imports
@@ -24,6 +25,7 @@ Create comprehensive integration tests that validate the complete pipeline with 
 - Add performance benchmarks for complete pipeline
 
 **Out of Scope:**
+
 - Unit tests for individual components (handled in component tickets)
 - Implementation of components (separate tickets)
 

@@ -140,21 +140,21 @@ pub struct FoundString {
     pub section: Option<String>,
     pub length: u32,
     pub tags: Vec<Tag>,
-    pub score: i32,              // Final calculated score
+    pub score: i32, // Final calculated score
     pub source: StringSource,
     pub confidence: f32,
-    
+
     // New fields for symbol demangling
-    pub original_text: Option<String>,  // Original mangled form (if demangled)
-    
+    pub original_text: Option<String>, // Original mangled form (if demangled)
+
     // Optional debug fields (only populated with --debug flag)
-    pub section_weight: Option<i32>,     // Score from section type
-    pub semantic_boost: Option<i32>,     // Bonus from semantic tags
-    pub noise_penalty: Option<i32>,      // Penalty from noise detection
+    pub section_weight: Option<i32>, // Score from section type
+    pub semantic_boost: Option<i32>, // Bonus from semantic tags
+    pub noise_penalty: Option<i32>,  // Penalty from noise detection
 }
 ```
 
-**Rationale**: 
+**Rationale**:
 
 - `original_text` preserves the mangled symbol for cross-referencing and recovery
 - Breakdown fields (section_weight, semantic_boost, noise_penalty) are optional to avoid exposing internal implementation details in the public API
@@ -231,19 +231,31 @@ Add new variants to existing `Tag` enum in file:src/types.rs with specificity le
 ```rust
 pub enum Tag {
     // Existing tags (specific)
-    Url, Domain, IPv4, IPv6, FilePath, RegistryPath,
-    Import, Export, Version, Manifest, Resource,
-    DylibPath, Rpath, RpathVariable, FrameworkPath,
-    
+    Url,
+    Domain,
+    IPv4,
+    IPv6,
+    FilePath,
+    RegistryPath,
+    Import,
+    Export,
+    Version,
+    Manifest,
+    Resource,
+    DylibPath,
+    Rpath,
+    RpathVariable,
+    FrameworkPath,
+
     // New specific tags for v1.0
-    Guid,           // GUIDs/UUIDs (specific)
-    Email,          // Email addresses (specific)
-    FormatString,   // Printf-style format strings (specific)
-    UserAgent,      // User agent strings (specific)
+    Guid,            // GUIDs/UUIDs (specific)
+    Email,           // Email addresses (specific)
+    FormatString,    // Printf-style format strings (specific)
+    UserAgent,       // User agent strings (specific)
     DemangledSymbol, // Demangled Rust/C++ symbols (specific)
-    
+
     // Broad/ambiguous tags
-    Base64,         // Base64-encoded data (broad - many false positives)
+    Base64, // Base64-encoded data (broad - many false positives)
 }
 ```
 
@@ -368,7 +380,7 @@ impl SymbolDemangler {
 **YARA Formatter** (src/output/yara.rs):
 
 - Generate complete YARA rule template
-- Sanitize binary filename for rule name (replace non-alphanumeric with underscore, remove extension, add "_strings" suffix)
+- Sanitize binary filename for rule name (replace non-alphanumeric with underscore, remove extension, add `_strings` suffix)
 - Include metadata section (description, tool, date, file hash)
 - Escape strings according to YARA syntax (backslashes, quotes, newlines)
 - Skip strings over 200 characters with comment: "// Skipped: too long (N chars)"
@@ -385,7 +397,7 @@ impl SymbolDemangler {
 ```rust
 pub struct Pipeline {
     config: PipelineConfig,
-    progress: ProgressBar,  // from indicatif
+    progress: ProgressBar, // from indicatif
 }
 
 pub struct PipelineConfig {
@@ -403,15 +415,15 @@ impl Pipeline {
 
 **Workflow**:
 
-1. Display "Parsing..." progress indicator
-2. Attempt memory-map file using `memmap2`, fall back to `std::fs::read()` on failure
-3. Detect format and parse container (fail fast on error)
-4. Display "Extracting..." progress indicator
-5. Extract strings using `BasicExtractor` (fail fast on critical errors)
-6. Display "Classifying..." progress indicator
-7. Apply semantic classification (graceful degradation - skip failed strings)
-8. Apply symbol demangling (graceful degradation - keep original on failure)
-9. Display "Ranking..." progress indicator
+01. Display "Parsing..." progress indicator
+02. Attempt memory-map file using `memmap2`, fall back to `std::fs::read()` on failure
+03. Detect format and parse container (fail fast on error)
+04. Display "Extracting..." progress indicator
+05. Extract strings using `BasicExtractor` (fail fast on critical errors)
+06. Display "Classifying..." progress indicator
+07. Apply semantic classification (graceful degradation - skip failed strings)
+08. Apply symbol demangling (graceful degradation - keep original on failure)
+09. Display "Ranking..." progress indicator
 10. Calculate scores using `RankingEngine` (populate breakdown fields if debug_mode)
 11. Apply filters from FilterConfig (min-len, encoding, tags)
 12. Sort by score and apply --top limit
@@ -475,15 +487,13 @@ impl Pipeline {
 
 ### Integration Points Summary
 
-
-| Component          | Consumes                             | Produces                      | Integration Point                               |
-| ------------------ | ------------------------------------ | ----------------------------- | ----------------------------------------------- |
-| Pipeline           | CLI args, file path                  | Formatted output              | Orchestrates all components + filtering         |
-| RankingEngine      | Vec&lt;FoundString&gt;, debug flag   | Scored Vec&lt;FoundString&gt; | Called after classification                     |
-| SymbolDemangler    | &mut FoundString                     | ()                            | Called during classification, modifies in-place |
-| SemanticClassifier | FoundString                          | Vec&lt;Tag&gt;                | Extended with new patterns                      |
-| format_output()    | OutputFormat, Vec&lt;FoundString&gt; | String                        | Enum-based dispatch to formatters               |
-
+| Component          | Consumes                        | Produces                 | Integration Point                               |
+| ------------------ | ------------------------------- | ------------------------ | ----------------------------------------------- |
+| Pipeline           | CLI args, file path             | Formatted output         | Orchestrates all components + filtering         |
+| RankingEngine      | Vec\<FoundString>, debug flag   | Scored Vec\<FoundString> | Called after classification                     |
+| SymbolDemangler    | &mut FoundString                | ()                       | Called during classification, modifies in-place |
+| SemanticClassifier | FoundString                     | Vec\<Tag>                | Extended with new patterns                      |
+| format_output()    | OutputFormat, Vec\<FoundString> | String                   | Enum-based dispatch to formatters               |
 
 ### Testing Strategy
 
@@ -507,4 +517,3 @@ impl Pipeline {
 - Regex pattern matching performance
 - Memory mapping vs regular file I/O
 - Overall pipeline throughput
-

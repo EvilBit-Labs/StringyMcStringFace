@@ -7,6 +7,7 @@ Create output formatters for human-readable tables, JSONL, and YARA rules using 
 ## Scope
 
 **In Scope:**
+
 - Create file:src/output/mod.rs with OutputFormat enum and format_output() function
 - Create file:src/output/table.rs:
   - TTY detection using std::io::IsTerminal
@@ -28,6 +29,7 @@ Create output formatters for human-readable tables, JSONL, and YARA rules using 
 - Add integration tests with insta snapshots
 
 **Out of Scope:**
+
 - CLI integration (separate ticket)
 - Summary statistics formatting (handled in pipeline ticket)
 - Progress feedback (separate ticket)

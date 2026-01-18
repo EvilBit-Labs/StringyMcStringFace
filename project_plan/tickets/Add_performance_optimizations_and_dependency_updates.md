@@ -7,6 +7,7 @@ Integrate performance optimizations including memory mapping with fallback, rege
 ## Scope
 
 **In Scope:**
+
 - Add dependencies to Cargo.toml:
   - memmap2 for memory-mapped file I/O
   - once_cell for modern lazy initialization
@@ -22,6 +23,7 @@ Integrate performance optimizations including memory mapping with fallback, rege
 - Update documentation with performance characteristics
 
 **Out of Scope:**
+
 - Pipeline implementation (separate ticket, but this ticket provides the tools)
 - Classification implementation (separate ticket, but this ticket provides regex caching)
 

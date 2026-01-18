@@ -7,17 +7,18 @@ Create the Pipeline struct that orchestrates the entire analysis workflow, inclu
 ## Scope
 
 **In Scope:**
+
 - Create Pipeline struct in file:src/main.rs with PipelineConfig
 - Implement 14-step workflow:
-  1. Progress indicator setup (indicatif)
-  2. Memory-mapped file reading with fallback to regular read
-  3. Format detection and container parsing (fail fast)
-  4. String extraction (fail fast on critical errors)
-  5. Semantic classification (graceful degradation)
-  6. Symbol demangling (graceful degradation)
-  7. Ranking with optional debug breakdown
-  8. Filtering (min-len, encoding, tags)
-  9. Sorting and top-N limiting
+  01. Progress indicator setup (indicatif)
+  02. Memory-mapped file reading with fallback to regular read
+  03. Format detection and container parsing (fail fast)
+  04. String extraction (fail fast on critical errors)
+  05. Semantic classification (graceful degradation)
+  06. Symbol demangling (graceful degradation)
+  07. Ranking with optional debug breakdown
+  08. Filtering (min-len, encoding, tags)
+  09. Sorting and top-N limiting
   10. Output formatting
 - Implement FilterConfig struct for CLI filter parameters
 - Implement stage-specific error recovery:
@@ -29,6 +30,7 @@ Create the Pipeline struct that orchestrates the entire analysis workflow, inclu
 - Keep main.rs under 500 lines
 
 **Out of Scope:**
+
 - CLI argument parsing (handled in same file but separate concern)
 - Individual component implementations (separate tickets)
 - Output formatter implementations (separate ticket)

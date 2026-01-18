@@ -64,15 +64,15 @@ sequenceDiagram
 
 **Steps:**
 
-1. User invokes Stringy with binary file path
-2. System displays "Parsing..." to stderr
-3. System detects format (ELF/PE/Mach-O) and parses container structure
-4. System displays "Extracting..." to stderr
-5. System extracts strings from appropriate sections using format knowledge
-6. System displays "Classifying..." to stderr
-7. System applies semantic classification (URLs, IPs, paths, GUIDs, etc.)
-8. System demangles Rust/C++ symbols to readable form
-9. System displays "Ranking..." to stderr
+01. User invokes Stringy with binary file path
+02. System displays "Parsing..." to stderr
+03. System detects format (ELF/PE/Mach-O) and parses container structure
+04. System displays "Extracting..." to stderr
+05. System extracts strings from appropriate sections using format knowledge
+06. System displays "Classifying..." to stderr
+07. System applies semantic classification (URLs, IPs, paths, GUIDs, etc.)
+08. System demangles Rust/C++ symbols to readable form
+09. System displays "Ranking..." to stderr
 10. System calculates scores based on section weights, semantic boosts, and noise penalties
 11. System sorts strings by score (descending)
 12. System outputs table to stdout with columns: String | Tags | Score | Section
@@ -108,9 +108,10 @@ core::fmt::Display::fmt                  export      85     .text
 1. User invokes Stringy with filtering flags
 2. System performs standard analysis pipeline (Parsing... Extracting... Classifying... Ranking...)
 3. System applies filters with AND logic:
-  - String must have tag "url" OR "ipv4"
-  - String length must be >= 10 characters
-  - String encoding must be UTF-16
+   - String must have tag "url" OR "ipv4"
+   - String length must be >= 10 characters
+   - String encoding must be UTF-16
+
 4. System outputs filtered results in table format
 5. If no strings match filters, system displays to stderr: "Analyzed 1,234 strings, 0 matched filters"
 6. If strings match, system outputs table with matching strings only
@@ -124,7 +125,7 @@ core::fmt::Display::fmt                  export      85     .text
 
 **Exit:** Returns exit code 0 (even if no matches)
 
-**Conflicting Flags:**  
+**Conflicting Flags:**\
 If multiple output format flags are specified (e.g., --json and --yara), the system displays an error:
 
 - Output to stderr: "Error: Cannot specify multiple output formats (--json, --yara)"
@@ -201,10 +202,11 @@ If multiple output format flags are specified (e.g., --json and --yara), the sys
 3. Progress indicators go to stderr
 4. System generates complete YARA rule template to stdout
 5. Rule includes:
-  - Rule name (derived from binary filename)
-  - Metadata section (file hash, analysis date, tool version)
-  - Strings section with properly escaped strings
-  - Condition section (basic template)
+   - Rule name (derived from binary filename)
+   - Metadata section (file hash, analysis date, tool version)
+   - Strings section with properly escaped strings
+   - Condition section (basic template)
+
 6. Strings are escaped according to YARA syntax rules
 7. Very long strings (>200 chars) are truncated with comment
 
@@ -234,7 +236,7 @@ rule binary_strings {
 - Rule name derived from binary filename
 - Non-alphanumeric characters replaced with underscore
 - File extension removed
-- Suffix "_strings" added
+- Suffix `_strings` added
 - Example: "binary.exe" becomes "binary_strings", "my-app.dll" becomes "my_app_strings"
 
 **YARA String Handling:**
@@ -290,15 +292,15 @@ core::fmt::Display::fmt
 2. System performs standard analysis pipeline
 3. System outputs results in standard format (table or JSON)
 4. After results, system outputs summary to stdout:
-  - Binary format detected
-  - Total strings extracted
-  - Strings after filtering (if filters applied)
-  - Top tags found
-  - Analysis time
+   - Binary format detected
+   - Total strings extracted
+   - Strings after filtering (if filters applied)
+   - Top tags found
+   - Analysis time
 
 **Summary Format:**
 
-```
+```text
 [Results table here]
 
 Summary:
@@ -356,21 +358,19 @@ Summary:
 
 ## CLI Flag Reference
 
-
-| Flag               | Description                                                                    | Example                |
-| ------------------ | ------------------------------------------------------------------------------ | ---------------------- |
-| `--min-len N`      | Minimum string length                                                          | `--min-len 10`         |
-| `--enc ENCODING`   | Filter by encoding. Accepts: ascii, utf8, utf16 (both LE/BE), utf16le, utf16be | `--enc utf16`          |
-| `--only-tags TAGS` | Include only specified tags (comma-separated)                                  | `--only-tags url,ipv4` |
-| `--notags TAGS`    | Exclude specified tags                                                         | `--notags debug,test`  |
-| `--top N`          | Show only top N results                                                        | `--top 50`             |
-| `--json`           | Output JSONL format                                                            | `--json`               |
-| `--yara`           | Output YARA rule template                                                      | `--yara`               |
-| `--summary`        | Show summary statistics                                                        | `--summary`            |
+| Flag               | Description                                                                       | Example                |
+| ------------------ | --------------------------------------------------------------------------------- | ---------------------- |
+| `--min-len N`      | Minimum string length                                                             | `--min-len 10`         |
+| `--enc ENCODING`   | Filter by encoding. Accepts: ascii, utf8, utf16 (both LE/BE), utf16le, utf16be    | `--enc utf16`          |
+| `--only-tags TAGS` | Include only specified tags (comma-separated)                                     | `--only-tags url,ipv4` |
+| `--notags TAGS`    | Exclude specified tags                                                            | `--notags debug,test`  |
+| `--top N`          | Show only top N results                                                           | `--top 50`             |
+| `--json`           | Output JSONL format                                                               | `--json`               |
+| `--yara`           | Output YARA rule template                                                         | `--yara`               |
+| `--summary`        | Show summary statistics                                                           | `--summary`            |
 | `--debug`          | Include score breakdown in output (section_weight, semantic_boost, noise_penalty) | `--debug`              |
-| `--help`           | Show help including available tags                                             | `--help`               |
-| `--version`        | Show version information                                                       | `--version`            |
-
+| `--help`           | Show help including available tags                                                | `--help`               |
+| `--version`        | Show version information                                                          | `--version`            |
 
 **Available Tags (shown in --help):**
 
@@ -402,7 +402,7 @@ Summary:
 - Score: 6 characters (right-aligned integer)
 - Section: 20 characters (section name)
 
-**Tag Priority (for display):**  
+**Tag Priority (for display):**\
 When multiple tags exist, show tags from the highest priority level. If multiple tags exist at the same priority level, show them comma-separated (e.g., "url,ipv4").
 
 Priority order:
@@ -422,4 +422,3 @@ Priority order:
   - 70-89: Meaningful strings (file paths, exports)
   - 50-69: Moderate relevance (general strings)
   - Below 50: Low relevance (potential noise)
-
