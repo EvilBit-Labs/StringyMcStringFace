@@ -18,12 +18,10 @@ pub(crate) static IPV4_REGEX: Lazy<Regex> = Lazy::new(|| {
 
 /// Regular expression for matching IPv6 addresses
 ///
-/// Pattern matches IPv6 addresses including full, compressed, and mixed notation.
-/// This is a permissive pattern that checks for basic IPv6 structure.
-/// Actual validation is performed by std::net::Ipv6Addr::from_str.
-pub(crate) static IPV6_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)^(?:[0-9a-f]{1,4}:){1,7}[0-9a-f]{1,4}$|^(?:[0-9a-f]{1,4}:){1,7}:$|^(?:[0-9a-f]{1,4}:){1,6}:[0-9a-f]{1,4}$|^(?:[0-9a-f]{1,4}:){1,5}(?::[0-9a-f]{1,4}){1,2}$|^(?:[0-9a-f]{1,4}:){1,4}(?::[0-9a-f]{1,4}){1,3}$|^(?:[0-9a-f]{1,4}:){1,3}(?::[0-9a-f]{1,4}){1,4}$|^(?:[0-9a-f]{1,4}:){1,2}(?::[0-9a-f]{1,4}){1,5}$|^[0-9a-f]{1,4}:(?::[0-9a-f]{1,4}){1,6}$|^:(?::[0-9a-f]{1,4}){1,7}$|^::$|^::ffff:(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$").unwrap()
-});
+/// This is a permissive pre-filter that only allows hex digits, colons,
+/// and dots (for IPv4-mapped suffixes). Canonical validation is still
+/// performed by std::net::Ipv6Addr::from_str.
+pub(crate) static IPV6_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)^[0-9a-f:.]+$").unwrap());
 
 /// Regular expression for detecting and stripping port suffixes
 ///
@@ -39,7 +37,7 @@ pub(crate) static PORT_SUFFIX_REGEX: Lazy<Regex> = Lazy::new(|| {
 ///
 /// Matches [IPv6] format used in URLs like [::1]:8080.
 pub(crate) static IPV6_BRACKETS_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^\[(.+)\]").unwrap());
+    Lazy::new(|| Regex::new(r"^\[([^\]]+)\]$").unwrap());
 
 /// Strips the port suffix from an IP address string if present
 ///
@@ -126,17 +124,13 @@ pub fn is_ipv6_address(text: &str) -> bool {
         ip_text = strip_ipv6_brackets(without_port);
     }
 
-    // Basic structure check - must contain colon and only valid hex/colon characters
-    if !ip_text.contains(':') {
+    // Permissive pre-filter to reject obvious non-IPv6 strings early
+    if !IPV6_REGEX.is_match(ip_text) {
         return false;
     }
 
-    // Allow only valid IPv6 characters
-    let valid_chars = ip_text
-        .chars()
-        .all(|c| c.is_ascii_hexdigit() || c == ':' || c == '.');
-
-    if !valid_chars {
+    // Basic structure check - must contain colon and only valid hex/colon characters
+    if !ip_text.contains(':') {
         return false;
     }
 

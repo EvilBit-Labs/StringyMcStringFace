@@ -17,6 +17,13 @@ pub(crate) static GUID_REGEX: Lazy<Regex> = Lazy::new(|| {
 /// Regular expression for matching email addresses
 ///
 /// Pattern matches basic email format: user@domain.tld
+///
+/// This intentionally simplified pattern is tuned for binary and string
+/// extraction. It will match short forms like "a@b.cc" and common unquoted
+/// local-parts, but it does not support quoted local-parts, some valid edge
+/// cases (for example, certain plus or escape forms and full RFC 5322
+/// syntax), or internationalized domain names. The tradeoff is fewer false
+/// positives at the cost of not being fully RFC-compliant.
 pub(crate) static EMAIL_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap());
 

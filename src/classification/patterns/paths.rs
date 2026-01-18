@@ -327,6 +327,9 @@ pub fn is_suspicious_posix_path(text: &str) -> bool {
 }
 
 /// Checks if a Windows path is suspicious (persistence-related)
+///
+/// Uses prefix matching since suspicious Windows paths are anchored to
+/// well-known base directories like C:\Windows\.
 pub fn is_suspicious_windows_path(text: &str) -> bool {
     SUSPICIOUS_WINDOWS_PATHS
         .iter()
@@ -334,6 +337,9 @@ pub fn is_suspicious_windows_path(text: &str) -> bool {
 }
 
 /// Checks if a registry path is suspicious (persistence-related)
+///
+/// Uses substring matching since relevant registry keys can appear anywhere
+/// within a longer path string.
 pub fn is_suspicious_registry_path(text: &str) -> bool {
     SUSPICIOUS_REGISTRY_PATHS
         .iter()
@@ -362,6 +368,11 @@ mod tests {
     fn test_unc_path_valid_and_invalid() {
         assert!(classify_unc_path("\\\\server\\share\\file.txt").is_some());
         assert!(classify_unc_path("\\\\server").is_none());
+    }
+
+    #[test]
+    fn test_classify_unc_path_missing_share() {
+        assert!(classify_unc_path("\\\\server\\").is_none());
     }
 
     #[test]

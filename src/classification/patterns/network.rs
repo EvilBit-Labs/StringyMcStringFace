@@ -38,12 +38,17 @@ static COMMON_TLDS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
 
 /// Checks if the domain has a valid TLD
 ///
+/// Trailing dots are treated as invalid to avoid accepting empty TLDs.
+///
 /// # Arguments
 /// * `domain` - The domain name to validate
 ///
 /// # Returns
 /// Returns `true` if the domain has a known TLD.
 pub fn has_valid_tld(domain: &str) -> bool {
+    if domain.ends_with('.') {
+        return false;
+    }
     if let Some(dot_pos) = domain.rfind('.') {
         let tld = &domain[dot_pos + 1..];
         let tld_lower = tld.to_lowercase();
