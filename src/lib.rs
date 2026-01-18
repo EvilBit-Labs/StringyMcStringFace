@@ -84,3 +84,6 @@ pub use extraction::{
     AsciiExtractionConfig, BasicExtractor, CanonicalString, ExtractionConfig, StringExtractor,
     StringOccurrence, Utf16ExtractionConfig, deduplicate,
 };
+
+// Re-export output infrastructure types
+pub use output::{OutputFormat, OutputMetadata, format_output};
