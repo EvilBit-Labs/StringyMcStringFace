@@ -1,5 +1,6 @@
 {
   "enabledPlugins": {
-    "commit@cc-marketplace": true
+    "commit@cc-marketplace": true,
+    "superpowers@claude-plugins-official": true
   }
 }
