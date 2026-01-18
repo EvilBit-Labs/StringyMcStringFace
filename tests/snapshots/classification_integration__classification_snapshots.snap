@@ -1,6 +1,5 @@
 ---
 source: tests/classification_integration.rs
-assertion_line: 150
 expression: snapshot
 ---
 [

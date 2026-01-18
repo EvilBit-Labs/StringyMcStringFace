@@ -12,14 +12,12 @@
 //! - **Domain Detection**: Identifies domain names with TLD validation
 //! - **File Path Detection**: Identifies POSIX, Windows, and UNC paths
 //! - **Registry Path Detection**: Identifies Windows registry paths
-//!
-//! ## Future Capabilities
-//!
-//! - GUIDs/UUIDs
-//! - Email addresses
-//! - Base64 data
-//! - Format strings
-//! - User agents
+//! - **GUID Detection**: Identifies GUIDs/UUIDs in standard format
+//! - **Email Detection**: Identifies email addresses
+//! - **Base64 Detection**: Identifies Base64-encoded data (broad tag)
+//! - **Format String Detection**: Identifies printf-style format strings
+//! - **User Agent Detection**: Identifies HTTP user agent strings
+//! - **Symbol Demangling**: Demangles Rust symbols to human-readable form
 //!
 //! ## Usage
 //!
@@ -49,5 +47,9 @@
 //! assert!(tags.contains(&Tag::FilePath));
 //! ```
 
+mod patterns;
 pub mod semantic;
+pub mod symbols;
+
 pub use semantic::SemanticClassifier;
+pub use symbols::SymbolDemangler;
