@@ -30,6 +30,7 @@
 //! let classifier = SemanticClassifier::new();
 //! let found_string = FoundString {
 //!     text: "C:\\Windows\\System32\\cmd.exe".to_string(),
+//!     original_text: None,
 //!     encoding: Encoding::Ascii,
 //!     offset: 0,
 //!     rva: None,
@@ -37,6 +38,9 @@
 //!     length: 27,
 //!     tags: Vec::new(),
 //!     score: 0,
+//!     section_weight: None,
+//!     semantic_boost: None,
+//!     noise_penalty: None,
 //!     source: StringSource::SectionData,
 //!     confidence: 1.0,
 //! };

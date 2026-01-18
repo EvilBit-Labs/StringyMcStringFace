@@ -282,6 +282,7 @@ impl CanonicalString {
 
         FoundString {
             text: self.text.clone(),
+            original_text: None,
             encoding: self.encoding,
             offset: first_occurrence.offset,
             rva: first_occurrence.rva,
@@ -289,6 +290,9 @@ impl CanonicalString {
             length: first_occurrence.length,
             tags: self.merged_tags.clone(),
             score: self.combined_score,
+            section_weight: None,
+            semantic_boost: None,
+            noise_penalty: None,
             source: first_occurrence.source,
             confidence: max_confidence,
         }
@@ -325,6 +329,7 @@ mod tests {
 
         FoundString {
             text: text.to_string(),
+            original_text: None,
             encoding,
             offset,
             rva: Some(offset + 0x1000),
@@ -332,6 +337,9 @@ mod tests {
             length,
             tags,
             score,
+            section_weight: None,
+            semantic_boost: None,
+            noise_penalty: None,
             source,
             confidence,
         }
@@ -804,6 +812,7 @@ mod tests {
         let strings = vec![
             FoundString {
                 text: "Test".to_string(),
+                original_text: None,
                 encoding: Encoding::Utf16Le,
                 offset: 0x100,
                 rva: Some(0x1000),
@@ -811,11 +820,15 @@ mod tests {
                 length: 8, // 4 characters * 2 bytes = 8 bytes
                 tags: vec![],
                 score: 10,
+                section_weight: None,
+                semantic_boost: None,
+                noise_penalty: None,
                 source: StringSource::SectionData,
                 confidence: 0.8,
             },
             FoundString {
                 text: "Test".to_string(),
+                original_text: None,
                 encoding: Encoding::Utf16Le,
                 offset: 0x200,
                 rva: Some(0x2000),
@@ -823,6 +836,9 @@ mod tests {
                 length: 8,
                 tags: vec![],
                 score: 15,
+                section_weight: None,
+                semantic_boost: None,
+                noise_penalty: None,
                 source: StringSource::SectionData,
                 confidence: 0.9,
             },

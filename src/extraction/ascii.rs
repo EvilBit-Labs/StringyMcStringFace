@@ -230,6 +230,7 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                     let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
                     strings.push(FoundString {
                         text,
+                        original_text: None,
                         encoding: Encoding::Ascii,
                         offset: start as u64,
                         rva: None,
@@ -237,6 +238,9 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                         length: len as u32,
                         tags: Vec::new(),
                         score: 0,
+                        section_weight: None,
+                        semantic_boost: None,
+                        noise_penalty: None,
                         source: StringSource::SectionData,
                         confidence: 1.0,
                     });
@@ -260,6 +264,7 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                     let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
                     strings.push(FoundString {
                         text,
+                        original_text: None,
                         encoding: Encoding::Ascii,
                         offset: start as u64,
                         rva: None,
@@ -267,6 +272,9 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                         length: len as u32,
                         tags: Vec::new(),
                         score: 0,
+                        section_weight: None,
+                        semantic_boost: None,
+                        noise_penalty: None,
                         source: StringSource::SectionData,
                         confidence: 1.0,
                     });
@@ -276,6 +284,7 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                 let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
                 strings.push(FoundString {
                     text,
+                    original_text: None,
                     encoding: Encoding::Ascii,
                     offset: start as u64,
                     rva: None,
@@ -283,6 +292,9 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                     length: len as u32,
                     tags: Vec::new(),
                     score: 0,
+                    section_weight: None,
+                    semantic_boost: None,
+                    noise_penalty: None,
                     source: StringSource::SectionData,
                     confidence: 1.0,
                 });

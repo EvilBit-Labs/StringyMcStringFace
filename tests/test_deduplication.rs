@@ -278,6 +278,7 @@ fn test_deduplication_score_bonuses() {
     let strings = vec![
         FoundString {
             text: "TestString".to_string(),
+            original_text: None,
             encoding: Encoding::Utf8,
             offset: 0x100,
             rva: Some(0x1000),
@@ -285,11 +286,15 @@ fn test_deduplication_score_bonuses() {
             length: 10,
             tags: vec![],
             score: 10,
+            section_weight: None,
+            semantic_boost: None,
+            noise_penalty: None,
             source: StringSource::SectionData,
             confidence: 0.8,
         },
         FoundString {
             text: "TestString".to_string(),
+            original_text: None,
             encoding: Encoding::Utf8,
             offset: 0x200,
             rva: Some(0x2000),
@@ -297,6 +302,9 @@ fn test_deduplication_score_bonuses() {
             length: 10,
             tags: vec![],
             score: 15,
+            section_weight: None,
+            semantic_boost: None,
+            noise_penalty: None,
             source: StringSource::ImportName,
             confidence: 0.9,
         },

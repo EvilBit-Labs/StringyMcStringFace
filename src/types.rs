@@ -223,10 +223,22 @@ pub struct ResourceStringEntry {
 }
 
 /// A string found in the binary with metadata
+///
+/// The `original_text` field preserves the pre-demangled text when demangling
+/// is applied. Debug-only fields provide transparency into how the final score
+/// was produced and are only populated when debug mode is enabled.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FoundString {
     /// The extracted string text
     pub text: String,
+    /// Original text before demangling (if applicable)
+    ///
+    /// When a string is identified as a mangled symbol (e.g., C++ or Rust mangled names),
+    /// this field preserves the original mangled form before demangling is applied.
+    /// The `text` field will contain the demangled version. This is `None` for strings
+    /// that are not mangled symbols or when demangling is not performed.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub original_text: Option<String>,
     /// The encoding used for this string
     pub encoding: Encoding,
     /// File offset where the string was found
@@ -241,6 +253,30 @@ pub struct FoundString {
     pub tags: Vec<Tag>,
     /// Relevance score for ranking
     pub score: i32,
+    /// Section weight contribution to the final score (debug only)
+    ///
+    /// When debug mode is enabled, this field contains the weight assigned based on
+    /// the section where the string was found. Higher weights indicate sections more
+    /// likely to contain meaningful strings (e.g., .rodata vs .text). This is `None`
+    /// unless explicitly populated by the ranking system in debug mode.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub section_weight: Option<i32>,
+    /// Semantic classification boost to the final score (debug only)
+    ///
+    /// When debug mode is enabled, this field contains the score boost applied based on
+    /// semantic tags (URLs, file paths, GUIDs, etc.). Strings with valuable semantic
+    /// meaning receive positive boosts. This is `None` unless explicitly populated by
+    /// the ranking system in debug mode.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub semantic_boost: Option<i32>,
+    /// Noise penalty applied to the final score (debug only)
+    ///
+    /// When debug mode is enabled, this field contains the penalty applied for noise
+    /// characteristics (low confidence, repetitive patterns, etc.). Higher penalties
+    /// indicate strings more likely to be noise. This is `None` unless explicitly
+    /// populated by the ranking system in debug mode.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub noise_penalty: Option<i32>,
     /// Source of the string (section data, import, etc.)
     pub source: StringSource,
     /// Confidence score from noise filtering (0.0-1.0)

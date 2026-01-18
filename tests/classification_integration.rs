@@ -6,6 +6,7 @@ use stringy::types::{Encoding, FoundString, StringSource, Tag};
 fn make_found_string(text: &str) -> FoundString {
     FoundString {
         text: text.to_string(),
+        original_text: None,
         encoding: Encoding::Ascii,
         offset: 0,
         rva: None,
@@ -13,6 +14,9 @@ fn make_found_string(text: &str) -> FoundString {
         length: text.len() as u32,
         tags: Vec::new(),
         score: 0,
+        section_weight: None,
+        semantic_boost: None,
+        noise_penalty: None,
         source: StringSource::SectionData,
         confidence: 1.0,
     }
