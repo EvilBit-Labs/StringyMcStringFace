@@ -186,6 +186,15 @@ mod tests {
     }
 
     #[test]
+    fn test_with_generated_at_builder() {
+        let metadata = OutputMetadata::new("test.bin".to_string(), OutputFormat::Yara, 0, 0);
+        assert!(metadata.generated_at.is_none());
+
+        let with_timestamp = metadata.with_generated_at("12345".to_string());
+        assert_eq!(with_timestamp.generated_at, Some("12345".to_string()));
+    }
+
+    #[test]
     fn test_dispatch_logic_for_each_format() {
         let strings = vec![build_found_string("alpha")];
         let metadata = OutputMetadata::new(
