@@ -7,7 +7,7 @@ Stringy is a **smarter strings tool** for extracting meaningful strings from ELF
 ## Architecture & Data Flow
 
 ```text
-Binary → Format Detection (goblin) → Container Parsing → String Extraction → Deduplication → Classification → Ranking → Output
+Binary -> Format Detection (goblin) -> Container Parsing -> String Extraction -> Deduplication -> Classification -> Ranking -> Output
 ```
 
 ### Module Organization
@@ -27,7 +27,7 @@ Binary → Format Detection (goblin) → Container Parsing → String Extraction
 - **Rust 2024 Edition**: MSRV 1.85+, always use latest edition features
 - **File size limit**: Keep files \<=500-600 lines; split larger files into focused modules
 - **No blanket `#[allow]`**: Any `allow` attribute requires inline justification and cannot apply to entire files/modules
-- **Character restrictions**: Never use emojis, em-dashes (—), or other non-Latin characters in code or documentation. Use standard ASCII punctuation (hyphens, quotes, etc.)
+- **Character restrictions**: Never use emojis, em-dashes, or other non-Latin characters in code or documentation. Use standard ASCII punctuation (hyphens, quotes, etc.)
 
 ### Error Handling with `thiserror`
 
