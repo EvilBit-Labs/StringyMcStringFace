@@ -1,12 +1,102 @@
+//! Ranking and scoring system for extracted strings
+//!
+//! This module provides a configurable scoring algorithm that prioritizes and ranks
+//! strings extracted from binaries based on multiple factors:
+//!
+//! - **Section weights**: Strings from high-value sections (e.g., `.rodata`, resources)
+//!   receive higher base scores than strings from low-value sections (e.g., code, debug)
+//! - **Semantic tag boosts**: Strings with meaningful semantic tags (e.g., URLs, IPs,
+//!   imports/exports) receive additional score boosts
+//! - **Noise penalties**: Strings with low confidence scores are penalized to reduce
+//!   false positives and noisy output
+//!
+//! The final score for each string is computed as:
+//! ```text
+//! score = section_weight + semantic_boost - noise_penalty
+//! ```
+//!
+//! ## Usage Example
+//!
+//! ```rust
+//! use stringy::classification::{RankingEngine, RankingConfig};
+//! use stringy::types::{FoundString, SectionInfo, Encoding, StringSource};
+//!
+//! // Use default configuration
+//! let engine = RankingEngine::new(false);
+//!
+//! // Or customize configuration
+//! let mut config = RankingConfig::default();
+//! config.noise_penalty_multiplier = 150; // Increase noise penalties
+//! let engine = RankingEngine::with_config(config, true); // Enable debug mode
+//!
+//! // Score a string
+//! let mut found_string = FoundString::new(
+//!     "https://example.com".to_string(),
+//!     Encoding::Ascii,
+//!     0x1000,
+//!     19,
+//!     StringSource::SectionData,
+//! );
+//! engine.calculate_score(&mut found_string, None);
+//!
+//! // Rank a collection of strings
+//! let mut strings = vec![/* ... */];
+//! engine.rank_strings(&mut strings); // Sorted by score descending
+//! ```
+//!
+//! ## Relationship Between RankingConfig and RankingEngine
+//!
+//! `RankingConfig` holds the scoring parameters (section weights, tag boosts, noise
+//! penalty multiplier), while `RankingEngine` applies those parameters to compute
+//! scores for individual strings. The engine is constructed with a config and then
+//! used to score and rank collections of strings.
+
 use std::collections::HashMap;
 
 use crate::types::{FoundString, SectionInfo, SectionType, Tag};
 
+/// Configuration for the `RankingEngine` scoring algorithm.
+///
+/// This struct controls how different container sections and semantic tags
+/// contribute to the final score of a `FoundString`, and how aggressively
+/// noisy or low-value strings are penalized.
+///
+/// All integer values in this configuration are treated as relative weights
+/// or penalties in the scoring formula: higher values increase the influence
+/// of a given factor, while lower or negative values reduce it. Typical
+/// values are in the range `0..=200`, but any `i32` is accepted so callers
+/// can tune ranking behavior for their use case.
+///
+/// The default configuration used by `RankingEngine` can be obtained via
+/// [`RankingConfig::new`] or [`RankingConfig::default`].
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct RankingConfig {
+    /// Per-section weighting applied when scoring a `FoundString` based on
+    /// the `SectionType` it was extracted from.
+    ///
+    /// Higher values cause strings from the corresponding section to rank
+    /// higher relative to other sections. Typical values are in the range
+    /// `0..=200`. Negative values are allowed to strongly de-prioritize
+    /// specific section types if desired.
     pub section_weights: HashMap<SectionType, i32>,
+
+    /// Per-tag scoring boosts applied when a `FoundString` has a particular
+    /// semantic `Tag`.
+    ///
+    /// The value is added as a relative bonus to the base score of the
+    /// string. Higher values make strings with that tag more prominent in
+    /// ranked output. Typical values are in the range `0..=200`. Negative
+    /// values can be used to penalize certain tags.
     pub tag_boosts: HashMap<Tag, i32>,
+
+    /// Global multiplier applied to noise-related penalties in the scoring
+    /// algorithm.
+    ///
+    /// Larger values increase the impact of noise detection (noisy strings
+    /// lose more score), while smaller values reduce it. A value of `0`
+    /// effectively disables noise penalties. Typical values are in the range
+    /// `0..=200`.
     pub noise_penalty_multiplier: i32,
 }
 
@@ -59,6 +149,33 @@ impl Default for RankingConfig {
     }
 }
 
+/// Engine for scoring and ranking `FoundString` values.
+///
+/// `RankingEngine` applies a configurable scoring model to each `FoundString`
+/// and then orders strings by their final score. The scoring model combines:
+///
+/// - Section weights from `RankingConfig`, based on the `SectionType` and
+///   per-section `SectionInfo::weight`.
+/// - Semantic tag boosts from `RankingConfig::tag_boosts`.
+/// - A noise penalty derived from `FoundString::confidence` and
+///   `RankingConfig::noise_penalty_multiplier`.
+///
+/// The `debug_mode` flag controls whether per-component scoring details are
+/// written back to `FoundString` after `calculate_score` is called. When
+/// `debug_mode` is `true`, the engine populates fields such as
+/// `section_weight`, `semantic_boost`, and `noise_penalty` to make the
+/// scoring breakdown visible to callers. When `false`, only the aggregate
+/// `score` field is updated.
+///
+/// ## Typical Usage
+///
+/// 1. Optionally construct a `RankingConfig` with custom weights and boosts.
+/// 2. Construct a `RankingEngine` with `new` or `with_config`, choosing
+///    whether `debug_mode` should be enabled.
+/// 3. For each `FoundString`, call `calculate_score`, passing the string and
+///    an optional `SectionInfo` describing its origin.
+/// 4. Once all scores are computed, call `rank_strings` on a collection of
+///    `FoundString` values to sort them by score in descending order.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct RankingEngine {
@@ -67,16 +184,58 @@ pub struct RankingEngine {
 }
 
 impl RankingEngine {
+    /// Creates a new `RankingEngine` using the default `RankingConfig`.
+    ///
+    /// The `debug_mode` flag controls whether `calculate_score` populates
+    /// detailed scoring components (`section_weight`, `semantic_boost`,
+    /// `noise_penalty`) on each `FoundString`. When `debug_mode` is `false`,
+    /// only the aggregate `score` field is updated.
     #[must_use]
     pub fn new(debug_mode: bool) -> Self {
         Self::with_config(RankingConfig::default(), debug_mode)
     }
 
+    /// Creates a new `RankingEngine` with an explicit `RankingConfig`.
+    ///
+    /// - `config` provides section weights, tag boosts, and the noise penalty
+    ///   multiplier that control how scores are computed.
+    /// - `debug_mode` controls whether per-component scoring details are written
+    ///   back to each `FoundString` when `calculate_score` is called.
     #[must_use]
     pub fn with_config(config: RankingConfig, debug_mode: bool) -> Self {
         Self { config, debug_mode }
     }
 
+    /// Computes the score for a single `FoundString`.
+    ///
+    /// This method uses the current `RankingConfig` and optional `SectionInfo`
+    /// to derive a final integer score using the formula:
+    ///
+    /// ```text
+    /// score = section_weight + semantic_boost - noise_penalty
+    /// ```
+    ///
+    /// The computation proceeds as follows:
+    ///
+    /// - Starts from a base section weight derived from `section_info` and the
+    ///   configured `section_weights`, or a default of 20 when no match is found.
+    /// - Applies the dynamic `SectionInfo::weight` factor if provided.
+    /// - Adds semantic tag boosts for each tag present on the string.
+    /// - Subtracts a noise penalty based on `FoundString::confidence`.
+    ///
+    /// The resulting value is written to `found_string.score`. If the engine
+    /// was constructed with `debug_mode == true`, the method also populates
+    /// `found_string.section_weight`, `found_string.semantic_boost`, and
+    /// `found_string.noise_penalty` with the intermediate values used to
+    /// produce the final score.
+    ///
+    /// # Parameters
+    ///
+    /// - `found_string` - The string record to score; it is modified in place
+    ///   with the computed score (and optionally debug fields).
+    /// - `section_info` - Optional metadata about the section from which the
+    ///   string was extracted. When `None`, a default base section weight of 20
+    ///   is used.
     pub fn calculate_score(
         &self,
         found_string: &mut FoundString,
