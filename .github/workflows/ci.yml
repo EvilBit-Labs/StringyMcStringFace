@@ -114,8 +114,9 @@ jobs:
           # Primary Support - Linux
           - os: ubuntu-latest
             platform: "Linux"
-          - os: arm
-            platform: "Linux"
+            #  Disabled due to lack of ARM runners on GitHub Actions, will re-enable when available
+          # - os: arm
+          #   platform: "Linux"
           # Primary Support - macOS (using available runners)
           - os: macos-latest
             platform: "macOS"
