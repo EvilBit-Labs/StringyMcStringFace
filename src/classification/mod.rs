@@ -10,11 +10,11 @@
 //!   ports, bracketed IPv6 notation, and false positive mitigation for version numbers
 //! - **URL Detection**: Identifies HTTP/HTTPS URLs
 //! - **Domain Detection**: Identifies domain names with TLD validation
+//! - **File Path Detection**: Identifies POSIX, Windows, and UNC paths
+//! - **Registry Path Detection**: Identifies Windows registry paths
 //!
 //! ## Future Capabilities
 //!
-//! - File paths (POSIX and Windows)
-//! - Registry paths
 //! - GUIDs/UUIDs
 //! - Email addresses
 //! - Base64 data
@@ -29,12 +29,12 @@
 //!
 //! let classifier = SemanticClassifier::new();
 //! let found_string = FoundString {
-//!     text: "192.168.1.1:8080".to_string(),
+//!     text: "C:\\Windows\\System32\\cmd.exe".to_string(),
 //!     encoding: Encoding::Ascii,
 //!     offset: 0,
 //!     rva: None,
 //!     section: None,
-//!     length: 15,
+//!     length: 27,
 //!     tags: Vec::new(),
 //!     score: 0,
 //!     source: StringSource::SectionData,
@@ -42,7 +42,7 @@
 //! };
 //!
 //! let tags = classifier.classify(&found_string);
-//! assert!(tags.contains(&Tag::IPv4));
+//! assert!(tags.contains(&Tag::FilePath));
 //! ```
 
 pub mod semantic;
