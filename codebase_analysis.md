@@ -101,7 +101,7 @@
 
 Library entry point with module declarations and public re-exports.
 
-```rust
+```text
 #![forbid(unsafe_code)]
 #![deny(warnings)]
 
@@ -122,7 +122,7 @@ pub use types::{BinaryFormat, ContainerInfo, Encoding, FoundString /* ... */};
 
 CLI placeholder using `clap` derive macros.
 
-```rust
+```text
 #[derive(Parser)]
 #[command(name = "stringy")]
 struct Cli {
@@ -159,7 +159,7 @@ Core data structures with comprehensive type definitions:
 
 Defines the `ContainerParser` trait and format detection.
 
-```rust
+```text
 pub trait ContainerParser {
     fn detect(data: &[u8]) -> bool
     where
@@ -213,7 +213,7 @@ Mach-O parser for macOS/iOS binaries:
 
 Main extraction framework with `StringExtractor` trait and `BasicExtractor`.
 
-```rust
+```text
 pub trait StringExtractor {
     fn extract(&self, data: &[u8], info: &ContainerInfo) -> Vec<FoundString>;
 }
@@ -271,7 +271,7 @@ Semantic classifier with pattern matching:
 
 **N/A** - Stringy is a command-line tool, not a web service. The public API is exposed as a Rust library:
 
-```rust
+```text
 // Library usage
 use stringy::{detect_format, create_parser, BasicExtractor, SemanticClassifier};
 
