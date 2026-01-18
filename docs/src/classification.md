@@ -160,7 +160,7 @@ The classifier relies on `lazy_static!` to compile regex patterns once and reuse
 
 Key method signatures:
 
-```rust
+```text
 pub fn classify(&self, string: &FoundString) -> Vec<Tag>;
 pub fn classify_posix_path(&self, text: &str) -> Option<Tag>;
 pub fn classify_windows_path(&self, text: &str) -> Option<Tag>;
@@ -170,7 +170,7 @@ pub fn classify_registry_path(&self, text: &str) -> Option<Tag>;
 
 ## Using the Classification System
 
-```rust
+```text
 use stringy::classification::SemanticClassifier;
 use stringy::types::{Encoding, FoundString, StringSource, Tag};
 
@@ -237,7 +237,7 @@ Several techniques reduce false positives:
 3. **Entropy checking**: High-entropy strings are likely binary data
 4. **Whitelist/blacklist**: Known good/bad patterns
 
-```rust
+```text
 fn is_likely_false_positive(&self, text: &str, tag: &Tag) -> bool {
     match tag {
         Tag::Domain => {
