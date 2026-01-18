@@ -5,6 +5,7 @@
 use crate::types::Tag;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use std::collections::HashSet;
 
 /// Regular expression for matching HTTP/HTTPS URLs
 ///
@@ -23,15 +24,17 @@ pub(crate) static DOMAIN_REGEX: Lazy<Regex> = Lazy::new(|| {
 });
 
 /// List of common TLDs for validation
-const COMMON_TLDS: &[&str] = &[
-    "com", "org", "net", "edu", "gov", "mil", "int", "io", "co", "uk", "de", "fr", "jp", "cn",
-    "ru", "br", "in", "au", "ca", "es", "it", "nl", "pl", "se", "ch", "at", "be", "dk", "fi", "no",
-    "pt", "cz", "hu", "ro", "bg", "hr", "sk", "si", "ee", "lt", "lv", "ie", "gr", "cy", "mt", "lu",
-    "info", "biz", "name", "pro", "aero", "coop", "museum", "travel", "jobs", "mobi", "tel",
-    "asia", "cat", "xxx", "app", "dev", "page", "blog", "shop", "store", "online", "site",
-    "website", "tech", "cloud", "ai", "ml", "tv", "me", "cc", "ws", "bz", "nu", "tk", "ga", "cf",
-    "gq",
-];
+static COMMON_TLDS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+    HashSet::from([
+        "com", "org", "net", "edu", "gov", "mil", "int", "io", "co", "uk", "de", "fr", "jp", "cn",
+        "ru", "br", "in", "au", "ca", "es", "it", "nl", "pl", "se", "ch", "at", "be", "dk", "fi",
+        "no", "pt", "cz", "hu", "ro", "bg", "hr", "sk", "si", "ee", "lt", "lv", "ie", "gr", "cy",
+        "mt", "lu", "info", "biz", "name", "pro", "aero", "coop", "museum", "travel", "jobs",
+        "mobi", "tel", "asia", "cat", "xxx", "app", "dev", "page", "blog", "shop", "store",
+        "online", "site", "website", "tech", "cloud", "ai", "ml", "tv", "me", "cc", "ws", "bz",
+        "nu", "tk", "ga", "cf", "gq",
+    ])
+});
 
 /// Checks if the domain has a valid TLD
 ///
@@ -44,7 +47,7 @@ pub fn has_valid_tld(domain: &str) -> bool {
     if let Some(dot_pos) = domain.rfind('.') {
         let tld = &domain[dot_pos + 1..];
         let tld_lower = tld.to_lowercase();
-        COMMON_TLDS.contains(&tld_lower.as_str())
+        COMMON_TLDS.contains(tld_lower.as_str())
     } else {
         false
     }

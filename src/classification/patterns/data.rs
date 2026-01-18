@@ -102,8 +102,9 @@ pub fn classify_base64(text: &str) -> Option<Tag> {
     // Strip padding for length check
     let content_len = text.len() - padding_count;
 
-    // Valid Base64 content length should be such that total is multiple of 4
-    if !(content_len + padding_count).is_multiple_of(4) {
+    // Valid Base64 content length should avoid mod 4 remainder of 1
+    let remainder = (content_len + padding_count) % 4;
+    if remainder == 1 {
         return None;
     }
 
@@ -156,11 +157,11 @@ pub fn classify_format_string(text: &str) -> Option<Tag> {
 
     // Exclude strings that are just a single format specifier
     // (those are likely false positives)
-    if text.len() > 2 {
-        return Some(Tag::FormatString);
+    if text.len() <= 2 {
+        return None;
     }
 
-    None
+    Some(Tag::FormatString)
 }
 
 /// Classifies a user agent string

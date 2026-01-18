@@ -29,89 +29,116 @@ pub(crate) static REGISTRY_ABBREV_REGEX: Lazy<Regex> =
 
 /// Common suspicious POSIX path prefixes for persistence detection
 static SUSPICIOUS_POSIX_PATHS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
-    let mut set = HashSet::new();
-    set.insert("/etc/cron.d/");
-    set.insert("/etc/init.d/");
-    set.insert("/usr/local/bin/");
-    set.insert("/tmp/");
-    set.insert("/var/tmp/");
-    set.insert("/etc/rc.d/");
-    set.insert("/etc/crontab");
-    set.insert("/etc/systemd/system/");
-    set.insert("~/.config/autostart/");
-    set.insert("/Library/LaunchDaemons/");
-    set.insert("/Library/LaunchAgents/");
-    set
+    HashSet::from([
+        "/etc/cron.d/",
+        "/etc/init.d/",
+        "/usr/local/bin/",
+        "/tmp/",
+        "/var/tmp/",
+        "/etc/rc.d/",
+        "/etc/crontab",
+        "/etc/systemd/system/",
+        "/Library/LaunchDaemons/",
+        "/Library/LaunchAgents/",
+    ])
 });
 
 /// Common suspicious Windows path prefixes for persistence detection
 static SUSPICIOUS_WINDOWS_PATHS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
-    let mut set = HashSet::new();
-    set.insert("C:\\Windows\\System32\\");
-    set.insert("C:\\Windows\\Temp\\");
-    set.insert("\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\");
-    set.insert("C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\");
-    set.insert("C:\\Windows\\SysWOW64\\");
-    set
+    HashSet::from([
+        "C:\\Windows\\System32\\",
+        "C:\\Windows\\Temp\\",
+        "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\",
+        "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\",
+        "C:\\Windows\\SysWOW64\\",
+    ])
 });
 
 /// Known valid POSIX path prefixes
 static KNOWN_POSIX_PREFIXES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
-    let mut set = HashSet::new();
-    set.insert("/usr/");
-    set.insert("/etc/");
-    set.insert("/var/");
-    set.insert("/home/");
-    set.insert("/opt/");
-    set.insert("/bin/");
-    set.insert("/sbin/");
-    set.insert("/lib/");
-    set.insert("/dev/");
-    set.insert("/proc/");
-    set.insert("/sys/");
-    set.insert("/tmp/");
-    set
+    HashSet::from([
+        "/usr/", "/etc/", "/var/", "/home/", "/opt/", "/bin/", "/sbin/", "/lib/", "/dev/",
+        "/proc/", "/sys/", "/tmp/",
+    ])
 });
 
 /// Known valid Windows path prefixes
 static KNOWN_WINDOWS_PREFIXES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
-    let mut set = HashSet::new();
-    set.insert("C:\\Windows\\");
-    set.insert("C:\\Program Files\\");
-    set.insert("C:\\Program Files (x86)\\");
-    set.insert("C:\\Users\\");
-    set.insert("C:\\ProgramData\\");
-    set
+    HashSet::from([
+        "C:\\Windows\\",
+        "C:\\Program Files\\",
+        "C:\\Program Files (x86)\\",
+        "C:\\Users\\",
+        "C:\\ProgramData\\",
+    ])
 });
 
 /// Valid Windows registry root keys
 static VALID_REGISTRY_ROOTS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
-    let mut set = HashSet::new();
-    set.insert("HKEY_LOCAL_MACHINE");
-    set.insert("HKEY_CURRENT_USER");
-    set.insert("HKEY_CLASSES_ROOT");
-    set.insert("HKEY_USERS");
-    set.insert("HKEY_CURRENT_CONFIG");
-    set
+    HashSet::from([
+        "HKEY_LOCAL_MACHINE",
+        "HKEY_CURRENT_USER",
+        "HKEY_CLASSES_ROOT",
+        "HKEY_USERS",
+        "HKEY_CURRENT_CONFIG",
+    ])
 });
 
 /// Suspicious Windows registry paths for persistence detection
 static SUSPICIOUS_REGISTRY_PATHS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
-    let mut set = HashSet::new();
-    set.insert("\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
-    set.insert("\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce");
-    set.insert("\\System\\CurrentControlSet\\Services");
-    set.insert("\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon");
-    set.insert("\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders");
-    set
+    HashSet::from([
+        "\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+        "\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+        "\\System\\CurrentControlSet\\Services",
+        "\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon",
+        "\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders",
+    ])
 });
 
 /// Checks if a path contains ASCII case-insensitive substring
 fn contains_ascii_case_insensitive(haystack: &str, needle: &str) -> bool {
-    let haystack_lower = haystack.to_ascii_lowercase();
-    let needle_lower = needle.to_ascii_lowercase();
-    haystack_lower.contains(&needle_lower)
+    if needle.is_empty() {
+        return true;
+    }
+
+    let haystack_bytes = haystack.as_bytes();
+    let needle_bytes = needle.as_bytes();
+
+    if needle_bytes.len() > haystack_bytes.len() {
+        return false;
+    }
+
+    for start in 0..=haystack_bytes.len() - needle_bytes.len() {
+        let mut matched = true;
+        for i in 0..needle_bytes.len() {
+            let hay = haystack_bytes[start + i].to_ascii_lowercase();
+            let nee = needle_bytes[i].to_ascii_lowercase();
+            if hay != nee {
+                matched = false;
+                break;
+            }
+        }
+        if matched {
+            return true;
+        }
+    }
+
+    false
 }
+
+fn starts_with_ascii_case_insensitive(text: &str, prefix: &str) -> bool {
+    if prefix.len() > text.len() {
+        return false;
+    }
+
+    text.as_bytes()
+        .iter()
+        .take(prefix.len())
+        .zip(prefix.as_bytes())
+        .all(|(left, right)| left.eq_ignore_ascii_case(right))
+}
+
+const AUTOSTART_POSIX_SUBPATH: &str = "/.config/autostart/";
 
 /// Checks if text contains printf-style format placeholders
 fn contains_printf_placeholder(text: &str) -> bool {
@@ -119,12 +146,7 @@ fn contains_printf_placeholder(text: &str) -> bool {
     let patterns = [
         "%s", "%d", "%x", "%u", "%i", "%f", "%c", "%p", "%n", "%ld", "%lu",
     ];
-    for pattern in patterns {
-        if text.contains(pattern) {
-            return true;
-        }
-    }
-    false
+    patterns.iter().any(|pattern| text.contains(pattern))
 }
 
 /// Checks if text contains control characters
@@ -181,7 +203,7 @@ pub fn is_valid_windows_path(text: &str) -> bool {
 
     // Check for known prefixes to boost confidence
     for prefix in KNOWN_WINDOWS_PREFIXES.iter() {
-        if contains_ascii_case_insensitive(text, prefix) {
+        if starts_with_ascii_case_insensitive(text, prefix) {
             return true;
         }
     }
@@ -296,6 +318,11 @@ pub fn classify_registry_path(text: &str) -> Option<Tag> {
 
 /// Checks if a POSIX path is suspicious (persistence-related)
 pub fn is_suspicious_posix_path(text: &str) -> bool {
+    if (text.starts_with("/home/") || text.starts_with("/Users/"))
+        && text.contains(AUTOSTART_POSIX_SUBPATH)
+    {
+        return true;
+    }
     SUSPICIOUS_POSIX_PATHS.iter().any(|p| text.starts_with(p))
 }
 
@@ -303,7 +330,7 @@ pub fn is_suspicious_posix_path(text: &str) -> bool {
 pub fn is_suspicious_windows_path(text: &str) -> bool {
     SUSPICIOUS_WINDOWS_PATHS
         .iter()
-        .any(|p| contains_ascii_case_insensitive(text, p))
+        .any(|p| starts_with_ascii_case_insensitive(text, p))
 }
 
 /// Checks if a registry path is suspicious (persistence-related)
