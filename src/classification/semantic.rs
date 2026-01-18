@@ -112,13 +112,13 @@ lazy_static! {
 
     /// Regular expression for matching full Windows registry paths
     ///
-    /// Pattern matches registry paths starting with HKEY_ root keys.
-    static ref REGISTRY_PATH_REGEX: Regex = Regex::new(r"^HKEY_[A-Z_]+\\[^\x00\n\r]*").unwrap();
+    /// Pattern matches registry paths starting with HKEY_ root keys (case-insensitive).
+    static ref REGISTRY_PATH_REGEX: Regex = Regex::new(r"(?i)^HKEY_[A-Z_]+\\[^\x00\n\r]*").unwrap();
 
     /// Regular expression for matching abbreviated registry paths
     ///
-    /// Pattern matches abbreviated registry forms like HKLM, HKCU, etc.
-    static ref REGISTRY_ABBREV_REGEX: Regex = Regex::new(r"^HK(LM|CU|CR|U|CC)\\[^\x00\n\r]*").unwrap();
+    /// Pattern matches abbreviated registry forms like HKLM, HKCU, etc. (case-insensitive).
+    static ref REGISTRY_ABBREV_REGEX: Regex = Regex::new(r"(?i)^HK(LM|CU|CR|U|CC)\\[^\x00\n\r]*").unwrap();
 }
 
 lazy_static! {
@@ -684,18 +684,82 @@ impl SemanticClassifier {
     /// Detects UNC network paths in the given text
     ///
     /// Returns `Some(Tag::FilePath)` if a UNC path is detected and valid.
+    /// Performs robust validation including:
+    /// - Maximum overall length (4096) and component length (255)
+    /// - Control character rejection
+    /// - Forward slash and printf placeholder rejection
+    /// - Reserved name and dots-only component rejection
+    /// - Empty segment detection
     pub fn classify_unc_path(&self, text: &str) -> Option<Tag> {
         if !UNC_PATH_REGEX.is_match(text) {
             return None;
         }
 
-        let trimmed = text.trim_start_matches('\\');
-        let mut parts = trimmed.split('\\');
-        let server = parts.next().unwrap_or("");
-        let share = parts.next().unwrap_or("");
+        // Maximum overall length check
+        if text.len() > 4096 {
+            return None;
+        }
+
+        // Reject control characters
+        if self.contains_control_chars(text) {
+            return None;
+        }
+
+        // Reject forward slashes anywhere in the path
+        if text.contains('/') {
+            return None;
+        }
+
+        let trimmed = text.trim_start_matches('\\').trim_end_matches('\\');
+        let parts: Vec<&str> = trimmed.split('\\').collect();
+
+        // Must have at least server and share
+        if parts.len() < 2 {
+            return None;
+        }
+
+        let server = parts[0];
+        let share = parts[1];
 
         if server.is_empty() || share.is_empty() {
             return None;
+        }
+
+        // Validate all segments (no empty segments from double backslashes)
+        for segment in &parts {
+            // Reject empty segments (from consecutive backslashes like \\\\server\\\\share)
+            if segment.is_empty() {
+                return None;
+            }
+
+            // Enforce max component length (255 bytes)
+            if segment.len() > 255 {
+                return None;
+            }
+
+            // Reject components consisting solely of dots (but allow dots in domain names)
+            // Only reject if the segment is exactly "." or ".."
+            if *segment == "." || *segment == ".." {
+                return None;
+            }
+        }
+
+        // Reject printf-style placeholders in server or share
+        if self.contains_printf_placeholder(server) || self.contains_printf_placeholder(share) {
+            return None;
+        }
+
+        // Reject reserved Windows device names in server or share
+        let reserved_names = [
+            "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
+            "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+        ];
+        let server_upper = server.to_ascii_uppercase();
+        let share_upper = share.to_ascii_uppercase();
+        for reserved in &reserved_names {
+            if server_upper == *reserved || share_upper == *reserved {
+                return None;
+            }
         }
 
         Some(Tag::FilePath)
@@ -723,13 +787,15 @@ impl SemanticClassifier {
             .any(|prefix| text.starts_with(prefix))
     }
 
-    /// Checks if the Windows path matches known suspicious locations
+    /// Checks if the Windows path matches known suspicious locations (case-insensitive)
     pub fn is_suspicious_windows_path(&self, text: &str) -> bool {
+        let lowered_text = text.to_ascii_lowercase();
         SUSPICIOUS_WINDOWS_PATHS.iter().any(|prefix| {
+            let lowered_prefix = prefix.to_ascii_lowercase();
             if prefix.starts_with('\\') {
-                text.contains(prefix)
+                lowered_text.contains(&lowered_prefix)
             } else {
-                text.starts_with(prefix)
+                lowered_text.starts_with(&lowered_prefix)
             }
         })
     }
@@ -775,6 +841,11 @@ impl SemanticClassifier {
         false
     }
 
+    /// Checks if text contains ASCII control characters (C0 controls: 0x00-0x1F and DEL: 0x7F)
+    fn contains_control_chars(&self, text: &str) -> bool {
+        text.bytes().any(|b| b <= 0x1F || b == 0x7F)
+    }
+
     /// Validates POSIX path structure
     pub fn is_valid_posix_path(&self, text: &str) -> bool {
         if text.len() > 4096 {
@@ -811,6 +882,11 @@ impl SemanticClassifier {
 
     /// Validates Windows path structure
     pub fn is_valid_windows_path(&self, text: &str) -> bool {
+        // Reject control characters early to prevent regex/prefix matching from being fooled
+        if self.contains_control_chars(text) {
+            return false;
+        }
+
         if text.len() > 4096 {
             return false;
         }
@@ -841,6 +917,16 @@ impl SemanticClassifier {
 
     /// Validates Windows registry path structure
     pub fn is_valid_registry_path(&self, text: &str) -> bool {
+        // Reject control characters early to prevent regex/prefix matching from being fooled
+        if self.contains_control_chars(text) {
+            return false;
+        }
+
+        // Maximum length check (4096 bytes)
+        if text.len() > 4096 {
+            return false;
+        }
+
         if text.contains('/') {
             return false;
         }
