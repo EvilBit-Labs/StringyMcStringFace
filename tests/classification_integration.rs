@@ -4,18 +4,13 @@ use stringy::classification::SemanticClassifier;
 use stringy::types::{Encoding, FoundString, StringSource, Tag};
 
 fn make_found_string(text: &str) -> FoundString {
-    FoundString {
-        text: text.to_string(),
-        encoding: Encoding::Ascii,
-        offset: 0,
-        rva: None,
-        section: None,
-        length: text.len() as u32,
-        tags: Vec::new(),
-        score: 0,
-        source: StringSource::SectionData,
-        confidence: 1.0,
-    }
+    FoundString::new(
+        text.to_string(),
+        Encoding::Ascii,
+        0,
+        text.len() as u32,
+        StringSource::SectionData,
+    )
 }
 
 fn classify_tags(classifier: &SemanticClassifier, text: &str) -> Vec<Tag> {

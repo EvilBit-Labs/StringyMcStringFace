@@ -27,7 +27,7 @@ UTF-16LE extraction is now implemented and available for Windows PE binary strin
 
 #### Basic Extraction
 
-```rust
+```text
 use stringy::extraction::ascii::{extract_ascii_strings, AsciiExtractionConfig};
 
 let data = b"Hello\0World\0Test123";
@@ -41,7 +41,7 @@ for string in strings {
 
 #### Configuration
 
-```rust
+```text
 use stringy::extraction::ascii::AsciiExtractionConfig;
 
 // Default configuration (min_length: 4, no max_length)
@@ -61,7 +61,7 @@ UTF-8 extraction builds on ASCII extraction and handles multi-byte characters. S
 
 #### Implementation Details
 
-```rust
+```text
 fn extract_ascii_strings(data: &[u8], min_len: usize) -> Vec<RawString> {
     let mut strings = Vec::new();
     let mut current_string = Vec::new();
@@ -158,7 +158,7 @@ Boosts or reduces confidence based on section context:
 
 ### Configuration
 
-```rust
+```text
 use stringy::extraction::config::{NoiseFilterConfig, FilterWeights};
 
 // Default configuration
@@ -183,7 +183,7 @@ config.filter_weights = FilterWeights {
 
 ### Using Noise Filters
 
-```rust
+```text
 use stringy::extraction::config::NoiseFilterConfig;
 use stringy::extraction::filters::{CompositeNoiseFilter, FilterContext};
 use stringy::types::SectionType;
@@ -255,7 +255,7 @@ UTF-16 extraction is implemented in `src/extraction/utf16.rs` following the patt
 
 **Usage Example**:
 
-```rust
+```text
 use stringy::extraction::utf16::{extract_utf16_strings, Utf16ExtractionConfig, ByteOrder};
 
 // Extract UTF-16LE strings from Windows PE binary
@@ -277,7 +277,7 @@ let strings = extract_utf16_strings(data, &config);
 
 **Configuration**:
 
-```rust
+```text
 use stringy::extraction::utf16::{Utf16ExtractionConfig, ByteOrder};
 
 // Default configuration (min_length: 3, byte_order: Auto, confidence_threshold: 0.5)
@@ -412,7 +412,7 @@ Different sections have different string extraction strategies.
 - **STRINGTABLE**: Localized UI strings
 - **RT_MANIFEST**: XML manifest data
 
-```rust
+```text
 fn extract_pe_resources(pe: &PE, data: &[u8]) -> Vec<RawString> {
     let mut strings = Vec::new();
 
@@ -445,7 +445,7 @@ Strings are canonicalized while preserving important metadata:
 
 When duplicates are found:
 
-```rust
+```text
 struct DeduplicatedString {
     canonical_text: String,
     occurrences: Vec<StringOccurrence>,
@@ -463,7 +463,7 @@ struct StringOccurrence {
 
 ### Deduplication Algorithm
 
-```rust
+```text
 fn deduplicate_strings(strings: Vec<RawString>) -> Vec<DeduplicatedString> {
     let mut map: HashMap<String, DeduplicatedString> = HashMap::new();
 
@@ -483,7 +483,7 @@ fn deduplicate_strings(strings: Vec<RawString>) -> Vec<DeduplicatedString> {
 
 ### Extraction Configuration
 
-```rust
+```text
 use stringy::extraction::{ByteOrder, Encoding, ExtractionConfig};
 
 pub struct ExtractionConfig {
@@ -500,7 +500,7 @@ pub struct ExtractionConfig {
 
 **UTF-16 Configuration Examples**:
 
-```rust
+```text
 use stringy::extraction::{ExtractionConfig, Encoding, ByteOrder};
 
 // Extract UTF-16LE strings from Windows PE binary
@@ -519,7 +519,7 @@ config.utf16_byte_order = ByteOrder::Auto;
 
 ### Noise Filter Configuration
 
-```rust
+```text
 use stringy::extraction::config::NoiseFilterConfig;
 
 pub struct NoiseFilterConfig {
@@ -535,7 +535,7 @@ pub struct NoiseFilterConfig {
 
 ### Filter Weights
 
-```rust
+```text
 use stringy::extraction::config::FilterWeights;
 
 pub struct FilterWeights {
@@ -552,7 +552,7 @@ All weights must sum to 1.0. The configuration validates this automatically.
 
 ### Encoding Selection
 
-```rust
+```text
 pub enum EncodingFilter {
     All,
     Specific(Vec<Encoding>),
@@ -563,7 +563,7 @@ pub enum EncodingFilter {
 
 ### Section Filtering
 
-```rust
+```text
 pub struct SectionFilter {
     pub include_sections: Option<Vec<String>>,
     pub exclude_sections: Option<Vec<String>>,
@@ -578,7 +578,7 @@ pub struct SectionFilter {
 
 Large files use memory mapping for efficient access:
 
-```rust
+```text
 use memmap2::Mmap;
 
 fn extract_from_large_file(path: &Path) -> Result<Vec<RawString>> {
@@ -593,7 +593,7 @@ fn extract_from_large_file(path: &Path) -> Result<Vec<RawString>> {
 
 Section extraction can be parallelized:
 
-```rust
+```text
 use rayon::prelude::*;
 
 fn extract_parallel(sections: &[SectionInfo], data: &[u8]) -> Vec<RawString> {
@@ -608,7 +608,7 @@ fn extract_parallel(sections: &[SectionInfo], data: &[u8]) -> Vec<RawString> {
 
 Pattern matching uses cached regex compilation:
 
-```rust
+```text
 lazy_static! {
     static ref URL_REGEX: Regex = Regex::new(r"https?://[^\s]+").unwrap();
     static ref GUID_REGEX: Regex = Regex::new(r"\{[0-9a-fA-F-]{36}\}").unwrap();
@@ -649,7 +649,7 @@ Noise filtering is designed for minimal overhead:
 
 #### Basic Extraction with Filtering
 
-```rust
+```text
 use stringy::extraction::ascii::{extract_ascii_strings, AsciiExtractionConfig};
 use stringy::extraction::config::NoiseFilterConfig;
 use stringy::extraction::filters::{CompositeNoiseFilter, FilterContext};
@@ -670,7 +670,7 @@ let filtered: Vec<_> = strings
 
 #### Custom Filter Configuration
 
-```rust
+```text
 use stringy::extraction::config::{NoiseFilterConfig, FilterWeights};
 
 let mut config = NoiseFilterConfig::default();

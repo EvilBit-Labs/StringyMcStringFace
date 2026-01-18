@@ -276,30 +276,28 @@ fn test_deduplication_score_bonuses() {
 
     // Create strings with different sources to test multi-source bonus
     let strings = vec![
-        FoundString {
-            text: "TestString".to_string(),
-            encoding: Encoding::Utf8,
-            offset: 0x100,
-            rva: Some(0x1000),
-            section: Some(".rodata".to_string()),
-            length: 10,
-            tags: vec![],
-            score: 10,
-            source: StringSource::SectionData,
-            confidence: 0.8,
-        },
-        FoundString {
-            text: "TestString".to_string(),
-            encoding: Encoding::Utf8,
-            offset: 0x200,
-            rva: Some(0x2000),
-            section: Some(".data".to_string()),
-            length: 10,
-            tags: vec![],
-            score: 15,
-            source: StringSource::ImportName,
-            confidence: 0.9,
-        },
+        FoundString::new(
+            "TestString".to_string(),
+            Encoding::Utf8,
+            0x100,
+            10,
+            StringSource::SectionData,
+        )
+        .with_rva(0x1000)
+        .with_section(".rodata".to_string())
+        .with_score(10)
+        .with_confidence(0.8),
+        FoundString::new(
+            "TestString".to_string(),
+            Encoding::Utf8,
+            0x200,
+            10,
+            StringSource::ImportName,
+        )
+        .with_rva(0x2000)
+        .with_section(".data".to_string())
+        .with_score(15)
+        .with_confidence(0.9),
     ];
 
     let canonical = deduplicate(strings, None, true);

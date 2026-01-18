@@ -483,6 +483,7 @@ impl StringExtractor for BasicExtractor {
                 let length = import.name.len() as u32;
                 all_strings.push(FoundString {
                     text: import.name.clone(),
+                    original_text: None,
                     encoding: Encoding::Utf8,
                     offset: 0,
                     rva: None,
@@ -490,6 +491,9 @@ impl StringExtractor for BasicExtractor {
                     length,
                     tags: Vec::new(),
                     score: 0,
+                    section_weight: None,
+                    semantic_boost: None,
+                    noise_penalty: None,
                     source: StringSource::ImportName,
                     confidence: 1.0,
                 });
@@ -500,6 +504,7 @@ impl StringExtractor for BasicExtractor {
                 let length = export.name.len() as u32;
                 all_strings.push(FoundString {
                     text: export.name.clone(),
+                    original_text: None,
                     encoding: Encoding::Utf8,
                     offset: 0,
                     rva: None,
@@ -507,6 +512,9 @@ impl StringExtractor for BasicExtractor {
                     length,
                     tags: Vec::new(),
                     score: 0,
+                    section_weight: None,
+                    semantic_boost: None,
+                    noise_penalty: None,
                     source: StringSource::ExportName,
                     confidence: 1.0,
                 });
@@ -579,6 +587,7 @@ impl StringExtractor for BasicExtractor {
                 let length = import.name.len() as u32;
                 all_strings.push(FoundString {
                     text: import.name.clone(),
+                    original_text: None,
                     encoding: Encoding::Utf8,
                     offset: 0,
                     rva: None,
@@ -586,6 +595,9 @@ impl StringExtractor for BasicExtractor {
                     length,
                     tags: Vec::new(),
                     score: 0,
+                    section_weight: None,
+                    semantic_boost: None,
+                    noise_penalty: None,
                     source: StringSource::ImportName,
                     confidence: 1.0,
                 });
@@ -596,6 +608,7 @@ impl StringExtractor for BasicExtractor {
                 let length = export.name.len() as u32;
                 all_strings.push(FoundString {
                     text: export.name.clone(),
+                    original_text: None,
                     encoding: Encoding::Utf8,
                     offset: 0,
                     rva: None,
@@ -603,6 +616,9 @@ impl StringExtractor for BasicExtractor {
                     length,
                     tags: Vec::new(),
                     score: 0,
+                    section_weight: None,
+                    semantic_boost: None,
+                    noise_penalty: None,
                     source: StringSource::ExportName,
                     confidence: 1.0,
                 });
@@ -748,6 +764,7 @@ impl StringExtractor for BasicExtractor {
 
                 let found_string = FoundString {
                     text,
+                    original_text: None,
                     encoding,
                     offset: absolute_offset,
                     rva,
@@ -755,6 +772,9 @@ impl StringExtractor for BasicExtractor {
                     length: length as u32,
                     tags: Vec::new(),
                     score: 0,
+                    section_weight: None,
+                    semantic_boost: None,
+                    noise_penalty: None,
                     source: StringSource::SectionData,
                     confidence,
                 };

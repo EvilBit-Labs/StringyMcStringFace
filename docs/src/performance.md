@@ -27,7 +27,7 @@ Stringy is designed for efficient analysis of binary files, from small executabl
 
 Stringy uses memory mapping for efficient file access:
 
-```rust
+```text
 // Automatic memory mapping for large files
 if file_size > MEMORY_MAP_THRESHOLD {
     let mmap = unsafe { Mmap::map(&file)? };
@@ -93,7 +93,7 @@ Core extraction pipeline is optimized for single-threaded performance:
 
 Future versions will support parallel processing:
 
-```rust
+```text
 // Planned parallel section processing
 sections.par_iter()
     .flat_map(|section| extract_from_section(section, data))
@@ -110,7 +110,7 @@ sections.par_iter()
 
 #### Regex Caching
 
-```rust
+```text
 lazy_static! {
     static ref URL_REGEX: Regex = Regex::new(r"https?://[^\s]+").unwrap();
     static ref DOMAIN_REGEX: Regex = Regex::new(r"[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap();
@@ -119,7 +119,7 @@ lazy_static! {
 
 #### Efficient String Scanning
 
-```rust
+```text
 // Optimized ASCII scanning with SIMD potential
 fn scan_ascii_optimized(data: &[u8]) -> Vec<StringMatch> {
     let mut matches = Vec::new();
@@ -147,7 +147,7 @@ fn scan_ascii_optimized(data: &[u8]) -> Vec<StringMatch> {
 
 Stringy uses sequential access patterns optimized for modern storage:
 
-```rust
+```text
 // Sequential section processing
 for section in container.sections {
     let section_data = &data[section.offset..section.offset + section.size];

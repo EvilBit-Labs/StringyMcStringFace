@@ -426,6 +426,7 @@ pub fn extract_version_info_strings(data: &[u8]) -> Vec<FoundString> {
             let length = text.len() as u32;
             let found_string = FoundString {
                 text,
+                original_text: None,
                 encoding: Encoding::Utf16Le,
                 offset: 0, // pelite doesn't provide offsets easily
                 rva: None,
@@ -433,6 +434,9 @@ pub fn extract_version_info_strings(data: &[u8]) -> Vec<FoundString> {
                 length,
                 tags: vec![Tag::Version, Tag::Resource],
                 score: 0,
+                section_weight: None,
+                semantic_boost: None,
+                noise_penalty: None,
                 source: StringSource::ResourceString,
                 confidence: 1.0,
             };
@@ -582,6 +586,7 @@ pub fn extract_string_table_strings(data: &[u8]) -> Vec<FoundString> {
 
                 let found_string = FoundString {
                     text,
+                    original_text: None,
                     encoding: Encoding::Utf16Le,
                     offset: 0, // File offset not easily available from pelite DataEntry
                     rva,
@@ -589,6 +594,9 @@ pub fn extract_string_table_strings(data: &[u8]) -> Vec<FoundString> {
                     length: text_len,
                     tags: vec![Tag::Resource],
                     score: 0,
+                    section_weight: None,
+                    semantic_boost: None,
+                    noise_penalty: None,
                     source: StringSource::ResourceString,
                     confidence: 1.0,
                 };
@@ -770,6 +778,7 @@ pub fn extract_manifest_strings(data: &[u8]) -> Vec<FoundString> {
             let length = manifest_text.len() as u32;
             let found_string = FoundString {
                 text: manifest_text,
+                original_text: None,
                 encoding,
                 offset: 0, // File offset not easily available from pelite DataEntry
                 rva,
@@ -777,6 +786,9 @@ pub fn extract_manifest_strings(data: &[u8]) -> Vec<FoundString> {
                 length,
                 tags: vec![Tag::Manifest, Tag::Resource],
                 score: 0,
+                section_weight: None,
+                semantic_boost: None,
+                noise_penalty: None,
                 source: StringSource::ResourceString,
                 confidence: 1.0,
             };
