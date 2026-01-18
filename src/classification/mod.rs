@@ -26,22 +26,14 @@
 //! use stringy::types::{FoundString, Encoding, StringSource, Tag};
 //!
 //! let classifier = SemanticClassifier::new();
-//! let found_string = FoundString {
-//!     text: "C:\\Windows\\System32\\cmd.exe".to_string(),
-//!     original_text: None,
-//!     encoding: Encoding::Ascii,
-//!     offset: 0,
-//!     rva: None,
-//!     section: None,
-//!     length: 27,
-//!     tags: Vec::new(),
-//!     score: 0,
-//!     section_weight: None,
-//!     semantic_boost: None,
-//!     noise_penalty: None,
-//!     source: StringSource::SectionData,
-//!     confidence: 1.0,
-//! };
+//! let text = "C:\\Windows\\System32\\cmd.exe";
+//! let found_string = FoundString::new(
+//!     text.to_string(),
+//!     Encoding::Ascii,
+//!     0,
+//!     text.len() as u32,
+//!     StringSource::SectionData,
+//! );
 //!
 //! let tags = classifier.classify(&found_string);
 //! assert!(tags.contains(&Tag::FilePath));

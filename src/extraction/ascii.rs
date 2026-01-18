@@ -26,7 +26,7 @@
 //!     is_writable: false,
 //!     weight: 1.0,
 //! };
-//! let strings = extract_from_section(&section, data, &config);
+//! let strings = extract_from_section(&section, data, &config, None, false, 0.5);
 //! ```
 
 use crate::extraction::config::NoiseFilterConfig;

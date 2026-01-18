@@ -40,7 +40,7 @@
 //! and noise filtering. It implements byte-level scanning for contiguous UTF-16LE character
 //! sequences, following the pattern established in the ASCII extractor.
 //!
-//! - `extract_utf16le_strings()`: Basic byte-level UTF-16LE string scanning
+//! - `extract_utf16_strings()`: Basic byte-level UTF-16 string scanning
 //! - `extract_from_section()`: Section-aware extraction with proper metadata population
 //! - `Utf16ExtractionConfig`: Configuration for minimum/maximum character count and confidence thresholds
 //!
@@ -89,6 +89,7 @@
 //! use stringy::extraction::{BasicExtractor, ExtractionConfig, StringExtractor};
 //! use stringy::container::{detect_format, create_parser};
 //!
+//! # fn example() -> stringy::Result<()> {
 //! let data = std::fs::read("example.exe")?;
 //! let format = detect_format(&data);
 //! let parser = create_parser(format)?;
@@ -100,7 +101,7 @@
 //!
 //! // Format-specific extractors
 //! use stringy::extraction::{
-//!     extract_ascii_strings, extract_utf16le_strings, extract_load_command_strings, extract_resources,
+//!     extract_ascii_strings, extract_utf16_strings, extract_load_command_strings, extract_resources,
 //!     extract_resource_strings, AsciiExtractionConfig, Utf16ExtractionConfig,
 //! };
 //!
@@ -108,9 +109,9 @@
 //! let ascii_config = AsciiExtractionConfig::default();
 //! let ascii_strings = extract_ascii_strings(&data, &ascii_config);
 //!
-//! // UTF-16LE extraction
+//! // UTF-16 extraction
 //! let utf16_config = Utf16ExtractionConfig::default();
-//! let utf16le_strings = extract_utf16le_strings(&data, &utf16_config);
+//! let utf16_strings = extract_utf16_strings(&data, &utf16_config);
 //!
 //! // Phase 1: Get resource metadata
 //! let metadata = extract_resources(&data);
@@ -121,6 +122,8 @@
 //! // Mach-O load command extraction
 //! let macho_data = std::fs::read("example.dylib")?;
 //! let load_command_strings = extract_load_command_strings(&macho_data);
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::classification::{SemanticClassifier, SymbolDemangler};

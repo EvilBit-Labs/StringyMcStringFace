@@ -1,0 +1,8 @@
+---
+source: tests/output_json_integration.rs
+expression: output
+---
+{"text":"ASCII","encoding":"Ascii","offset":0,"rva":null,"section":null,"length":5,"tags":[],"score":0,"source":"SectionData","confidence":1.0}
+{"text":"UTF8","encoding":"Utf8","offset":1,"rva":null,"section":null,"length":4,"tags":[],"score":0,"source":"SectionData","confidence":1.0}
+{"text":"UTF16LE","encoding":"Utf16Le","offset":2,"rva":null,"section":null,"length":14,"tags":[],"score":0,"source":"SectionData","confidence":1.0}
+{"text":"UTF16BE","encoding":"Utf16Be","offset":3,"rva":null,"section":null,"length":14,"tags":[],"score":0,"source":"SectionData","confidence":1.0}

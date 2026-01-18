@@ -42,10 +42,10 @@
 //! println!("Found {} ASCII strings", ascii_strings.len());
 //!
 //! // UTF-16LE string extraction (Windows PE binaries)
-//! use stringy::extraction::{extract_utf16le_strings, Utf16ExtractionConfig};
+//! use stringy::extraction::{extract_utf16_strings, Utf16ExtractionConfig};
 //! let utf16_config = Utf16ExtractionConfig::default();
-//! let utf16le_strings = extract_utf16le_strings(&data, &utf16_config);
-//! println!("Found {} UTF-16LE strings", utf16le_strings.len());
+//! let utf16_strings = extract_utf16_strings(&data, &utf16_config);
+//! println!("Found {} UTF-16 strings", utf16_strings.len());
 //! # Ok(())
 //! # }
 //! ```
@@ -86,4 +86,6 @@ pub use extraction::{
 };
 
 // Re-export output infrastructure types
-pub use output::{OutputFormat, OutputMetadata, format_output, format_table_with_mode};
+pub use output::{
+    OutputFormat, OutputMetadata, format_json, format_output, format_table_with_mode, format_yara,
+};
