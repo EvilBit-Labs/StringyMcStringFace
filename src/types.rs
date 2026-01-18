@@ -11,7 +11,7 @@ pub enum Encoding {
 
 /// Semantic tags for classifying strings
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Tag {
     Url,
     Domain,
@@ -50,7 +50,7 @@ pub enum Tag {
 }
 
 /// Type of section based on its purpose and likelihood of containing strings
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SectionType {
     /// Sections likely to contain string literals (.rodata, .rdata, __cstring)
     StringData,

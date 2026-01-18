@@ -48,8 +48,10 @@
 //! ```
 
 mod patterns;
+pub mod ranking;
 pub mod semantic;
 pub mod symbols;
 
+pub use ranking::{RankingConfig, RankingEngine};
 pub use semantic::SemanticClassifier;
 pub use symbols::SymbolDemangler;
