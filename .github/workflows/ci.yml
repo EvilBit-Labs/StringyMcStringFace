@@ -68,6 +68,21 @@ jobs:
       - name: Run clippy (all features)
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+  # MSRV (Minimum Supported Rust Version) check
+  msrv:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@1.91.0
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check MSRV compliance
+        run: cargo check --all-features
+
   test:
     runs-on: ubuntu-latest
     needs: changes
