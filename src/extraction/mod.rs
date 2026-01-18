@@ -148,6 +148,20 @@ pub use utf16::{
     extract_utf16_strings,
 };
 
+fn apply_semantic_enrichment(strings: &mut [FoundString]) {
+    let classifier = SemanticClassifier::new();
+    let demangler = SymbolDemangler::new();
+    for string in strings {
+        demangler.demangle(string);
+        let tags = classifier.classify(string);
+        for tag in tags {
+            if !string.tags.contains(&tag) {
+                string.tags.push(tag);
+            }
+        }
+    }
+}
+
 /// Configuration for string extraction
 ///
 /// Controls various aspects of the extraction process including minimum/maximum
@@ -523,17 +537,7 @@ impl StringExtractor for BasicExtractor {
         }
 
         // Apply demangling and semantic classification before deduplication
-        let classifier = SemanticClassifier::new();
-        let demangler = SymbolDemangler::new();
-        for string in &mut all_strings {
-            demangler.demangle(string);
-            let tags = classifier.classify(string);
-            for tag in tags {
-                if !string.tags.contains(&tag) {
-                    string.tags.push(tag);
-                }
-            }
-        }
+        apply_semantic_enrichment(&mut all_strings);
 
         // Apply deduplication if enabled
         if config.enable_deduplication {
@@ -640,17 +644,7 @@ impl StringExtractor for BasicExtractor {
         }
 
         // Apply demangling and semantic classification before deduplication
-        let classifier = SemanticClassifier::new();
-        let demangler = SymbolDemangler::new();
-        for string in &mut all_strings {
-            demangler.demangle(string);
-            let tags = classifier.classify(string);
-            for tag in tags {
-                if !string.tags.contains(&tag) {
-                    string.tags.push(tag);
-                }
-            }
-        }
+        apply_semantic_enrichment(&mut all_strings);
 
         // Apply deduplication if enabled, otherwise convert each string to a canonical form
         if config.enable_deduplication {

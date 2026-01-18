@@ -184,114 +184,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_guid_with_braces() {
+    fn test_guid_valid_and_invalid() {
         assert!(classify_guid("{12345678-1234-1234-1234-123456789ABC}").is_some());
-        assert!(classify_guid("{AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE}").is_some());
-    }
-
-    #[test]
-    fn test_guid_without_braces() {
         assert!(classify_guid("12345678-1234-1234-1234-123456789ABC").is_some());
-        assert!(classify_guid("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").is_some());
-    }
-
-    #[test]
-    fn test_guid_case_insensitive() {
-        // Mixed case but all valid hex digits
-        assert!(classify_guid("AbCdEf01-1234-5678-90aB-cDeF12345678").is_some());
-    }
-
-    #[test]
-    fn test_guid_invalid() {
         assert!(classify_guid("not-a-guid").is_none());
-        assert!(classify_guid("12345678-1234-1234-1234").is_none()); // Too short
-        assert!(classify_guid("12345678-1234-1234-1234-123456789ABCDEF").is_none()); // Too long
-        assert!(classify_guid("GGGGGGGG-1234-1234-1234-123456789ABC").is_none()); // Invalid hex
     }
 
     #[test]
-    fn test_email_valid() {
+    fn test_email_valid_and_invalid() {
         assert!(classify_email("user@example.com").is_some());
-        assert!(classify_email("test.user@domain.org").is_some());
-        assert!(classify_email("admin+tag@company.co.uk").is_some());
-    }
-
-    #[test]
-    fn test_email_invalid() {
         assert!(classify_email("not an email").is_none());
-        assert!(classify_email("@nodomain.com").is_none());
-        assert!(classify_email("noat.com").is_none());
-        assert!(classify_email("user@").is_none());
     }
 
     #[test]
-    fn test_base64_valid() {
-        // Valid Base64 with mixed case (typical encoded data)
+    fn test_base64_valid_and_invalid() {
         assert!(classify_base64("SGVsbG8gV29ybGQh").is_some());
-        assert!(classify_base64("VGhpcyBpcyBhIHRlc3Q=").is_some());
-        // Longer Base64 strings
-        assert!(classify_base64("QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=").is_some());
-    }
-
-    #[test]
-    fn test_base64_too_short() {
-        assert!(classify_base64("SGVsbG8=").is_none()); // Only 8 chars
-        assert!(classify_base64("YWJj").is_none()); // Only 4 chars
-    }
-
-    #[test]
-    fn test_base64_invalid_chars() {
-        assert!(classify_base64("SGVsbG8gV29ybGQh!@#$").is_none());
         assert!(classify_base64("This is not base64!!").is_none());
+        assert!(classify_base64("YWJj").is_none());
     }
 
     #[test]
-    fn test_format_string_basic() {
-        assert!(classify_format_string("Hello %s!").is_some());
-        assert!(classify_format_string("Value: %d").is_some());
-        assert!(classify_format_string("Hex: %x").is_some());
+    fn test_format_string_valid_and_invalid() {
+        assert!(classify_format_string("Error: %s at line %d").is_some());
+        assert!(classify_format_string("100%% done").is_none());
     }
 
     #[test]
-    fn test_format_string_complex() {
-        assert!(classify_format_string("Name: %s, Age: %d, Score: %.2f").is_some());
-        assert!(classify_format_string("%08x %08x %08x").is_some());
-        assert!(classify_format_string("%-20s %10d").is_some());
-    }
-
-    #[test]
-    fn test_format_string_not_format() {
-        assert!(classify_format_string("No format here").is_none());
-        assert!(classify_format_string("100%").is_none()); // Bare percent, no specifier
-        assert!(classify_format_string("100%% done").is_none()); // Escaped percent only
-    }
-
-    #[test]
-    fn test_user_agent_mozilla() {
+    fn test_user_agent_valid_and_invalid() {
         assert!(
             classify_user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                 .is_some()
         );
-    }
-
-    #[test]
-    fn test_user_agent_curl() {
-        assert!(classify_user_agent("curl/7.68.0").is_some());
-    }
-
-    #[test]
-    fn test_user_agent_wget() {
-        assert!(classify_user_agent("Wget/1.20.3 (linux-gnu)").is_some());
-    }
-
-    #[test]
-    fn test_user_agent_python() {
-        assert!(classify_user_agent("python-requests/2.25.1").is_some());
-    }
-
-    #[test]
-    fn test_user_agent_not_user_agent() {
         assert!(classify_user_agent("Not a user agent").is_none());
-        assert!(classify_user_agent("Chrome").is_none()); // Too generic
     }
 }

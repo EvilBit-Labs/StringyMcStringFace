@@ -83,7 +83,7 @@ pub struct StringOccurrence {
 pub fn deduplicate(
     strings: Vec<FoundString>,
     dedup_threshold: Option<usize>,
-    preserve_all_occurrences: bool,
+    _preserve_all_occurrences: bool,
 ) -> Vec<CanonicalString> {
     if strings.is_empty() {
         return Vec::new();
@@ -112,22 +112,10 @@ pub fn deduplicate(
             // All strings in group have same encoding, use first one
             let encoding = found_strings[0].encoding;
 
-            let occurrences: Vec<StringOccurrence> = if preserve_all_occurrences {
-                // Store full occurrence metadata
-                found_strings
-                    .into_iter()
-                    .map(found_string_to_occurrence)
-                    .collect()
-            } else {
-                // Store only the first occurrence as representative, but we still need
-                // the count for scoring, so we'll keep all but mark them as "count only"
-                // For now, we'll still store all occurrences but this could be optimized
-                // to store just a count field in the future
-                found_strings
-                    .into_iter()
-                    .map(found_string_to_occurrence)
-                    .collect()
-            };
+            let occurrences: Vec<StringOccurrence> = found_strings
+                .into_iter()
+                .map(found_string_to_occurrence)
+                .collect();
 
             let merged_tags = merge_tags(&occurrences);
 

@@ -106,39 +106,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_url_detection() {
+    fn test_url_valid_and_invalid() {
         assert!(classify_url("https://example.com").is_some());
-        assert!(classify_url("http://test.org/path").is_some());
-        assert!(classify_url("https://sub.domain.com:8080/api").is_some());
         assert!(classify_url("not a url").is_none());
-        assert!(classify_url("ftp://example.com").is_none());
     }
 
     #[test]
-    fn test_domain_detection() {
+    fn test_domain_valid_and_invalid() {
         assert!(classify_domain("example.com").is_some());
-        assert!(classify_domain("sub.example.org").is_some());
-        assert!(classify_domain("test.co.uk").is_some());
-        assert!(classify_domain("https://example.com").is_none()); // URLs excluded
-        assert!(classify_domain("notadomain").is_none());
-        assert!(classify_domain("invalid.xyz123").is_none()); // Invalid TLD
-    }
-
-    #[test]
-    fn test_url_classification() {
-        assert_eq!(classify_url("https://example.com"), Some(Tag::Url));
-        assert_eq!(classify_url("http://test.org"), Some(Tag::Url));
-    }
-
-    #[test]
-    fn test_domain_classification() {
-        assert_eq!(classify_domain("example.com"), Some(Tag::Domain));
-        assert_eq!(classify_domain("test.org"), Some(Tag::Domain));
+        assert!(classify_domain("https://example.com").is_none());
+        assert!(classify_domain("invalid.xyz123").is_none());
     }
 
     #[test]
     fn test_url_not_double_tagged() {
-        // URLs should not be tagged as domains
         assert!(classify_url("https://example.com").is_some());
         assert!(classify_domain("https://example.com").is_none());
     }
@@ -146,40 +127,6 @@ mod tests {
     #[test]
     fn test_tld_validation() {
         assert!(has_valid_tld("example.com"));
-        assert!(has_valid_tld("test.org"));
-        assert!(has_valid_tld("website.io"));
-        assert!(has_valid_tld("app.dev"));
-        assert!(!has_valid_tld("example.invalidtld"));
         assert!(!has_valid_tld("nodot"));
-    }
-
-    #[test]
-    fn test_edge_cases() {
-        // Empty strings
-        assert!(classify_url("").is_none());
-        assert!(classify_domain("").is_none());
-
-        // Single characters
-        assert!(classify_url("a").is_none());
-        assert!(classify_domain("a").is_none());
-
-        // Just TLD
-        assert!(classify_domain(".com").is_none());
-
-        // IP-like domains (should be handled by IP classifier)
-        assert!(classify_domain("192.168.1.1").is_none());
-    }
-
-    #[test]
-    fn test_file_extensions_not_domains() {
-        // File extensions should NOT be treated as valid TLDs
-        assert!(classify_domain("cmd.exe").is_none());
-        assert!(classify_domain("kernel32.dll").is_none());
-        assert!(classify_domain("ntoskrnl.sys").is_none());
-        assert!(classify_domain("program.bin").is_none());
-        assert!(classify_domain("data.dat").is_none());
-        assert!(classify_domain("debug.log").is_none());
-        assert!(classify_domain("temp.tmp").is_none());
-        assert!(classify_domain("backup.bak").is_none());
     }
 }

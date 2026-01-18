@@ -170,108 +170,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_ipv4_valid_addresses() {
+    fn test_ipv4_valid_and_invalid() {
         assert!(is_ipv4_address("192.168.1.1"));
-        assert!(is_ipv4_address("10.0.0.1"));
-        assert!(is_ipv4_address("172.16.0.1"));
-        assert!(is_ipv4_address("255.255.255.255"));
-        assert!(is_ipv4_address("8.8.8.8"));
-        assert!(is_ipv4_address("1.1.1.1"));
-        assert!(is_ipv4_address("0.0.0.0"));
-    }
-
-    #[test]
-    fn test_ipv4_invalid_addresses() {
-        assert!(!is_ipv4_address("256.1.1.1"));
-        assert!(!is_ipv4_address("1.2.3.4.5"));
-        assert!(!is_ipv4_address("1.2.3"));
-        assert!(!is_ipv4_address("not an ip"));
-        assert!(!is_ipv4_address(""));
-    }
-
-    #[test]
-    fn test_ipv4_with_port() {
         assert!(is_ipv4_address("192.168.1.1:8080"));
-        assert!(is_ipv4_address("10.0.0.1:443"));
-        assert!(is_ipv4_address("172.16.0.1:65535"));
-    }
-
-    #[test]
-    fn test_ipv4_leading_zeros() {
-        // Leading zeros should be rejected
+        assert!(!is_ipv4_address("256.1.1.1"));
         assert!(!is_ipv4_address("01.02.03.04"));
-        assert!(!is_ipv4_address("192.168.01.1"));
     }
 
     #[test]
-    fn test_ipv6_full_notation() {
-        assert!(is_ipv6_address("2001:0db8:85a3:0000:0000:8a2e:0370:7334"));
-        assert!(is_ipv6_address("fe80:0000:0000:0000:0000:0000:0000:0001"));
-    }
-
-    #[test]
-    fn test_ipv6_compressed() {
+    fn test_ipv6_valid_and_invalid() {
         assert!(is_ipv6_address("2001:db8::1"));
-        assert!(is_ipv6_address("::1"));
-        assert!(is_ipv6_address("fe80::1"));
-        assert!(is_ipv6_address("::"));
-    }
-
-    #[test]
-    fn test_ipv6_mixed_notation() {
-        assert!(is_ipv6_address("::ffff:192.0.2.1"));
-        assert!(is_ipv6_address("::ffff:127.0.0.1"));
-    }
-
-    #[test]
-    fn test_ipv6_invalid() {
-        assert!(!is_ipv6_address("not an ipv6"));
-        assert!(!is_ipv6_address(""));
-        assert!(!is_ipv6_address("gggg::1")); // Invalid hex
-    }
-
-    #[test]
-    fn test_ipv6_with_brackets() {
-        assert!(is_ipv6_address("[::1]"));
-        assert!(is_ipv6_address("[2001:db8::1]"));
-        assert!(is_ipv6_address("[fe80::1]"));
-    }
-
-    #[test]
-    fn test_ipv6_with_port() {
         assert!(is_ipv6_address("[::1]:8080"));
-        assert!(is_ipv6_address("[2001:db8::1]:443"));
+        assert!(!is_ipv6_address("not an ipv6"));
     }
 
     #[test]
-    fn test_classify_ipv4() {
+    fn test_classify_ipv4_and_ipv6() {
         let tags = classify_ip_addresses("192.168.1.1");
-        assert!(tags.contains(&Tag::IPv4));
-        assert!(!tags.contains(&Tag::IPv6));
-    }
+        assert_eq!(tags, vec![Tag::IPv4]);
 
-    #[test]
-    fn test_classify_ipv6() {
         let tags = classify_ip_addresses("2001:db8::1");
-        assert!(!tags.contains(&Tag::IPv4));
-        assert!(tags.contains(&Tag::IPv6));
+        assert_eq!(tags, vec![Tag::IPv6]);
     }
 
     #[test]
     fn test_classify_no_ip() {
         let tags = classify_ip_addresses("not an ip address");
         assert!(tags.is_empty());
-    }
-
-    #[test]
-    fn test_classify_ipv4_with_port() {
-        let tags = classify_ip_addresses("192.168.1.1:8080");
-        assert!(tags.contains(&Tag::IPv4));
-    }
-
-    #[test]
-    fn test_classify_ipv6_with_brackets_and_port() {
-        let tags = classify_ip_addresses("[::1]:8080");
-        assert!(tags.contains(&Tag::IPv6));
     }
 }

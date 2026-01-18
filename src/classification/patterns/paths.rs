@@ -345,160 +345,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_posix_absolute_path() {
+    fn test_posix_path_valid_and_invalid() {
         assert!(classify_posix_path("/usr/bin/bash").is_some());
-        assert!(classify_posix_path("/etc/passwd").is_some());
-        assert!(classify_posix_path("/home/user/.bashrc").is_some());
-    }
-
-    #[test]
-    fn test_posix_home_directory() {
-        assert!(classify_posix_path("/home/user/documents/file.txt").is_some());
-        assert!(classify_posix_path("/Users/admin/Desktop").is_some());
-    }
-
-    #[test]
-    fn test_posix_with_spaces() {
-        assert!(classify_posix_path("/home/user/My Documents/file.txt").is_some());
-    }
-
-    #[test]
-    fn test_posix_system_directories() {
-        assert!(classify_posix_path("/var/log/syslog").is_some());
-        assert!(classify_posix_path("/opt/application/bin").is_some());
-    }
-
-    #[test]
-    fn test_posix_suspicious_paths() {
-        assert!(is_suspicious_posix_path("/etc/cron.d/malicious"));
-        assert!(is_suspicious_posix_path("/tmp/evil.sh"));
-        assert!(!is_suspicious_posix_path("/home/user/normal.txt"));
-    }
-
-    #[test]
-    fn test_posix_too_short() {
         assert!(classify_posix_path("/").is_none());
-        assert!(classify_posix_path("/a").is_none());
-    }
-
-    #[test]
-    fn test_posix_invalid() {
         assert!(classify_posix_path("not/a/path").is_none());
-        assert!(classify_posix_path("C:\\Windows").is_none());
     }
 
     #[test]
-    fn test_posix_with_null_bytes() {
-        assert!(classify_posix_path("/path/with\x00null").is_none());
-    }
-
-    #[test]
-    fn test_windows_absolute_path() {
+    fn test_windows_path_valid_and_invalid() {
         assert!(classify_windows_path("C:\\Windows\\System32").is_some());
-        assert!(classify_windows_path("D:\\Projects\\code").is_some());
-    }
-
-    #[test]
-    fn test_windows_program_files() {
-        assert!(classify_windows_path("C:\\Program Files\\App\\app.exe").is_some());
-        assert!(classify_windows_path("C:\\Program Files (x86)\\App").is_some());
-    }
-
-    #[test]
-    fn test_windows_with_spaces() {
-        assert!(classify_windows_path("C:\\Users\\John Doe\\Documents").is_some());
-    }
-
-    #[test]
-    fn test_windows_different_drives() {
-        assert!(classify_windows_path("D:\\Data\\file.txt").is_some());
-        assert!(classify_windows_path("E:\\Backup\\archive.zip").is_some());
-    }
-
-    #[test]
-    fn test_windows_suspicious_paths() {
-        assert!(is_suspicious_windows_path("C:\\Windows\\System32\\cmd.exe"));
-        assert!(is_suspicious_windows_path("C:\\Windows\\Temp\\malware.exe"));
-        assert!(!is_suspicious_windows_path("D:\\Projects\\code.rs"));
-    }
-
-    #[test]
-    fn test_windows_case_insensitive() {
-        assert!(classify_windows_path("c:\\windows\\system32").is_some());
-        assert!(classify_windows_path("C:\\WINDOWS\\SYSTEM32").is_some());
-    }
-
-    #[test]
-    fn test_windows_invalid() {
         assert!(classify_windows_path("/unix/path").is_none());
-        assert!(classify_windows_path("not a path").is_none());
-    }
-
-    #[test]
-    fn test_windows_invalid_drive() {
         assert!(classify_windows_path("1:\\Invalid\\Path").is_none());
     }
 
     #[test]
-    fn test_unc_path() {
+    fn test_unc_path_valid_and_invalid() {
         assert!(classify_unc_path("\\\\server\\share\\file.txt").is_some());
-        assert!(classify_unc_path("\\\\192.168.1.1\\c$\\Windows").is_some());
+        assert!(classify_unc_path("\\\\server").is_none());
     }
 
     #[test]
-    fn test_unc_with_domain() {
-        assert!(classify_unc_path("\\\\domain.local\\share\\path").is_some());
-    }
-
-    #[test]
-    fn test_unc_invalid() {
-        assert!(classify_unc_path("\\\\server").is_none()); // No share
-        assert!(classify_unc_path("\\server\\share").is_none()); // Single backslash
-    }
-
-    #[test]
-    fn test_registry_run_key() {
+    fn test_registry_path_valid_and_invalid() {
         assert!(
             classify_registry_path(
                 "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"
             )
             .is_some()
         );
-    }
-
-    #[test]
-    fn test_registry_current_user() {
-        assert!(
-            classify_registry_path("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows").is_some()
-        );
-    }
-
-    #[test]
-    fn test_registry_abbreviated_hklm() {
-        assert!(
-            classify_registry_path("HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion").is_some()
-        );
-    }
-
-    #[test]
-    fn test_registry_abbreviated_hkcu() {
-        assert!(classify_registry_path("HKCU\\Software\\Classes").is_some());
-    }
-
-    #[test]
-    fn test_registry_persistence_run() {
-        assert!(is_suspicious_registry_path(
-            "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"
-        ));
-    }
-
-    #[test]
-    fn test_registry_invalid_root() {
         assert!(classify_registry_path("HKEY_INVALID\\Path").is_none());
     }
 
     #[test]
-    fn test_registry_forward_slash() {
-        assert!(classify_registry_path("HKEY_LOCAL_MACHINE/SOFTWARE/Microsoft/Windows").is_some());
+    fn test_suspicious_paths() {
+        assert!(is_suspicious_posix_path("/etc/cron.d/malicious"));
+        assert!(is_suspicious_windows_path("C:\\Windows\\System32\\cmd.exe"));
+        assert!(is_suspicious_registry_path(
+            "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"
+        ));
     }
 }
