@@ -28,7 +28,7 @@
 ## 2. Directory Structure Analysis
 
 ```text
-D:\Stringy\
+./
 |-- .github/
 |   |-- copilot-instructions.md    # AI agent guidelines
 |   |-- dependabot.yml             # Dependency updates
