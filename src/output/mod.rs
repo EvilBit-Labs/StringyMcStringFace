@@ -41,7 +41,7 @@ pub mod table;
 pub mod yara;
 
 pub use json::format_json;
-pub use table::format_table;
+pub use table::{format_table, format_table_with_mode};
 pub use yara::format_yara;
 
 /// Output format selection for Stringy formatters.

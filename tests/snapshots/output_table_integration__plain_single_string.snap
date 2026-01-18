@@ -1,0 +1,5 @@
+---
+source: tests/output_table_integration.rs
+expression: result
+---
+GetProcAddress

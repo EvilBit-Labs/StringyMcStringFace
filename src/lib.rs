@@ -86,4 +86,4 @@ pub use extraction::{
 };
 
 // Re-export output infrastructure types
-pub use output::{OutputFormat, OutputMetadata, format_output};
+pub use output::{OutputFormat, OutputMetadata, format_output, format_table_with_mode};
