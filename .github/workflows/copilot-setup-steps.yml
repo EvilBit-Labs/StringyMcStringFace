@@ -29,7 +29,7 @@ jobs:
     # If you do not check out your code, Copilot will do this for you.
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@1.91.0
+      - uses: dtolnay/rust-toolchain@1.99.0
       - uses: extractions/setup-just@v3
 
       - name: Set up Python for pre-commit
