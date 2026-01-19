@@ -5,7 +5,8 @@
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
 			"installDockerBuildx": true,
 			"version": "latest",
-			"dockerDashComposeVersion": "v2"
+			"dockerDashComposeVersion": "v2",
+			"moby": false
 		},
 		"ghcr.io/devcontainers/features/github-cli:1": {
 			"installDirectlyFromGitHubRelease": true,
@@ -14,27 +15,12 @@
 		"ghcr.io/eitsupi/devcontainer-features/mdbook:1": {
 			"version": "latest"
 		},
-		"ghcr.io/jsburckhardt/devcontainer-features/bat:1": {},
-		"ghcr.io/jsburckhardt/devcontainer-features/just:1": {},
-		"ghcr.io/lee-orr/rusty-dev-containers/cargo-audit:0": {},
-		"ghcr.io/lee-orr/rusty-dev-containers/cargo-binstall:0": {},
-		"ghcr.io/lee-orr/rusty-dev-containers/cargo-deny:0": {},
-		"ghcr.io/lee-orr/rusty-dev-containers/cargo-llvm-cov:0": {},
-		"ghcr.io/lee-orr/rusty-dev-containers/cargo-nextest:0": {},
-		"ghcr.io/marcozac/devcontainer-features/goreleaser:1": {
-			"version": "latest"
-		},
 		"ghcr.io/devcontainers-extra/features/claude-code:1": {
 			"version": "latest"
 		},
 		"ghcr.io/devcontainers-extra/features/mise:1": {
 			"version": "latest"
-		},
-		"ghcr.io/devcontainers-extra/features/pre-commit:2": {
-			"version": "latest"
-		},
-		"ghcr.io/roul/devcontainer-features/mise-node:1": {},
-		"ghcr.io/roul/devcontainer-features/mise-python:1": {}
+		}
 	},
 	"customizations": {
 		"vscode": {
