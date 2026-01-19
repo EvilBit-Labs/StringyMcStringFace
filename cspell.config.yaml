@@ -100,7 +100,6 @@ words:
   - mdformat
   - actionlint
   - lychee
-  - megalinter
   - cspell
   - justfile
 

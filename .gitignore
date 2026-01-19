@@ -121,8 +121,6 @@ docs/book/
 .envrc
 .direnv/
 
-megalinter-reports/
-
 # Override global gitignore
 !bin/
 # Added by goreleaser init:

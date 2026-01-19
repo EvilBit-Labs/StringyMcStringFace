@@ -207,9 +207,6 @@ pre-commit-run:
 format-files +FILES:
     prettier --write --config .prettierrc.json {{ FILES }}
 
-megalinter:
-    npx mega-linter-runner --flavor rust
-
 # =============================================================================
 # BUILDING AND TESTING
 # =============================================================================
