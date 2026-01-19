@@ -1,4 +1,14 @@
+//! YARA rule generation from extracted strings.
+//!
+//! Generates YARA rule templates suitable for malware analysis and detection.
+//! Strings are grouped by tag and formatted with appropriate encoding modifiers.
+
+mod escaping;
+
 use crate::types::{Encoding, FoundString, Result, Tag};
+use escaping::{
+    escape_yara_string, escape_yara_unicode_literal, utf16be_hex_string, utf16le_hex_string,
+};
 
 use super::OutputMetadata;
 use std::collections::{BTreeMap, HashMap};
@@ -151,77 +161,6 @@ fn sanitize_identifier(name: &str) -> String {
     }
 }
 
-fn escape_yara_string(text: &str) -> String {
-    let mut escaped = String::new();
-    for byte in text.as_bytes() {
-        match *byte {
-            b'\\' => escaped.push_str("\\\\"),
-            b'"' => escaped.push_str("\\\""),
-            b'\n' => escaped.push_str("\\n"),
-            b'\r' => escaped.push_str("\\r"),
-            b'\t' => escaped.push_str("\\t"),
-            0x08 => escaped.push_str("\\b"),
-            0x0b => escaped.push_str("\\x0b"),
-            0x0c => escaped.push_str("\\x0c"),
-            0x00..=0x1f | 0x7f..=0xff => {
-                escaped.push_str(&format!("\\x{:02x}", byte));
-            }
-            _ => escaped.push(*byte as char),
-        }
-    }
-    escaped
-}
-
-fn escape_yara_unicode_literal(text: &str) -> String {
-    let mut escaped = String::new();
-    for ch in text.chars() {
-        match ch {
-            '\\' => escaped.push_str("\\\\"),
-            '"' => escaped.push_str("\\\""),
-            '\n' => escaped.push_str("\\n"),
-            '\r' => escaped.push_str("\\r"),
-            '\t' => escaped.push_str("\\t"),
-            _ if ch.is_control() => {
-                let mut buf = [0; 4];
-                let encoded = ch.encode_utf8(&mut buf);
-                for byte in encoded.as_bytes() {
-                    escaped.push_str(&format!("\\x{:02x}", byte));
-                }
-            }
-            _ => escaped.push(ch),
-        }
-    }
-    escaped
-}
-
-fn utf16be_hex_string(text: &str) -> String {
-    let hex_bytes: Vec<String> = text
-        .encode_utf16()
-        .flat_map(|unit| unit.to_be_bytes())
-        .map(|b| format!("{:02x}", b))
-        .collect();
-
-    if hex_bytes.is_empty() {
-        return "{ }".to_string();
-    }
-
-    format!("{{ {} }}", hex_bytes.join(" "))
-}
-
-fn utf16le_hex_string(text: &str) -> String {
-    let hex_bytes: Vec<String> = text
-        .encode_utf16()
-        .flat_map(|unit| unit.to_le_bytes())
-        .map(|b| format!("{:02x}", b))
-        .collect();
-
-    if hex_bytes.is_empty() {
-        return "{ }".to_string();
-    }
-
-    format!("{{ {} }}", hex_bytes.join(" "))
-}
-
 fn tag_name(tag: &Tag) -> &'static str {
     match tag {
         Tag::Url => "Url",
@@ -292,16 +231,6 @@ mod tests {
     }
 
     #[test]
-    fn test_escape_yara_string() {
-        let input = "quote\" backslash\\ line\n tab\t";
-        let escaped = escape_yara_string(input);
-        assert!(escaped.contains("\\\""));
-        assert!(escaped.contains("\\\\"));
-        assert!(escaped.contains("\\n"));
-        assert!(escaped.contains("\\t"));
-    }
-
-    #[test]
     fn test_group_strings_by_tag() {
         let strings = vec![
             make_string("one").with_tags(vec![Tag::Url]),
@@ -363,84 +292,11 @@ mod tests {
     }
 
     #[test]
-    fn test_escape_yara_unicode_literal_basic() {
-        // Basic escapes
-        assert_eq!(escape_yara_unicode_literal("quote\""), "quote\\\"");
-        assert_eq!(escape_yara_unicode_literal("back\\slash"), "back\\\\slash");
-        assert_eq!(escape_yara_unicode_literal("line\nbreak"), "line\\nbreak");
-        assert_eq!(escape_yara_unicode_literal("tab\there"), "tab\\there");
-        assert_eq!(escape_yara_unicode_literal("return\rhere"), "return\\rhere");
-    }
-
-    #[test]
-    fn test_escape_yara_unicode_literal_control_chars() {
-        // Control characters should be hex-escaped
-        assert_eq!(escape_yara_unicode_literal("\x00"), "\\x00");
-        assert_eq!(escape_yara_unicode_literal("\x1f"), "\\x1f");
-    }
-
-    #[test]
-    fn test_escape_yara_unicode_literal_unicode_passthrough() {
-        // Non-control Unicode should pass through unescaped
-        let result = escape_yara_unicode_literal("\u{4E2D}\u{6587}");
-        assert!(
-            result.contains('\u{4E2D}'),
-            "Non-control Unicode should not be escaped"
-        );
-    }
-
-    #[test]
-    fn test_escape_yara_unicode_literal_empty() {
-        assert_eq!(escape_yara_unicode_literal(""), "");
-    }
-
-    #[test]
-    fn test_utf16be_hex_string_basic() {
-        // Basic ASCII - should be big-endian (00 followed by ASCII byte)
-        assert_eq!(utf16be_hex_string("A"), "{ 00 41 }");
-        assert_eq!(utf16be_hex_string("AB"), "{ 00 41 00 42 }");
-    }
-
-    #[test]
-    fn test_utf16be_hex_string_empty() {
-        assert_eq!(utf16be_hex_string(""), "{ }");
-    }
-
-    #[test]
-    fn test_utf16be_hex_string_non_ascii() {
-        // Non-ASCII Unicode (BMP) - Chinese character U+4E2D
-        let chinese = utf16be_hex_string("\u{4E2D}");
-        assert_eq!(chinese, "{ 4e 2d }");
-    }
-
-    #[test]
-    fn test_utf16be_hex_string_surrogate_pair() {
-        // Character requiring surrogate pair (outside BMP) - emoji U+1F600
-        let emoji = utf16be_hex_string("\u{1F600}");
-        // Should produce surrogate pair: D83D DE00
-        assert_eq!(emoji, "{ d8 3d de 00 }");
-    }
-
-    #[test]
-    fn test_escape_yara_string_control_characters() {
-        assert_eq!(escape_yara_string("\r"), "\\r");
-        assert_eq!(escape_yara_string("\x00"), "\\x00");
-        assert_eq!(escape_yara_string("\x08"), "\\b");
-        assert_eq!(escape_yara_string("\x0b"), "\\x0b");
-        assert_eq!(escape_yara_string("\x0c"), "\\x0c");
-        assert_eq!(escape_yara_string("\x7f"), "\\x7f");
-    }
-
-    #[test]
     fn test_format_yara_uses_current_timestamp_when_not_set() {
-        // When generated_at is None, format_yara should use current_timestamp()
         let metadata = OutputMetadata::new("test.bin".to_string(), OutputFormat::Yara, 0, 0);
-        // Note: generated_at is None
         let output = format_yara(&[], &metadata).expect("Formatting should succeed");
 
-        // Should contain a timestamp in the generated_at field
         assert!(output.contains("generated_at = \""));
-        // Timestamp should be numeric (or CLOCK_ERROR in exceptional cases)
         assert!(
             output.contains("generated_at = \"1")
                 || output.contains("generated_at = \"CLOCK_ERROR"),
@@ -449,35 +305,7 @@ mod tests {
     }
 
     #[test]
-    fn test_utf16le_hex_string_basic() {
-        // Basic ASCII - should be little-endian (ASCII byte followed by 00)
-        assert_eq!(utf16le_hex_string("A"), "{ 41 00 }");
-        assert_eq!(utf16le_hex_string("AB"), "{ 41 00 42 00 }");
-    }
-
-    #[test]
-    fn test_utf16le_hex_string_empty() {
-        assert_eq!(utf16le_hex_string(""), "{ }");
-    }
-
-    #[test]
-    fn test_utf16le_hex_string_non_ascii() {
-        // Non-ASCII Unicode (BMP) - Chinese character U+4E2D
-        let chinese = utf16le_hex_string("\u{4E2D}");
-        assert_eq!(chinese, "{ 2d 4e }");
-    }
-
-    #[test]
-    fn test_utf16le_hex_string_surrogate_pair() {
-        // Character requiring surrogate pair (outside BMP) - emoji U+1F600
-        let emoji = utf16le_hex_string("\u{1F600}");
-        // Should produce surrogate pair: 3D D8 00 DE (little-endian)
-        assert_eq!(emoji, "{ 3d d8 00 de }");
-    }
-
-    #[test]
     fn test_utf16le_ascii_uses_wide_modifier() {
-        // ASCII UTF-16LE should use "wide" modifier
         let mut string = make_string("test");
         string.encoding = Encoding::Utf16Le;
         let output = format_yara(&[string], &make_metadata()).expect("Formatting should succeed");
@@ -490,7 +318,6 @@ mod tests {
 
     #[test]
     fn test_utf16le_non_ascii_uses_hex() {
-        // Non-ASCII UTF-16LE should use hex string, not wide modifier
         let mut string = make_string("\u{4E2D}\u{6587}");
         string.encoding = Encoding::Utf16Le;
         let output = format_yara(&[string], &make_metadata()).expect("Formatting should succeed");
@@ -506,11 +333,9 @@ mod tests {
 
     #[test]
     fn test_binary_name_injection_escaped_in_comments() {
-        // Binary name with newlines should be escaped in comments
         let mut metadata = make_metadata();
         metadata.binary_name = "evil\nname".to_string();
         let output = format_yara(&[], &metadata).expect("Formatting should succeed");
-        // Should contain escaped newline, not literal
         assert!(
             output.contains("evil\\nname"),
             "Newlines in binary_name should be escaped"
@@ -523,11 +348,9 @@ mod tests {
 
     #[test]
     fn test_timestamp_injection_escaped_in_meta() {
-        // Timestamp with special characters should be escaped
         let mut metadata = make_metadata();
         metadata.generated_at = Some("2024\"\n//attack".to_string());
         let output = format_yara(&[], &metadata).expect("Formatting should succeed");
-        // Should contain escaped characters
         assert!(
             output.contains("2024\\\"\\n//attack"),
             "Special chars in timestamp should be escaped"
