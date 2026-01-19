@@ -53,37 +53,52 @@ rmrf path:
 # Development setup
 [windows]
 setup:
-    Set-Location "{{ root }}"
+    mise trust
+    mise install
     rustup component add rustfmt clippy llvm-tools-preview
-    cargo install cargo-binstall --locked
     @just mdformat-install
     Write-Host "Note: You may need to restart your shell for pipx PATH changes to take effect"
 
 [unix]
 setup:
-    cd "{{ root }}"
+    mise trust
+    mise install
     rustup component add rustfmt clippy llvm-tools-preview
-    cargo install cargo-binstall --locked
     @just mdformat-install
     echo "Note: You may need to restart your shell for pipx PATH changes to take effect"
 
-# Install development tools (extended setup)
+# Install tool versions defined in mise.toml
+[windows]
+mise-install:
+    mise trust
+    mise install
+
+[unix]
+mise-install:
+    mise trust
+    mise install
+
+# Install development tools not managed by mise
 [windows]
 install-tools:
+    @just mise-install
     cargo binstall --disable-telemetry cargo-llvm-cov cargo-audit cargo-deny cargo-dist cargo-release cargo-cyclonedx cargo-auditable cargo-nextest --locked
 
 [unix]
 install-tools:
+    @just mise-install
     cargo binstall --disable-telemetry cargo-llvm-cov cargo-audit cargo-deny cargo-dist cargo-release cargo-cyclonedx cargo-auditable cargo-nextest --locked
 
-# Install mdBook and plugins for documentation
+# Install mdBook plugins for documentation
 [windows]
 docs-install:
-    cargo binstall mdbook mdbook-admonish mdbook-mermaid mdbook-linkcheck mdbook-toc mdbook-open-on-gh mdbook-tabs mdbook-i18n-helpers
+    @just mise-install
+    cargo binstall mdbook-admonish mdbook-mermaid mdbook-linkcheck mdbook-toc mdbook-open-on-gh mdbook-tabs mdbook-i18n-helpers
 
 [unix]
 docs-install:
-    cargo binstall mdbook mdbook-admonish mdbook-mermaid mdbook-linkcheck mdbook-toc mdbook-open-on-gh mdbook-tabs mdbook-i18n-helpers
+    @just mise-install
+    cargo binstall mdbook-admonish mdbook-mermaid mdbook-linkcheck mdbook-toc mdbook-open-on-gh mdbook-tabs mdbook-i18n-helpers
 
 # Install pipx for Python tool management
 [windows]
@@ -132,7 +147,7 @@ format: fmt format-json-yaml format-docs fmt-justfile
 # Individual format recipes
 
 format-json-yaml:
-    npx prettier --write "**/*.{json,yaml,yml}"
+    prettier --write "**/*.{json,yaml,yml}"
 
 [windows]
 format-docs:
@@ -140,7 +155,6 @@ format-docs:
 
 [unix]
 format-docs:
-    cd "{{ root }}"
     @if command -v mdformat >/dev/null 2>&1; then find . -type f -name "*.md" -not -path "./target/*" -not -path "./node_modules/*" -exec mdformat {} + ; else echo "mdformat not found. Run 'just mdformat-install' first."; fi
 
 fmt:
@@ -191,10 +205,9 @@ pre-commit-run:
 
 # Format a single file (for pre-commit hooks)
 format-files +FILES:
-    npx prettier --write --config .prettierrc.json {{ FILES }}
+    prettier --write --config .prettierrc.json {{ FILES }}
 
 megalinter:
-    cd "{{ root }}"
     npx mega-linter-runner --flavor rust
 
 # =============================================================================
@@ -213,26 +226,22 @@ test:
 # Test justfile cross-platform functionality
 [windows]
 test-justfile:
-    Set-Location "{{ root }}"
     $p = (Get-Location).Path; Write-Host "Current directory: $p"; Write-Host "Expected directory: {{ root }}"
 
 [unix]
 test-justfile:
-    cd "{{ root }}"
     /bin/echo "Current directory: $(pwd -P)"
     /bin/echo "Expected directory: {{ root }}"
 
 # Test cross-platform file system helpers
 [windows]
 test-fs:
-    Set-Location "{{ root }}"
     @just rmrf tmp/xfstest
     @just ensure-dir tmp/xfstest/sub
     @just rmrf tmp/xfstest
 
 [unix]
 test-fs:
-    cd "{{ root }}"
     @just rmrf tmp/xfstest
     @just ensure-dir tmp/xfstest/sub
     @just rmrf tmp/xfstest
