@@ -6,8 +6,7 @@
 
 1. **No `unsafe` code** - `#![forbid(unsafe_code)]` enforced
 2. **Zero warnings** - `cargo clippy -- -D warnings` must pass
-3. **ASCII only** - No emojis, em-dashes, smart quotes, or Unicode punctuation (except when explicity testing or working with Unicode strings or emjois)
-4. **File size limit** - Keep files under 500 lines; split larger files
+3. **ASCII only** - No emojis, em-dashes, smart quotes, or Unicode punctuation (except when explicity testing or working with Unicode strings or emjois)4. **File size limit** - Keep files under 500 lines; split larger files
 5. **No blanket `#[allow]`** - Any `allow` requires inline justification
 
 ## Project Summary
