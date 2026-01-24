@@ -1,0 +1,9 @@
+---
+source: tests/output_table_integration.rs
+expression: result
+---
+String                                                       | Tags   |  Score | Section
+-------------------------------------------------------------|--------|--------|--------
+kernel32.dll                                                 | import |     50 |        
+mysterious string                                            |        |     10 | .text  
+bare minimum                                                 |        |      0 |

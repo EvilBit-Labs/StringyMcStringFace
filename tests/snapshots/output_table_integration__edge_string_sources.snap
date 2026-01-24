@@ -1,0 +1,9 @@
+---
+source: tests/output_table_integration.rs
+expression: result
+---
+String                                                       | Tags     |  Score | Section
+-------------------------------------------------------------|----------|--------|--------
+import_func                                                  | import   |     80 |        
+export_func                                                  | export   |     80 |        
+resource string                                              | resource |     60 |

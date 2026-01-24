@@ -1,0 +1,7 @@
+---
+source: tests/output_json_integration.rs
+expression: output
+---
+{"text":"one","encoding":"Ascii","offset":4096,"rva":null,"section":null,"length":3,"tags":[],"score":0,"source":"SectionData","confidence":1.0}
+{"text":"two","encoding":"Ascii","offset":4096,"rva":null,"section":null,"length":3,"tags":[],"score":0,"source":"SectionData","confidence":1.0}
+{"text":"three","encoding":"Ascii","offset":4096,"rva":null,"section":null,"length":5,"tags":[],"score":0,"source":"SectionData","confidence":1.0}

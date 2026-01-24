@@ -1,0 +1,8 @@
+---
+source: tests/output_table_integration.rs
+expression: result
+---
+String                                                       | Tags |  Score | Section
+-------------------------------------------------------------|------|--------|--------
+critical IOC                                                 | url  |   9999 | .rdata 
+negative score                                               |      |    -50 | .text

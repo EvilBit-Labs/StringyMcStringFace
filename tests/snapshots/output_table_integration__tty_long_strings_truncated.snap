@@ -1,0 +1,8 @@
+---
+source: tests/output_table_integration.rs
+expression: result
+---
+String                                                       | Tags     |  Score | Section
+-------------------------------------------------------------|----------|--------|--------
+https://very-long-subdomain.malware-domain.example.com/pa... | url      |    150 | .rdata 
+C:\Users\Administrator\AppData\Local\Temp\aaaaaaaaaaaaaaa... | filepath |    120 | .data

@@ -48,7 +48,9 @@
 //!
 //! ```rust
 //! use stringy::extraction::pe_resources::extract_resources;
+//! use stringy::types::ResourceType;
 //!
+//! # fn example() -> stringy::Result<()> {
 //! let pe_data = std::fs::read("example.exe")?;
 //! let resources = extract_resources(&pe_data);
 //!
@@ -65,6 +67,8 @@
 //!         _ => {}
 //!     }
 //! }
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Phase 2: Resource String Extraction
@@ -73,6 +77,7 @@
 //! use stringy::extraction::pe_resources::extract_resource_strings;
 //! use stringy::types::Tag;
 //!
+//! # fn example() -> stringy::Result<()> {
 //! let pe_data = std::fs::read("example.exe")?;
 //! let strings = extract_resource_strings(&pe_data);
 //!
@@ -85,6 +90,8 @@
 //! let ui_strings: Vec<_> = strings.iter()
 //!     .filter(|s| s.tags.contains(&Tag::Resource) && !s.tags.contains(&Tag::Version))
 //!     .collect();
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::types::{

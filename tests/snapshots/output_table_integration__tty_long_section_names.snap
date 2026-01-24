@@ -1,0 +1,9 @@
+---
+source: tests/output_table_integration.rs
+expression: result
+---
+String                                                       | Tags |  Score | Section       
+-------------------------------------------------------------|------|--------|---------------
+string one                                                   |      |     10 | .rodata.str1.1
+string two                                                   |      |     20 | .data.rel.ro  
+string three                                                 |      |     30 | .text

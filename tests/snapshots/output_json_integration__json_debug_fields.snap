@@ -1,0 +1,5 @@
+---
+source: tests/output_json_integration.rs
+expression: output
+---
+{"text":"debug","encoding":"Ascii","offset":4096,"rva":null,"section":null,"length":5,"tags":[],"score":0,"section_weight":10,"semantic_boost":5,"noise_penalty":-3,"source":"SectionData","confidence":1.0}

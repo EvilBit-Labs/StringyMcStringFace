@@ -7,7 +7,7 @@
 
 use crate::types::{Encoding, FoundString, StringSource, Tag};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// A canonical string with all its occurrences
 ///
@@ -90,18 +90,16 @@ pub fn deduplicate(
     }
 
     // Group strings by (text, encoding) key
-    // Use string representation of encoding as HashMap key since Encoding doesn't implement Hash
-    let mut groups: HashMap<(String, String), Vec<FoundString>> = HashMap::new();
+    let mut groups: HashMap<(String, Encoding), Vec<FoundString>> = HashMap::new();
     for string in strings {
-        let encoding_str = format!("{:?}", string.encoding);
-        let key = (string.text.clone(), encoding_str);
+        let key = (string.text.clone(), string.encoding);
         groups.entry(key).or_default().push(string);
     }
 
     // Convert each group to a CanonicalString
     let mut canonical_strings: Vec<CanonicalString> = groups
         .into_iter()
-        .map(|((text, _encoding_str), found_strings)| {
+        .map(|((text, _encoding), found_strings)| {
             // Check if group meets dedup_threshold
             let meets_threshold = if let Some(threshold) = dedup_threshold {
                 found_strings.len() >= threshold
@@ -180,21 +178,11 @@ fn calculate_combined_score(occurrences: &[StringOccurrence]) -> i32 {
     };
 
     // Cross-section bonus: 10 points if string appears in different sections
-    let mut unique_sections = Vec::new();
-    for occ in occurrences.iter() {
-        if !unique_sections.contains(&occ.section) {
-            unique_sections.push(occ.section.clone());
-        }
-    }
+    let unique_sections: HashSet<_> = occurrences.iter().map(|occ| &occ.section).collect();
     let cross_section_bonus = if unique_sections.len() > 1 { 10 } else { 0 };
 
     // Multi-source bonus: 15 points if string appears from different sources
-    let mut unique_sources = Vec::new();
-    for occ in occurrences.iter() {
-        if !unique_sources.contains(&occ.source) {
-            unique_sources.push(occ.source);
-        }
-    }
+    let unique_sources: HashSet<_> = occurrences.iter().map(|occ| occ.source).collect();
     let multi_source_bonus = if unique_sources.len() > 1 { 15 } else { 0 };
 
     // Confidence boost: max_confidence * 10
@@ -220,10 +208,11 @@ fn calculate_combined_score(occurrences: &[StringOccurrence]) -> i32 {
 ///
 /// Vector of unique tags (order may vary since Tag doesn't implement Ord)
 fn merge_tags(occurrences: &[StringOccurrence]) -> Vec<Tag> {
+    let mut seen = HashSet::new();
     let mut tags = Vec::new();
     for occurrence in occurrences {
         for tag in &occurrence.original_tags {
-            if !tags.contains(tag) {
+            if seen.insert(tag.clone()) {
                 tags.push(tag.clone());
             }
         }

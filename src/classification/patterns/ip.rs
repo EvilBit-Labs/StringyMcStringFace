@@ -104,7 +104,7 @@ pub fn is_ipv4_address(text: &str) -> bool {
 
 /// Checks if the given text is a valid IPv6 address
 ///
-/// This method handles bracketed IPv6 addresses (e.g., [::1]:8080),
+/// This method handles bracketed IPv6 addresses (e.g., `[::1]:8080`),
 /// strips any port suffix, and validates using both regex and standard library.
 ///
 /// # Arguments
