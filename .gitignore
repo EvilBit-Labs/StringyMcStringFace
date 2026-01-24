@@ -125,3 +125,9 @@ docs/book/
 !bin/
 # Added by goreleaser init:
 .intentionally-empty-file.o
+
+
+megalinter-reports/*
+target/*
+stringy-output/*
+tests/fixtures/*
