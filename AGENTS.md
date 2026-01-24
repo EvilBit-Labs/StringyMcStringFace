@@ -14,9 +14,8 @@
 
 Stringy extracts meaningful strings from ELF, PE, and Mach-O binaries using format-specific knowledge and semantic classification. Unlike standard `strings`, it is section-aware and semantically intelligent.
 
-**Rust**: Edition 2024, MSRV 1.91
-
-**Data flow**: Binary -> Format Detection -> Container Parsing -> String Extraction -> Deduplication -> Classification -> Ranking -> Output
+- **Rust**: Edition 2024, MSRV 1.91
+- **Data flow**: Binary -> Format Detection -> Container Parsing -> String Extraction -> Deduplication -> Classification -> Ranking -> Output
 
 ## Module Structure
 

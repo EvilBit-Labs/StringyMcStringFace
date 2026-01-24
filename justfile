@@ -53,16 +53,14 @@ rmrf path:
 # Development setup
 [windows]
 setup:
-    mise trust
-    mise install
+    @just mise-install
     rustup component add rustfmt clippy llvm-tools-preview
     @just mdformat-install
     Write-Host "Note: You may need to restart your shell for pipx PATH changes to take effect"
 
 [unix]
 setup:
-    mise trust
-    mise install
+    @just mise-install
     rustup component add rustfmt clippy llvm-tools-preview
     @just mdformat-install
     echo "Note: You may need to restart your shell for pipx PATH changes to take effect"
