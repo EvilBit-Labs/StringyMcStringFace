@@ -5,6 +5,27 @@
 use crate::types::{FoundString, Result};
 
 use super::formatting::{Alignment, format_tags, pad_string, truncate_string};
+
+/// Sanitize a string for TTY display by replacing control characters.
+///
+/// Replaces newlines, tabs, and other control characters with visible escape sequences
+/// to prevent broken table layout.
+fn sanitize_for_display(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\n' => result.push_str("\\n"),
+            '\r' => result.push_str("\\r"),
+            '\t' => result.push_str("\\t"),
+            '\x00'..='\x1f' | '\x7f' => {
+                // Other control characters shown as \xNN
+                result.push_str(&format!("\\x{:02x}", c as u8));
+            }
+            _ => result.push(c),
+        }
+    }
+    result
+}
 use super::{
     OutputMetadata, SCORE_COLUMN_WIDTH, SECTION_COLUMN_WIDTH, STRING_COLUMN_WIDTH,
     TAGS_COLUMN_WIDTH,
@@ -55,7 +76,8 @@ pub(super) fn format_table_tty(
 
     // Build rows
     for found_string in strings {
-        let truncated_text = truncate_string(&found_string.text, STRING_COLUMN_WIDTH);
+        let sanitized_text = sanitize_for_display(&found_string.text);
+        let truncated_text = truncate_string(&sanitized_text, STRING_COLUMN_WIDTH);
         let tags_display = format_tags(&found_string.tags);
         let section_display = found_string.section.as_deref().unwrap_or("");
 

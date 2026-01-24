@@ -227,8 +227,15 @@ fn test_json_long_strings() {
 
 #[test]
 fn test_json_unicode_content() {
+    // Use UTF-8 encoding for non-ASCII content
     let unicode = "\u{4E2D}\u{6587}\u{5B57}\u{7B26}";
-    let strings = vec![make_string(unicode)];
+    let strings = vec![FoundString::new(
+        unicode.to_string(),
+        Encoding::Utf8,
+        0x1000,
+        unicode.len() as u32,
+        StringSource::SectionData,
+    )];
     let output = format_json(&strings, &make_metadata(1)).unwrap();
     assert_snapshot!(output);
 }

@@ -26,15 +26,15 @@
 
 **Test Files**:
 
-1. `integration_elf.rs` (10 tests) - ELF parsing and extraction
-2. `integration_extraction.rs` (9 tests) - End-to-end extraction
-3. `integration_macho.rs` (15 tests) - Mach-O parsing and load commands
-4. `integration_pe.rs` (22 tests) - PE parsing and resource extraction
-5. `test_ascii_extraction.rs` (14 tests) - ASCII extraction scenarios
-6. `test_ascii_integration.rs` (14 tests) - ASCII integration tests
-7. `test_deduplication.rs` (5 tests) - Deduplication workflows
-8. `test_noise_filters.rs` (9 tests) - Noise filtering heuristics
-9. `test_utf16_extraction.rs` (5 tests) - UTF-16 extraction
+01. `integration_elf.rs` (10 tests) - ELF parsing and extraction
+02. `integration_extraction.rs` (9 tests) - End-to-end extraction
+03. `integration_macho.rs` (15 tests) - Mach-O parsing and load commands
+04. `integration_pe.rs` (22 tests) - PE parsing and resource extraction
+05. `test_ascii_extraction.rs` (14 tests) - ASCII extraction scenarios
+06. `test_ascii_integration.rs` (14 tests) - ASCII integration tests
+07. `test_deduplication.rs` (5 tests) - Deduplication workflows
+08. `test_noise_filters.rs` (9 tests) - Noise filtering heuristics
+09. `test_utf16_extraction.rs` (5 tests) - UTF-16 extraction
 10. `classification_integration.rs` (27 tests) - Semantic classification
 11. `output_json_integration.rs` (41 tests) - JSON output format
 12. `output_table_integration.rs` (27 tests) - Table output format
@@ -235,100 +235,117 @@ fn test_section_size_overflow() {
 ### HIGH Priority Gaps
 
 1. **Performance Tests for Deduplication**
-    - Test with 10,000+ duplicate strings
-    - Validate O(n^2) algorithms don't cause timeout
-    - File: `tests/test_deduplication_performance.rs` (MISSING)
+
+   - Test with 10,000+ duplicate strings
+   - Validate O(n^2) algorithms don't cause timeout
+   - File: `tests/test_deduplication_performance.rs` (MISSING)
 
 2. **Doctest Fixes**
-    - Fix `extraction::StringExtractor` doctest (line 318)
-    - Fix `extraction::BasicExtractor` doctest (line 408)
-    - Files: `src/extraction/mod.rs`
+
+   - Fix `extraction::StringExtractor` doctest (line 318)
+   - Fix `extraction::BasicExtractor` doctest (line 408)
+   - Files: `src/extraction/mod.rs`
 
 3. **Bounds Checking Edge Cases**
-    - Section offset beyond file boundary
-    - Section size causing integer overflow
-    - File: `tests/test_extraction_edge_cases.rs` (MISSING)
+
+   - Section offset beyond file boundary
+   - Section size causing integer overflow
+   - File: `tests/test_extraction_edge_cases.rs` (MISSING)
 
 ### MEDIUM Priority Gaps
 
 1. **Malformed Binary Handling**
-    - Truncated ELF headers
-    - Invalid PE signatures
-    - Corrupted Mach-O load commands
-    - File: `tests/test_malformed_binaries.rs` (MISSING)
+
+   - Truncated ELF headers
+   - Invalid PE signatures
+   - Corrupted Mach-O load commands
+   - File: `tests/test_malformed_binaries.rs` (MISSING)
 
 2. **Regex Pattern Edge Cases**
-    - URL regex with edge cases (IPv6 in URLs, Unicode domains)
-    - Email regex with uncommon formats
-    - Path regex with UNC paths edge cases
-    - Files: Pattern test modules (PARTIAL)
+
+   - URL regex with edge cases (IPv6 in URLs, Unicode domains)
+   - Email regex with uncommon formats
+   - Path regex with UNC paths edge cases
+   - Files: Pattern test modules (PARTIAL)
 
 3. **Resource Extraction Error Paths**
-    - PE resource directory corruption
-    - Version info parsing failures
-    - String table malformed data
-    - File: `src/extraction/pe_resources.rs` tests (PARTIAL)
+
+   - PE resource directory corruption
+   - Version info parsing failures
+   - String table malformed data
+   - File: `src/extraction/pe_resources.rs` tests (PARTIAL)
 
 ### LOW Priority Gaps
 
 1. **Main Binary CLI Testing**
-    - Integration tests for CLI argument parsing
-    - File: `tests/cli_integration.rs` (MISSING, but main is stub)
+
+   - Integration tests for CLI argument parsing
+   - File: `tests/cli_integration.rs` (MISSING, but main is stub)
 
 2. **Memory Leak Tests**
-    - Large file processing without memory growth
-    - File: Performance test suite (MISSING)
+
+   - Large file processing without memory growth
+   - File: Performance test suite (MISSING)
 
 3. **Concurrency Tests**
-    - Parallel extraction from multiple files
-    - Thread safety validation
-    - File: Concurrency test suite (MISSING)
+
+   - Parallel extraction from multiple files
+   - Thread safety validation
+   - File: Concurrency test suite (MISSING)
 
 ## Test Infrastructure Assessment
 
 ### Strengths
 
 1. **Excellent Fixture Management**
-    - Well-documented rebuild process
-    - Multiple binary formats covered
-    - Source code available for reproduction
+
+   - Well-documented rebuild process
+   - Multiple binary formats covered
+   - Source code available for reproduction
 
 2. **Comprehensive Integration Tests**
-    - 219 integration tests covering end-to-end scenarios
-    - Real binary fixtures used
-    - All output formats tested
+
+   - 219 integration tests covering end-to-end scenarios
+   - Real binary fixtures used
+   - All output formats tested
 
 3. **Snapshot Testing**
-    - `insta` framework well-utilized
-    - Output format changes tracked
-    - Easy to review snapshot diffs
+
+   - `insta` framework well-utilized
+   - Output format changes tracked
+   - Easy to review snapshot diffs
 
 4. **Test Organization**
-    - Clear separation: unit vs integration
-    - Logical grouping by functionality
-    - Consistent naming conventions
+
+   - Clear separation: unit vs integration
+   - Logical grouping by functionality
+   - Consistent naming conventions
 
 ### Weaknesses
 
 1. **No Performance Benchmarks**
-    - No `criterion` benchmarks
-    - No performance regression detection
-    - Large input scenarios untested
+
+   - No `criterion` benchmarks
+   - No performance regression detection
+   - Large input scenarios untested
 
 2. **No Fuzzing Tests**
-    - No `cargo-fuzz` integration
-    - Binary parsing not fuzz-tested
-    - String extraction not fuzz-tested
+
+   - No `cargo-fuzz` integration
+   - Binary parsing not fuzz-tested
+   - String extraction not fuzz-tested
 
 3. **No Code Coverage Metrics**
-    - `cargo-tarpaulin` not installed
-    - No coverage reports in CI
-    - Unknown actual code coverage percentage
+
+   - `cargo-tarpaulin` not installed
+   - No coverage reports in CI
+   - Unknown actual code coverage percentage
 
 4. **Limited Error Injection**
-    - Few tests for error paths
-    - Missing tests for resource failures
-    - I/O error handling not tested
+
+   - Few tests for error paths
+   - Missing tests for resource failures
+   - I/O error handling not tested
 
 ## Recommendations
 
@@ -367,42 +384,49 @@ fn test_section_size_overflow() {
 ### Short-term Improvements (Month 1)
 
 1. **Add Fuzzing**
-    - Install `cargo-fuzz`
-    - Fuzz container parsers (ELF, PE, Mach-O)
-    - Fuzz string extractors (ASCII, UTF-16)
+
+   - Install `cargo-fuzz`
+   - Fuzz container parsers (ELF, PE, Mach-O)
+   - Fuzz string extractors (ASCII, UTF-16)
 
 2. **Enable Code Coverage**
-    - Install `cargo-tarpaulin`
-    - Add coverage to CI pipeline
-    - Set coverage threshold (80% target)
+
+   - Install `cargo-tarpaulin`
+   - Add coverage to CI pipeline
+   - Set coverage threshold (80% target)
 
 3. **Add Malformed Binary Tests**
-    - Create corrupted fixtures
-    - Test graceful error handling
-    - Verify no panics on invalid input
+
+   - Create corrupted fixtures
+   - Test graceful error handling
+   - Verify no panics on invalid input
 
 ### Long-term Enhancements (Quarter 1)
 
 1. **Performance Benchmarks**
-    - Add `criterion` benchmarks
-    - Track deduplication performance
-    - Track classification performance
-    - Add to CI for regression detection
+
+   - Add `criterion` benchmarks
+   - Track deduplication performance
+   - Track classification performance
+   - Add to CI for regression detection
 
 2. **Property-Based Testing**
-    - Add `proptest` or `quickcheck`
-    - Generate random binaries
-    - Verify invariants (no panics, valid output)
+
+   - Add `proptest` or `quickcheck`
+   - Generate random binaries
+   - Verify invariants (no panics, valid output)
 
 3. **CLI Integration Tests**
-    - Implement main binary
-    - Add end-to-end CLI tests
-    - Test output redirection, error handling
+
+   - Implement main binary
+   - Add end-to-end CLI tests
+   - Test output redirection, error handling
 
 4. **Concurrency Tests**
-    - Test thread safety
-    - Test parallel file processing
-    - Validate no data races
+
+   - Test thread safety
+   - Test parallel file processing
+   - Validate no data races
 
 ## Test Quality Score
 
@@ -473,7 +497,7 @@ fn test_section_size_overflow() {
 
 - Unit tests: 0.04s (258 tests)
 - Integration tests: ~1.5s (219 tests)
-- Total execution: <20s including doctests
+- Total execution: \<20s including doctests
 
 **Verdict**: EXCELLENT - Fast feedback loop
 

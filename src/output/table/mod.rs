@@ -27,7 +27,7 @@
 //! # Column Layout
 //!
 //! - **String**: Up to 60 characters, truncated with `...` if longer
-//! - **Tags**: First 2-3 tags, comma-separated, max 20 characters
+//! - **Tags**: Tags with highest boost value shown, max 20 characters
 //! - **Score**: Right-aligned integer score
 //! - **Section**: Section name where the string was found
 

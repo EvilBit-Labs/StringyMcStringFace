@@ -1,5 +1,6 @@
 ---
 source: tests/output_json_integration.rs
+assertion_line: 240
 expression: output
 ---
-{"text":"中文字符","encoding":"Ascii","offset":4096,"rva":null,"section":null,"length":12,"tags":[],"score":0,"source":"SectionData","confidence":1.0}
+{"text":"中文字符","encoding":"Utf8","offset":4096,"rva":null,"section":null,"length":12,"tags":[],"score":0,"source":"SectionData","confidence":1.0}

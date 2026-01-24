@@ -81,6 +81,10 @@ Docs live under docs/ and project planning artifacts are in project_plan/. Updat
 
 If you believe you found a security issue, please do not open a public issue. Use GitHub Security Advisories if available, or contact the maintainers privately.
 
+## AI-assisted development
+
+This project includes Claude Code configuration in `.claude/settings.json`. These settings enable plugins that help maintain code quality and follow project conventions. If you use Claude Code, the configuration will be applied automatically.
+
 ## Questions
 
 If you are unsure where to start, open an issue with your question and we will point you in the right direction.

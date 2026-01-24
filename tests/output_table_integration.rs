@@ -274,7 +274,7 @@ fn test_plain_multiple_strings() {
             .with_tags(vec![Tag::Import])
             .with_score(80),
     ];
-    let result = format_table_with_mode(&strings, &make_metadata(4), false).unwrap();
+    let result = format_table_with_mode(&strings, &make_metadata(3), false).unwrap();
     assert_snapshot!(result);
 }
 
@@ -294,7 +294,7 @@ fn test_plain_preserves_special_characters() {
         make_string("quote\"here"),
         make_string("line1\nline2"),
     ];
-    let result = format_table_with_mode(&strings, &make_metadata(3), false).unwrap();
+    let result = format_table_with_mode(&strings, &make_metadata(4), false).unwrap();
     assert_snapshot!(result);
 }
 

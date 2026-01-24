@@ -3,7 +3,7 @@
 //! This module provides shared utilities for formatting strings, tags, and
 //! text alignment used by both TTY and plain output modes.
 
-use crate::classification::ranking::RankingConfig;
+use crate::classification::RankingConfig;
 use crate::types::Tag;
 
 use super::TAGS_COLUMN_WIDTH;
@@ -129,9 +129,9 @@ pub fn truncate_string(s: &str, max_len: usize) -> String {
 
     // Find a valid character boundary for truncation
     let truncate_at = max_len - 3;
-    let mut end_index = truncate_at;
+    let mut end_index = 0;
 
-    // Ensure we don't split a multi-byte character
+    // Find the last char boundary that fits within truncate_at bytes
     for (idx, _) in s.char_indices() {
         if idx <= truncate_at {
             end_index = idx;
@@ -140,13 +140,9 @@ pub fn truncate_string(s: &str, max_len: usize) -> String {
         }
     }
 
-    // Handle case where we need to include at least one character
-    if end_index == 0 && !s.is_empty() {
-        if let Some((idx, _)) = s.char_indices().nth(1) {
-            end_index = idx;
-        } else {
-            end_index = s.len();
-        }
+    // If the first character is too wide to fit with "...", just return dots
+    if end_index == 0 {
+        return ".".repeat(max_len.min(3));
     }
 
     format!("{}...", &s[..end_index])

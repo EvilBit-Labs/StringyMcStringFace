@@ -3,13 +3,13 @@ use crate::types::{FoundString, Result, StringyError};
 use super::OutputMetadata;
 
 /// Format strings as JSONL output, one object per line.
-pub fn format_json(_strings: &[FoundString], _metadata: &OutputMetadata) -> Result<String> {
-    if _strings.is_empty() {
+pub fn format_json(strings: &[FoundString], _metadata: &OutputMetadata) -> Result<String> {
+    if strings.is_empty() {
         return Ok(String::new());
     }
 
-    let mut lines = Vec::with_capacity(_strings.len());
-    for item in _strings {
+    let mut lines = Vec::with_capacity(strings.len());
+    for item in strings {
         if !item.confidence.is_finite() {
             return Err(StringyError::ConfigError(
                 "JSON serialization failed: non-finite confidence".to_string(),
