@@ -1,0 +1,7 @@
+---
+source: tests/output_table_integration.rs
+expression: result
+---
+String                                                       | Tags |  Score | Section
+-------------------------------------------------------------|------|--------|--------
+GetProcAddress                                               |      |      0 |

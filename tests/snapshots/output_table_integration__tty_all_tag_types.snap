@@ -1,0 +1,16 @@
+---
+source: tests/output_table_integration.rs
+expression: result
+---
+String                                                       | Tags     |  Score | Section
+-------------------------------------------------------------|----------|--------|--------
+https://example.com                                          | url      |    100 |        
+example.com                                                  | domain   |     80 |        
+192.168.1.1                                                  | ipv4     |     90 |        
+::1                                                          | ipv6     |     90 |        
+/etc/passwd                                                  | filepath |     85 |        
+HKLM\Software                                                | regpath  |     85 |        
+{12345678-1234-1234-1234-123456789012}                       | guid     |     70 |        
+user@domain.com                                              | email    |     75 |        
+SGVsbG8gV29ybGQ=                                             | b64      |     60 |        
+%s %d %x                                                     | fmt      |     50 |

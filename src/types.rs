@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Represents the encoding of an extracted string
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Encoding {
     Ascii,
     Utf8,
@@ -69,7 +69,7 @@ pub enum SectionType {
 }
 
 /// Source of a string within the binary
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum StringSource {
     /// String found in section data
     SectionData,

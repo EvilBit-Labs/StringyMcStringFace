@@ -1,5 +1,3 @@
 {
-  "enabledPlugins": {
-    "commit@cc-marketplace": true
-  }
+  "enabledPlugins": {}
 }

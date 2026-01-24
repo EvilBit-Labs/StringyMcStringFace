@@ -18,24 +18,17 @@
 //! use stringy::types::{FoundString, Encoding, StringSource, Tag};
 //!
 //! let demangler = SymbolDemangler::new();
-//! let mut found_string = FoundString {
-//!     text: "_ZN4core3fmt5Write9write_str17h1234567890abcdefE".to_string(),
-//!     original_text: None,
-//!     encoding: Encoding::Ascii,
-//!     offset: 0,
-//!     rva: None,
-//!     section: None,
-//!     length: 47,
-//!     tags: Vec::new(),
-//!     score: 0,
-//!     section_weight: None,
-//!     semantic_boost: None,
-//!     noise_penalty: None,
-//!     source: StringSource::ImportName,
-//!     confidence: 1.0,
-//! };
+//! let text = "_ZN4core3fmt5Write9write_str17h1234567890abcdefE";
+//! let mut found_string = FoundString::new(
+//!     text.to_string(),
+//!     Encoding::Ascii,
+//!     0,
+//!     text.len() as u32,
+//!     StringSource::ImportName,
+//! );
 //!
 //! demangler.demangle(&mut found_string);
+//! assert!(found_string.tags.contains(&Tag::DemangledSymbol));
 //! // found_string.text now contains the demangled symbol
 //! // found_string.original_text contains the original mangled form
 //! // found_string.tags contains Tag::DemangledSymbol
@@ -129,22 +122,14 @@ impl SymbolDemangler {
     /// use stringy::types::{FoundString, Encoding, StringSource, Tag};
     ///
     /// let demangler = SymbolDemangler::new();
-    /// let mut found_string = FoundString {
-    ///     text: "_ZN4core3fmt5Write9write_str17h1234567890abcdefE".to_string(),
-    ///     original_text: None,
-    ///     encoding: Encoding::Ascii,
-    ///     offset: 0,
-    ///     rva: None,
-    ///     section: None,
-    ///     length: 47,
-    ///     tags: Vec::new(),
-    ///     score: 0,
-    ///     section_weight: None,
-    ///     semantic_boost: None,
-    ///     noise_penalty: None,
-    ///     source: StringSource::ImportName,
-    ///     confidence: 1.0,
-    /// };
+    /// let text = "_ZN4core3fmt5Write9write_str17h1234567890abcdefE";
+    /// let mut found_string = FoundString::new(
+    ///     text.to_string(),
+    ///     Encoding::Ascii,
+    ///     0,
+    ///     text.len() as u32,
+    ///     StringSource::ImportName,
+    /// );
     ///
     /// demangler.demangle(&mut found_string);
     /// assert!(found_string.tags.contains(&Tag::DemangledSymbol));

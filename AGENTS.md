@@ -6,7 +6,7 @@
 
 1. **No `unsafe` code** - `#![forbid(unsafe_code)]` enforced
 2. **Zero warnings** - `cargo clippy -- -D warnings` must pass
-3. **ASCII only** - No emojis, em-dashes, smart quotes, or Unicode punctuation
+3. **ASCII only** - No emojis, em-dashes, smart quotes, or Unicode punctuation (except when explicitly testing or working with Unicode strings or emojis)
 4. **File size limit** - Keep files under 500 lines; split larger files
 5. **No blanket `#[allow]`** - Any `allow` requires inline justification
 
@@ -14,7 +14,8 @@
 
 Stringy extracts meaningful strings from ELF, PE, and Mach-O binaries using format-specific knowledge and semantic classification. Unlike standard `strings`, it is section-aware and semantically intelligent.
 
-**Data flow**: Binary -> Format Detection -> Container Parsing -> String Extraction -> Deduplication -> Classification -> Ranking -> Output
+- **Rust**: Edition 2024, MSRV 1.91
+- **Data flow**: Binary -> Format Detection -> Container Parsing -> String Extraction -> Deduplication -> Classification -> Ranking -> Output
 
 ## Module Structure
 
@@ -22,8 +23,8 @@ Stringy extracts meaningful strings from ELF, PE, and Mach-O binaries using form
 | ----------------- | ---------------------------------------------------------------- |
 | `container/`      | Format detection, section analysis, imports/exports via `goblin` |
 | `extraction/`     | ASCII/UTF-8/UTF-16 extraction, deduplication, PE resources       |
-| `classification/` | Semantic tagging (URLs, IPs, domains, paths, GUIDs)              |
-| `output/`         | Formatters (JSON, human-readable, YARA-friendly)                 |
+| `classification/` | Semantic tagging (URLs, IPs, domains, paths, GUIDs), ranking     |
+| `output/`         | Formatters: `json/`, `table/` (tty/plain), `yara/`               |
 | `types/`          | Core data structures, error handling with `thiserror`            |
 
 ## Key Patterns
@@ -48,6 +49,10 @@ just test       # Run tests with nextest
 just lint       # Full lint suite
 just fix        # Auto-fix clippy warnings
 just ci-check   # Full CI suite locally
+just build      # Debug build
+just run <args> # Run stringy with arguments
+just bench      # Run benchmarks
+just format     # Format all (Rust, JSON, YAML, Markdown, Justfile)
 ```
 
 ## Testing
@@ -59,6 +64,14 @@ just ci-check   # Full CI suite locally
 ## Imports
 
 Import from `stringy::extraction` or `stringy::types`, not deeply nested paths. Re-exports are in `lib.rs`.
+
+## Key Dependencies
+
+- `goblin` - Binary format parsing (ELF, PE, Mach-O)
+- `pelite` - PE resource extraction
+- `thiserror` - Error type definitions
+- `insta` - Snapshot testing (dev)
+- `criterion` - Benchmarking (dev)
 
 ## Adding Features
 
