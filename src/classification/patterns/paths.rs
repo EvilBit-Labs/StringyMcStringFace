@@ -19,10 +19,6 @@ pub(crate) static WINDOWS_PATH_REGEX: Lazy<Regex> =
 pub(crate) static UNC_PATH_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^\\\\[a-zA-Z0-9.-]+\\[^\x00\n\r]*").unwrap());
 
-/// Regular expression for matching full Windows registry paths
-pub(crate) static REGISTRY_PATH_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)^HKEY_[A-Z_]+\\[^\x00\n\r]*").unwrap());
-
 /// Regular expression for matching abbreviated registry paths
 pub(crate) static REGISTRY_ABBREV_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?i)^HK(LM|CU|CR|U|CC)\\[^\x00\n\r]*").unwrap());

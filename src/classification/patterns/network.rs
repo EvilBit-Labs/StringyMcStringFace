@@ -88,10 +88,15 @@ pub fn classify_url(text: &str) -> Option<Tag> {
 ///
 /// # Returns
 /// Returns `Some(Tag::Domain)` if a valid domain is found (and it's not
-/// a URL), `None` otherwise.
+/// a URL or email address), `None` otherwise.
 pub fn classify_domain(text: &str) -> Option<Tag> {
     // First check if it's NOT a URL to prevent double-tagging
     if URL_REGEX.is_match(text) {
+        return None;
+    }
+
+    // Check if it's NOT an email address to prevent double-tagging
+    if text.contains('@') {
         return None;
     }
 

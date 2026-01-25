@@ -128,7 +128,8 @@
 
 use crate::classification::{SemanticClassifier, SymbolDemangler};
 use crate::types::{
-    ContainerInfo, Encoding, FoundString, Result, SectionInfo, SectionType, StringSource,
+    ContainerInfo, Encoding, FoundString, Result, SectionInfo, SectionType, StringContext,
+    StringSource,
 };
 
 pub mod ascii;
@@ -151,12 +152,36 @@ pub use utf16::{
     extract_utf16_strings,
 };
 
-fn apply_semantic_enrichment(strings: &mut [FoundString]) {
+fn apply_semantic_enrichment(strings: &mut [FoundString], container_info: &ContainerInfo) {
     let classifier = SemanticClassifier::new();
     let demangler = SymbolDemangler::new();
+
+    // Build a map from section name to SectionInfo for fast lookup
+    let section_map: std::collections::HashMap<&str, &SectionInfo> = container_info
+        .sections
+        .iter()
+        .map(|s| (s.name.as_str(), s))
+        .collect();
+
     for string in strings {
         demangler.demangle(string);
-        let tags = classifier.classify(string);
+
+        // Look up section info to get real section_type
+        let section_type = string
+            .section
+            .as_ref()
+            .and_then(|name| section_map.get(name.as_str()))
+            .map(|info| info.section_type)
+            .unwrap_or(SectionType::Other);
+
+        let context = StringContext {
+            section_type,
+            section_name: string.section.clone(),
+            binary_format: container_info.format,
+            encoding: string.encoding,
+            source: string.source,
+        };
+        let tags = classifier.classify(&string.text, &context);
         for tag in tags {
             if !string.tags.contains(&tag) {
                 string.tags.push(tag);
@@ -546,7 +571,7 @@ impl StringExtractor for BasicExtractor {
         }
 
         // Apply demangling and semantic classification before deduplication
-        apply_semantic_enrichment(&mut all_strings);
+        apply_semantic_enrichment(&mut all_strings, container_info);
 
         // Apply deduplication if enabled
         if config.enable_deduplication {
@@ -653,7 +678,7 @@ impl StringExtractor for BasicExtractor {
         }
 
         // Apply demangling and semantic classification before deduplication
-        apply_semantic_enrichment(&mut all_strings);
+        apply_semantic_enrichment(&mut all_strings, container_info);
 
         // Apply deduplication if enabled, otherwise convert each string to a canonical form
         if config.enable_deduplication {

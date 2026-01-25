@@ -76,7 +76,7 @@ pub mod types;
 pub use types::{
     BinaryFormat, ContainerInfo, Encoding, ExportInfo, FoundString, ImportInfo, ResourceMetadata,
     ResourceStringEntry, ResourceStringTable, ResourceType, Result, SectionInfo, SectionType,
-    StringSource, StringyError, Tag,
+    StringContext, StringSource, StringyError, Tag,
 };
 
 // Re-export extraction framework types

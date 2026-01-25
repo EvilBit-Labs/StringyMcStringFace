@@ -292,6 +292,21 @@ pub struct FoundString {
     pub confidence: f32,
 }
 
+/// Context information for semantic classification
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StringContext {
+    /// The type of section where the string was found
+    pub section_type: SectionType,
+    /// The name of the section where the string was found
+    pub section_name: Option<String>,
+    /// The format of the binary (ELF, PE, Mach-O)
+    pub binary_format: BinaryFormat,
+    /// The encoding of the string
+    pub encoding: Encoding,
+    /// The source of the string (section data, import, etc.)
+    pub source: StringSource,
+}
+
 impl FoundString {
     /// Creates a new FoundString with required fields and sensible defaults
     ///

@@ -39,9 +39,11 @@
 
 use super::patterns;
 use crate::types::{FoundString, Tag};
-use patterns::{
-    DOMAIN_REGEX, IPV4_REGEX, IPV6_REGEX, POSIX_PATH_REGEX, REGISTRY_ABBREV_REGEX,
-    REGISTRY_PATH_REGEX, UNC_PATH_REGEX, URL_REGEX, WINDOWS_PATH_REGEX,
+use patterns::ip::{IPV4_REGEX, IPV6_REGEX};
+use patterns::network::{DOMAIN_REGEX, URL_REGEX};
+use patterns::paths::{
+    POSIX_PATH_REGEX, REGISTRY_ABBREV_REGEX, REGISTRY_PATH_REGEX, UNC_PATH_REGEX,
+    WINDOWS_PATH_REGEX,
 };
 use regex::Regex;
 
