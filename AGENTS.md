@@ -39,7 +39,19 @@ Use `thiserror` with detailed context. Include offsets, section names, and file 
 
 ### Public API Structs
 
-Use `#[non_exhaustive]` for public structs and provide explicit constructors.
+Use `#[non_exhaustive]` for public structs and provide explicit constructors. When using `#[non_exhaustive]` structs internally, always use the constructor pattern (`Type::new()`) rather than struct literals - struct literals bypass the forward-compatibility guarantee.
+
+### Test-Only Code
+
+For test utilities that shouldn't be in production builds:
+
+- Add `#[cfg(test)]` to both the struct/type definition AND any impl blocks
+- Use `pub(crate)` visibility for internal test helpers
+- Keep test infrastructure in `#[cfg(test)] mod tests` blocks within the module
+
+### Regex Patterns
+
+Use `lazy_static!` or `once_cell::sync::Lazy` for compiled regexes. Always use `.expect("descriptive message")` instead of `.unwrap()` for regex compilation - invalid regex patterns should fail fast with clear error messages.
 
 ## Development Commands
 
@@ -75,8 +87,10 @@ Import from `stringy::extraction` or `stringy::types`, not deeply nested paths. 
 
 ## Adding Features
 
-**New semantic tag**: Add variant to `Tag` enum in `types.rs`, implement pattern in `classification/semantic.rs`
+**New semantic tag**: Add variant to `Tag` enum in `types/mod.rs`, implement pattern in `classification/patterns/` or `classification/mod.rs`
 
 **New section weight**: Add match arm in the relevant `container/*.rs` parser
 
 **New string extractor**: Follow patterns in `extraction/` module
+
+**Splitting large files**: When a file exceeds 500 lines, convert to a module directory: `foo.rs` -> `foo/mod.rs` + `foo/submodule.rs`. Move related code to submodules while keeping public re-exports in `mod.rs`.
