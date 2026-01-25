@@ -293,6 +293,10 @@ pub struct FoundString {
 }
 
 /// Context information for semantic classification
+///
+/// This struct is marked `#[non_exhaustive]` to allow adding new fields without breaking
+/// downstream code. Use `StringContext::new()` to construct instances.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StringContext {
     /// The type of section where the string was found
@@ -305,6 +309,34 @@ pub struct StringContext {
     pub encoding: Encoding,
     /// The source of the string (section data, import, etc.)
     pub source: StringSource,
+}
+
+impl StringContext {
+    /// Creates a new `StringContext` with required fields
+    ///
+    /// Use the builder methods (`with_section_name`) to set optional fields.
+    #[must_use]
+    pub fn new(
+        section_type: SectionType,
+        binary_format: BinaryFormat,
+        encoding: Encoding,
+        source: StringSource,
+    ) -> Self {
+        Self {
+            section_type,
+            section_name: None,
+            binary_format,
+            encoding,
+            source,
+        }
+    }
+
+    /// Sets the section name
+    #[must_use]
+    pub fn with_section_name(mut self, name: String) -> Self {
+        self.section_name = Some(name);
+        self
+    }
 }
 
 impl FoundString {

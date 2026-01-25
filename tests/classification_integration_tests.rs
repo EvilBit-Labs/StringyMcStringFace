@@ -17,13 +17,8 @@ fn create_test_context(
     section_type: SectionType,
     source: StringSource,
 ) -> StringContext {
-    StringContext {
-        section_type,
-        section_name: Some(".rodata".to_string()),
-        binary_format,
-        encoding: Encoding::Ascii,
-        source,
-    }
+    StringContext::new(section_type, binary_format, Encoding::Ascii, source)
+        .with_section_name(".rodata".to_string())
 }
 
 #[test]

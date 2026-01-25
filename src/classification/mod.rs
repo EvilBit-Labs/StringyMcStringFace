@@ -25,13 +25,13 @@
 //!
 //! let classifier = SemanticClassifier::new();
 //! let text = "{12345678-1234-1234-1234-123456789abc}";
-//! let context = StringContext {
-//!     section_type: SectionType::StringData,
-//!     section_name: Some(".rodata".to_string()),
-//!     binary_format: BinaryFormat::Elf,
-//!     encoding: Encoding::Ascii,
-//!     source: StringSource::SectionData,
-//! };
+//! let context = StringContext::new(
+//!     SectionType::StringData,
+//!     BinaryFormat::Elf,
+//!     Encoding::Ascii,
+//!     StringSource::SectionData,
+//! )
+//! .with_section_name(".rodata".to_string());
 //!
 //! let tags = classifier.classify(text, &context);
 //! assert!(tags.contains(&Tag::Guid));

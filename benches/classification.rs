@@ -4,13 +4,13 @@ use stringy::classification::SemanticClassifier;
 use stringy::types::{BinaryFormat, Encoding, SectionType, StringContext, StringSource};
 
 fn make_context() -> StringContext {
-    StringContext {
-        section_type: SectionType::StringData,
-        section_name: Some(".rodata".to_string()),
-        binary_format: BinaryFormat::Elf,
-        encoding: Encoding::Ascii,
-        source: StringSource::SectionData,
-    }
+    StringContext::new(
+        SectionType::StringData,
+        BinaryFormat::Elf,
+        Encoding::Ascii,
+        StringSource::SectionData,
+    )
+    .with_section_name(".rodata".to_string())
 }
 
 fn bench_regex_compilation(c: &mut Criterion) {

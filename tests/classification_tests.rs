@@ -2,13 +2,8 @@ use stringy::classification::SemanticClassifier;
 use stringy::types::{BinaryFormat, Encoding, SectionType, StringContext, StringSource, Tag};
 
 fn make_context(section_type: SectionType, source: StringSource) -> StringContext {
-    StringContext {
-        section_type,
-        section_name: Some(".rodata".to_string()),
-        binary_format: BinaryFormat::Elf,
-        encoding: Encoding::Ascii,
-        source,
-    }
+    StringContext::new(section_type, BinaryFormat::Elf, Encoding::Ascii, source)
+        .with_section_name(".rodata".to_string())
 }
 
 #[test]
