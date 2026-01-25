@@ -168,8 +168,4 @@ fn test_classification_performance() {
     let elapsed = start.elapsed();
 
     assert!(elapsed < Duration::from_secs(2));
-
-    let first = classifier.regex_cache_addresses();
-    let second = SemanticClassifier::new().regex_cache_addresses();
-    assert_eq!(first, second);
 }

@@ -9,19 +9,21 @@ use std::collections::HashSet;
 
 /// Regular expression for matching POSIX file paths
 pub(crate) static POSIX_PATH_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^/[^\x00\n\r]*").unwrap());
+    Lazy::new(|| Regex::new(r"^/[^\x00\n\r]*").expect("Invalid POSIX path regex"));
 
 /// Regular expression for matching Windows file paths
 pub(crate) static WINDOWS_PATH_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^[A-Za-z]:\\[^\x00\n\r]*").unwrap());
+    Lazy::new(|| Regex::new(r"^[A-Za-z]:\\[^\x00\n\r]*").expect("Invalid Windows path regex"));
 
 /// Regular expression for matching UNC network paths
 pub(crate) static UNC_PATH_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^\\\\[a-zA-Z0-9.-]+\\[^\x00\n\r]*").unwrap());
+    Lazy::new(|| Regex::new(r"^\\\\[a-zA-Z0-9.-]+\\[^\x00\n\r]*").expect("Invalid UNC path regex"));
 
 /// Regular expression for matching abbreviated registry paths
-pub(crate) static REGISTRY_ABBREV_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)^HK(LM|CU|CR|U|CC)\\[^\x00\n\r]*").unwrap());
+pub(crate) static REGISTRY_ABBREV_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)^HK(LM|CU|CR|U|CC)\\[^\x00\n\r]*")
+        .expect("Invalid registry abbreviation regex")
+});
 
 /// Common suspicious POSIX path prefixes for persistence detection
 static SUSPICIOUS_POSIX_PATHS: Lazy<HashSet<&'static str>> = Lazy::new(|| {

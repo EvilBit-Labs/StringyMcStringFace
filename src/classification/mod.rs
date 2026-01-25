@@ -75,14 +75,15 @@ lazy_static! {
 #[derive(Debug, Default)]
 pub struct SemanticClassifier;
 
-#[doc(hidden)]
+/// Internal struct for testing regex caching - not part of public API
+#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RegexCacheAddresses {
-    pub guid: usize,
-    pub email: usize,
-    pub base64: usize,
-    pub format: usize,
-    pub user_agent: usize,
+pub(crate) struct RegexCacheAddresses {
+    pub(crate) guid: usize,
+    pub(crate) email: usize,
+    pub(crate) base64: usize,
+    pub(crate) format: usize,
+    pub(crate) user_agent: usize,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -165,26 +166,17 @@ impl SemanticClassifier {
     /// classify method with a properly constructed StringContext.
     #[must_use]
     pub fn classify_found_string(&self, found: &crate::types::FoundString) -> Vec<Tag> {
-        let context = StringContext {
-            section_type: SectionType::Other,
-            section_name: found.section.clone(),
-            binary_format: BinaryFormat::Unknown,
-            encoding: found.encoding,
-            source: found.source,
+        let context = StringContext::new(
+            SectionType::Other,
+            BinaryFormat::Unknown,
+            found.encoding,
+            found.source,
+        );
+        let context = match &found.section {
+            Some(name) => context.with_section_name(name.clone()),
+            None => context,
         };
         self.classify(&found.text, &context)
-    }
-
-    #[doc(hidden)]
-    #[must_use]
-    pub fn regex_cache_addresses(&self) -> RegexCacheAddresses {
-        RegexCacheAddresses {
-            guid: &*GUID_REGEX as *const Regex as usize,
-            email: &*EMAIL_REGEX as *const Regex as usize,
-            base64: &*BASE64_REGEX as *const Regex as usize,
-            format: &*FORMAT_REGEX as *const Regex as usize,
-            user_agent: &*USER_AGENT_REGEX as *const Regex as usize,
-        }
     }
 
     fn matches_guid(&self, text: &str, context: &StringContext) -> bool {
@@ -192,10 +184,8 @@ impl SemanticClassifier {
         if text.len() < min_len {
             return false;
         }
-        if !GUID_REGEX.is_match(text) {
-            return false;
-        }
-        is_valid_guid(text)
+        // GUID regex is comprehensive - no additional validation needed
+        GUID_REGEX.is_match(text)
     }
 
     fn matches_email(&self, text: &str, context: &StringContext) -> bool {
@@ -241,10 +231,6 @@ impl SemanticClassifier {
         }
         is_valid_user_agent(text)
     }
-}
-
-fn is_valid_guid(text: &str) -> bool {
-    GUID_REGEX.is_match(text)
 }
 
 fn is_valid_email(text: &str) -> bool {
@@ -404,4 +390,35 @@ fn shannon_entropy(data: &[u8]) -> f64 {
         entropy -= p * p.log2();
     }
     entropy
+}
+
+#[cfg(test)]
+impl SemanticClassifier {
+    /// Returns memory addresses of cached regex patterns for testing
+    #[must_use]
+    pub(crate) fn regex_cache_addresses(&self) -> RegexCacheAddresses {
+        RegexCacheAddresses {
+            guid: &*GUID_REGEX as *const Regex as usize,
+            email: &*EMAIL_REGEX as *const Regex as usize,
+            base64: &*BASE64_REGEX as *const Regex as usize,
+            format: &*FORMAT_REGEX as *const Regex as usize,
+            user_agent: &*USER_AGENT_REGEX as *const Regex as usize,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_regex_caching() {
+        // Verify that regex patterns are cached via lazy_static
+        let first = SemanticClassifier::new().regex_cache_addresses();
+        let second = SemanticClassifier::new().regex_cache_addresses();
+        assert_eq!(
+            first, second,
+            "Regex addresses should be stable across instances"
+        );
+    }
 }

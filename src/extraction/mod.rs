@@ -174,12 +174,15 @@ fn apply_semantic_enrichment(strings: &mut [FoundString], container_info: &Conta
             .map(|info| info.section_type)
             .unwrap_or(SectionType::Other);
 
-        let context = StringContext {
+        let context = StringContext::new(
             section_type,
-            section_name: string.section.clone(),
-            binary_format: container_info.format,
-            encoding: string.encoding,
-            source: string.source,
+            container_info.format,
+            string.encoding,
+            string.source,
+        );
+        let context = match &string.section {
+            Some(name) => context.with_section_name(name.clone()),
+            None => context,
         };
         let tags = classifier.classify(&string.text, &context);
         for tag in tags {

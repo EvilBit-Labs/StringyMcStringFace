@@ -1,5 +1,7 @@
 use stringy::classification::SemanticClassifier;
-use stringy::types::{BinaryFormat, Encoding, SectionType, StringContext, StringSource, Tag};
+use stringy::types::{
+    BinaryFormat, Encoding, FoundString, SectionType, StringContext, StringSource, Tag,
+};
 
 fn make_context(section_type: SectionType, source: StringSource) -> StringContext {
     StringContext::new(section_type, BinaryFormat::Elf, Encoding::Ascii, source)
@@ -170,4 +172,76 @@ fn test_context_aware_classification() {
     let unboosted = make_context(SectionType::Code, StringSource::SectionData);
     let tags = classifier.classify(text, &unboosted);
     assert!(!tags.contains(&Tag::FormatString));
+}
+
+#[test]
+fn test_classify_found_string_backward_compatibility() {
+    let classifier = SemanticClassifier::new();
+
+    // Test GUID classification via FoundString
+    let found_guid = FoundString::new(
+        "{12345678-1234-1234-1234-123456789abc}".to_string(),
+        Encoding::Ascii,
+        0,
+        38,
+        StringSource::SectionData,
+    )
+    .with_section(".rodata".to_string());
+
+    let tags = classifier.classify_found_string(&found_guid);
+    assert!(
+        tags.contains(&Tag::Guid),
+        "GUID should be detected via classify_found_string"
+    );
+
+    // Test email classification via FoundString
+    let found_email = FoundString::new(
+        "admin@example.com".to_string(),
+        Encoding::Ascii,
+        100,
+        17,
+        StringSource::SectionData,
+    );
+
+    let tags = classifier.classify_found_string(&found_email);
+    assert!(
+        tags.contains(&Tag::Email),
+        "Email should be detected via classify_found_string"
+    );
+
+    // Test format string classification via FoundString
+    let found_format = FoundString::new(
+        "Error: %s at line %d".to_string(),
+        Encoding::Ascii,
+        200,
+        20,
+        StringSource::SectionData,
+    );
+
+    let tags = classifier.classify_found_string(&found_format);
+    assert!(
+        tags.contains(&Tag::FormatString),
+        "Format string should be detected via classify_found_string"
+    );
+}
+
+#[test]
+fn test_classify_found_string_without_section() {
+    let classifier = SemanticClassifier::new();
+
+    // Test classification when section is None
+    let found = FoundString::new(
+        "{87654321-4321-4321-4321-abcdefabcdef}".to_string(),
+        Encoding::Ascii,
+        0,
+        38,
+        StringSource::SectionData,
+    );
+    // Note: no with_section call - section is None
+
+    let tags = classifier.classify_found_string(&found);
+    assert!(
+        tags.contains(&Tag::Guid),
+        "GUID should be detected even without section info"
+    );
 }
