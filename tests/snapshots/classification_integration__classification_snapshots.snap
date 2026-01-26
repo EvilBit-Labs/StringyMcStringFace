@@ -4,39 +4,33 @@ expression: snapshot
 ---
 [
     (
-        "https://example.com",
+        "{12345678-1234-1234-1234-123456789abc}",
         [
-            "Url",
+            "Guid",
         ],
     ),
     (
-        "192.168.1.1",
+        "user.name+tag@example.co.uk",
         [
-            "IPv4",
+            "Email",
         ],
     ),
     (
-        "/usr/bin/bash",
+        "U29tZSBsb25nZXIgYmFzZTY0IHN0cmluZw==",
         [
-            "FilePath",
+            "Base64",
         ],
     ),
     (
-        "C:\\Windows\\System32\\cmd.exe",
+        "Value: %x",
         [
-            "FilePath",
+            "FormatString",
         ],
     ),
     (
-        "\\\\server\\share\\file.txt",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
         [
-            "FilePath",
-        ],
-    ),
-    (
-        "HKCU\\Software\\Microsoft",
-        [
-            "RegistryPath",
+            "UserAgent",
         ],
     ),
 ]

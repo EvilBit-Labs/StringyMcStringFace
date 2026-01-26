@@ -24,11 +24,3 @@ pub use paths::{
     is_suspicious_posix_path, is_suspicious_registry_path, is_suspicious_windows_path,
     is_valid_posix_path, is_valid_registry_path, is_valid_windows_path,
 };
-
-// Re-export regex patterns needed by SemanticClassifier for cache testing
-pub(crate) use ip::{IPV4_REGEX, IPV6_REGEX};
-pub(crate) use network::{DOMAIN_REGEX, URL_REGEX};
-pub(crate) use paths::{
-    POSIX_PATH_REGEX, REGISTRY_ABBREV_REGEX, REGISTRY_PATH_REGEX, UNC_PATH_REGEX,
-    WINDOWS_PATH_REGEX,
-};
