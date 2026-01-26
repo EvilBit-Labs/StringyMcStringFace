@@ -37,7 +37,7 @@
 //! assert!(tags.contains(&Tag::Guid));
 //! ```
 
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::Regex;
 
 use crate::types::{BinaryFormat, SectionType, StringContext, StringSource, Tag};
@@ -55,22 +55,25 @@ use patterns::{
     classify_unc_path, classify_url, classify_windows_path,
 };
 
-lazy_static! {
-    static ref GUID_REGEX: Regex = Regex::new(
-        r"^\{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\}$",
-    )
-    .expect("Invalid GUID regex");
-    static ref EMAIL_REGEX: Regex =
-        Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",)
-            .expect("Invalid email regex");
-    static ref BASE64_REGEX: Regex =
-        Regex::new(r"^[A-Za-z0-9+/]{20,}={0,2}$").expect("Invalid base64 regex");
-    static ref FORMAT_REGEX: Regex =
-        Regex::new(r"%[sdxofcpn]|%\d+[sdxofcpn]|\{\d+\}").expect("Invalid format regex");
-    static ref USER_AGENT_REGEX: Regex =
-        Regex::new(r"(Mozilla/[0-9.]+|Chrome/[0-9.]+|Safari/[0-9.]+|AppleWebKit/[0-9.]+)",)
-            .expect("Invalid user agent regex");
-}
+static GUID_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^\{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\}$")
+        .expect("Invalid GUID regex")
+});
+
+static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").expect("Invalid email regex")
+});
+
+static BASE64_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^[A-Za-z0-9+/]{20,}={0,2}$").expect("Invalid base64 regex"));
+
+static FORMAT_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"%[sdxofcpn]|%\d+[sdxofcpn]|\{\d+\}").expect("Invalid format regex"));
+
+static USER_AGENT_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(Mozilla/[0-9.]+|Chrome/[0-9.]+|Safari/[0-9.]+|AppleWebKit/[0-9.]+)")
+        .expect("Invalid user agent regex")
+});
 
 #[derive(Debug, Default)]
 pub struct SemanticClassifier;
@@ -413,7 +416,7 @@ mod tests {
 
     #[test]
     fn test_regex_caching() {
-        // Verify that regex patterns are cached via lazy_static
+        // Verify that regex patterns are cached via once_cell::sync::Lazy
         let first = SemanticClassifier::new().regex_cache_addresses();
         let second = SemanticClassifier::new().regex_cache_addresses();
         assert_eq!(

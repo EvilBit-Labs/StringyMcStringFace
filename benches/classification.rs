@@ -13,8 +13,8 @@ fn make_context() -> StringContext {
     .with_section_name(".rodata".to_string())
 }
 
-fn bench_regex_compilation(c: &mut Criterion) {
-    c.bench_function("classification_regex_compilation", |b| {
+fn bench_classifier_construction(c: &mut Criterion) {
+    c.bench_function("classification_classifier_construction", |b| {
         b.iter(|| {
             let _ = SemanticClassifier::new();
         });
@@ -123,7 +123,7 @@ fn bench_context_creation(c: &mut Criterion) {
 
 criterion_group!(
     classification_benches,
-    bench_regex_compilation,
+    bench_classifier_construction,
     bench_guid_classification,
     bench_email_classification,
     bench_base64_classification,

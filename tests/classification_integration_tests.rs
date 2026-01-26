@@ -1,5 +1,4 @@
 use std::fs;
-use std::time::{Duration, Instant};
 
 use stringy::classification::SemanticClassifier;
 use stringy::container::{ContainerParser, ElfParser, MachoParser, PeParser};
@@ -146,7 +145,7 @@ fn test_real_world_patterns() {
 }
 
 #[test]
-fn test_classification_performance() {
+fn test_classification_batch_processing() {
     let classifier = SemanticClassifier::new();
     let context = create_test_context(
         BinaryFormat::Elf,
@@ -154,6 +153,7 @@ fn test_classification_performance() {
         StringSource::SectionData,
     );
 
+    // Generate a batch of samples to verify classification handles volume correctly
     let mut samples = Vec::new();
     for index in 0..1200 {
         samples.push(format!("{{12345678-1234-1234-1234-{:012x}}}", index));
@@ -161,11 +161,9 @@ fn test_classification_performance() {
         samples.push(format!("Error %s at line {}", index));
     }
 
-    let start = Instant::now();
+    // Verify all samples are classified without panics
+    // Performance is tested via criterion benchmarks, not wall-clock assertions
     for sample in &samples {
         let _ = classifier.classify(sample, &context);
     }
-    let elapsed = start.elapsed();
-
-    assert!(elapsed < Duration::from_secs(2));
 }
