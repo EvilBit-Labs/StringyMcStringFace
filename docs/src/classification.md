@@ -1,118 +1,76 @@
 # Classification System
 
-Stringy's classification system applies semantic analysis to extracted strings, identifying patterns that indicate specific types of data. This helps analysts quickly focus on the most relevant information.
+Stringy applies semantic analysis to extracted strings, identifying patterns that indicate specific types of data. This helps analysts focus on the most relevant information quickly.
 
 ## Classification Pipeline
 
 ```text
-Raw String -> Pattern Matching -> Tag Assignment
+Raw String -> Pattern Matching -> Validation -> Tag Assignment
 ```
 
 ## Semantic Categories
 
-### Network Indicators
+### URLs
 
-#### URLs
+- Pattern: `https?://[^\s<>"{}|\\\^\[\]\`\]+\`
+- Examples: `https://example.com/path`, `http://malware.site/payload`
+- Validation: Must start with `http://` or `https://`
 
-- **Pattern**: `` https?://[^\s<>"{}|\\^\[\]\`]+ ``
-- **Examples**: `https://api.example.com/v1/users`, `http://malware.com/payload`
-- **Validation**: URL format check with safe character filtering
-- **Security relevance**: High - indicates network communication
+### Domain Names
 
-#### Domain Names
+- Pattern: RFC 1035 compliant domain format
+- Examples: `example.com`, `subdomain.evil.site`
+- Validation: Valid TLD from known list, not a URL or email
 
-- **Pattern**: `\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b`
-- **Examples**: `api.example.com`, `malware-c2.net`
-- **Validation**: TLD checking, DNS format compliance
-- **Security relevance**: High - C2 domains, legitimate services
+### IP Addresses
 
-#### IP Addresses
+- IPv4 Pattern: Standard dotted-decimal notation
+- IPv6 Pattern: Full and compressed formats
+- Examples: `192.168.1.1`, `::1`, `2001:db8::1`
+- Validation: Valid octet ranges for IPv4, proper format for IPv6
 
-- **IPv4 Pattern**: `\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b`
-- **IPv6 Pattern**: Comprehensive pattern supporting full notation, compressed notation (`::1`), and mixed notation (`::ffff:192.0.2.1`)
-- **Examples**: `192.168.1.1`, `2001:db8::1`, `[::1]:8080`
-- **Validation**: Two-stage validation using regex pre-filter followed by `std::net::IpAddr` parsing for correctness
-- **Port Handling**: IP addresses with ports (e.g., `192.168.1.1:8080`) are supported by automatically stripping the port suffix before validation
-- **IPv6 Bracket Handling**: Bracketed IPv6 addresses (e.g., `[::1]` and `[::1]:8080`) are supported
-- **False Positive Mitigation**: Version numbers like `1.2.3.4` are accepted as IPv4 addresses by design
-- **Implementation**: See `src/classification/semantic.rs` for the complete implementation
-- **Security relevance**: High - infrastructure indicators
+### File Paths
 
-### File System Indicators
+- POSIX Pattern: Paths starting with `/`
+- Windows Pattern: Drive letters (`C:\`) or relative paths
+- UNC Pattern: `\\server\share` format
+- Examples: `/etc/passwd`, `C:\Windows\System32`, `\\server\share\file`
 
-#### File Paths
+### Registry Paths
 
-- **POSIX Pattern**: `^/[^\0\n\r]*`
-- **Windows Pattern**: `^[A-Za-z]:\\[^\0\n\r]*`
-- **UNC Pattern**: `^\\\\[a-zA-Z0-9.-]+\\[^\0\n\r]*`
-- **Examples**: `/usr/bin/malware`, `C:\\Windows\\System32\\evil.dll`, `\\\\server\\share\\file.txt`
-- **Validation rules**: Rejects null bytes, newlines, carriage returns; rejects consecutive path separators in POSIX paths (`//`) and consecutive backslashes in Windows paths (for example, `folder\\\\file.txt`), while allowing UNC paths that start with `\\\\`; applies a reasonable length limit (4096 max, stricter for unknown prefixes); POSIX paths must be absolute (start with `/`); Windows paths must use backslashes and a valid drive letter
-- **Suspicious path examples**: `/etc/cron.d/`, `/etc/init.d/`, `/usr/local/bin/`, `/tmp/`, `/var/tmp/`; `C:\\Windows\\System32\\`, `C:\\Windows\\Temp\\`, `...\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\`
-- **Security relevance**: Medium-High - persistence and execution locations
+- Pattern: `HKEY_*` or `HK*\` prefixes
+- Examples: `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft`
+- Validation: Must start with valid registry root key
 
-#### Registry Paths
+### GUIDs
 
-- **Full root pattern**: `^HKEY_[A-Z_]+\\[^\0\n\r]*`
-- **Abbreviated root pattern**: `^HK(LM|CU|CR|U|CC)\\[^\0\n\r]*`
-- **Supported root keys**:
-  - `HKEY_LOCAL_MACHINE`
-  - `HKEY_CURRENT_USER`
-  - `HKEY_CLASSES_ROOT`
-  - `HKEY_USERS`
-  - `HKEY_CURRENT_CONFIG`
-- **Supported abbreviations**:
-  - `HKLM`, `HKCU`, `HKCR`, `HKU`, `HKCC`
-- **Suspicious registry paths**:
-  - `\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run`
-  - `\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce`
-  - `\\System\\CurrentControlSet\\Services`
-  - `\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon`
-- **Examples**:
-  - `HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run`
-  - `HKCU\\Software\\Microsoft`
-- **Security relevance**: High - persistence mechanisms
+- Pattern: `\{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\}`
+- Examples: `{12345678-1234-1234-1234-123456789abc}`
+- Validation: Strict format compliance with braces required
 
-### Identifiers
+### Email Addresses
 
-#### GUIDs/UUIDs
+- Pattern: `[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}`
+- Examples: `admin@malware.com`, `user.name+tag@example.co.uk`
+- Validation: Single `@`, valid TLD length and characters, no empty parts
 
-- **Pattern**: `\{?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\}?`
-- **Examples**: `{12345678-1234-1234-1234-123456789abc}`, `12345678-1234-1234-1234-123456789abc`
-- **Validation**: Format compliance
-- **Security relevance**: Medium - component identification
+### Base64 Data
 
-#### Email Addresses
+- Pattern: `[A-Za-z0-9+/]{20,}={0,2}`
+- Examples: `U29tZSBsb25nZXIgYmFzZTY0IHN0cmluZw==`
+- Validation: Length >= 20, length divisible by 4, padding rules, entropy threshold
 
-- **Pattern**: `[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}`
-- **Examples**: `admin@malware.com`, `support@legitimate.org`
-- **Validation**: Basic format validation
-- **Security relevance**: Medium - contact information
+### Format Strings
 
-### Code Artifacts
+- Pattern: `%[sdxofcpn]|%\d+[sdxofcpn]|\{\d+\}`
+- Examples: `Error: %s at line %d`, `User {0} logged in`
+- Validation: Reasonable specifier count, context-aware thresholds
 
-#### Format Strings
+### User Agents
 
-- **Pattern**: `%[-+0 #]*(\d+|\*)?(\.(\d+|\*))?(hh?|ll?|[Lzjt])?[diouxXeEfFgGaAcspn%]`
-- **Examples**: `Error: %s at line %d`, `Name: %s, Age: %d, Score: %.2f`
-- **Context**: Presence of real format specifiers (%% alone is ignored)
-- **Security relevance**: Low-Medium - debugging information
-
-#### Base64 Data
-
-- **Pattern**: Character set validation with padding rules
-- **Examples**: `SGVsbG8gV29ybGQ=`
-- **Validation**: Length >= 16, Base64 character set, valid padding, reject length mod 4 of 1
-- **Security relevance**: Variable - encoded payloads
-
-#### User Agents
-
-- **Pattern**: Prefix match for common agents (Mozilla, curl, Wget, python-requests, libwww-perl, Java, Apache-HttpClient, okhttp, PostmanRuntime)
-- **Examples**: `Mozilla/5.0 (Windows NT 10.0; Win64; x64)`, `curl/7.68.0`
-- **Security relevance**: Medium - network fingerprinting
-
-## Tag Specificity
-
-Tags are treated as either specific or broad. Specific tags indicate high confidence matches (for example URL, domain, IP, file path, GUID, email, format string, and user agent). Base64 is a broad tag and should be treated as ambiguous due to higher false positive risk.
+- Pattern: `Mozilla/[0-9.]+|Chrome/[0-9.]+|Safari/[0-9.]+|AppleWebKit/[0-9.]+`
+- Examples: `Mozilla/5.0 (Windows NT 10.0; Win64; x64)`, `Chrome/117.0.5938.92`
+- Validation: Known browser identifiers and minimum length
 
 ## Pattern Matching Engine
 
@@ -122,70 +80,54 @@ The semantic classifier uses cached regex patterns via `once_cell::sync::Lazy` a
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-static URL_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"https?://[^\s<>"{}|\\^\[\]\`]+"#).unwrap());
-
-impl SemanticClassifier {
-    pub fn classify(&self, string: &FoundString) -> Vec<Tag> {
-        let mut tags = Vec::new();
-
-        if self.classify_url(&string.text).is_some() {
-            tags.push(Tag::Url);
-        }
-
-        if self.classify_domain(&string.text).is_some() {
-            tags.push(Tag::Domain);
-        }
-
-        tags.extend(self.classify_ip_addresses(&string.text));
-
-        if self.classify_posix_path(&string.text).is_some()
-            || self.classify_windows_path(&string.text).is_some()
-            || self.classify_unc_path(&string.text).is_some()
-        {
-            tags.push(Tag::FilePath);
-        }
-
-        if self.classify_registry_path(&string.text).is_some() {
-            tags.push(Tag::RegistryPath);
-        }
-
-        tags
-    }
-}
+static GUID_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^\{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\}$")
+        .expect("Invalid GUID regex")
+});
 ```
 
 ## Using the Classification System
 
-```text
+```rust
 use stringy::classification::SemanticClassifier;
-use stringy::types::{Encoding, FoundString, StringSource, Tag};
+use stringy::types::{BinaryFormat, Encoding, SectionType, StringContext, StringSource, Tag};
 
 let classifier = SemanticClassifier::new();
-let found_string = FoundString {
-    text: "C:\\Windows\\System32\\cmd.exe".to_string(),
-    encoding: Encoding::Ascii,
-    offset: 0,
-    rva: None,
-    section: None,
-    length: 27,
-    tags: Vec::new(),
-    score: 0,
-    source: StringSource::SectionData,
-    confidence: 1.0,
-};
+let context = StringContext::new(
+    SectionType::StringData,
+    BinaryFormat::Elf,
+    Encoding::Ascii,
+    StringSource::SectionData,
+)
+.with_section_name(".rodata".to_string());
 
-let tags = classifier.classify(&found_string);
-if tags.contains(&Tag::FilePath) {
-    // Handle file path indicator
+let tags = classifier.classify("{12345678-1234-1234-1234-123456789abc}", &context);
+if tags.contains(&Tag::Guid) {
+    // Handle GUID indicator
 }
 ```
 
-## Confidence Scoring
+## Validation Rules
 
-The current implementation returns tags without explicit confidence scores. Confidence is implicit in the validation and matching logic. A future update may introduce explicit confidence values per tag.
+- GUID: Braced, hyphenated, hex-only format.
+- Email: TLD length must be between 2 and 24 and alphabetic; domain must include a dot.
+- Base64: Length must be divisible by 4, padding allowed only at the end, entropy threshold applied.
+- Format String: Must contain at least one specifier and pass context-aware length checks.
+- User Agent: Must contain a known browser token and meet minimum length.
 
-## Planned Enhancements
+## Performance Notes
 
-- Context-aware classification
-- Language-specific refinements
+- Regexes are compiled once via `once_cell::sync::Lazy` and reused across calls.
+- Minimum length checks avoid unnecessary regex work on short inputs.
+- The classifier is stateless and thread-safe.
+
+## Testing
+
+- Unit tests: `tests/classification_tests.rs`
+- Integration tests: `tests/classification_integration_tests.rs`
+
+Run tests with:
+
+```text
+just test
+```
