@@ -26,14 +26,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.91.0
-
-      - uses: taiki-e/install-action@v2
+      - uses: jdx/mise-action@v3
         with:
-          tool: cargo-outdated,cargo-dist
+          install: true
+          cache: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: EmbarkStudios/cargo-deny-action@v2
+      - name: Run cargo deny check
+        run: cargo deny check
 
       - name: Run cargo outdated
         run: cargo outdated --depth=1 --exit-code=1

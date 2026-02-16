@@ -27,25 +27,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.91.0
+      - uses: jdx/mise-action@v3
         with:
-          components: rustfmt, clippy
-
-      - name: Setup mdBook
-        uses: jontze/action-mdbook@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          mdbook-version: 0.5.2
-          use-mermaid: true
-          use-toc: true
-          use-admonish: true
-
-      - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@main
-
-      - name: Install mdbook plugins
-        run: cargo binstall mdbook-tabs mdbook-i18n-helpers mdbook-yml-header mdbook-image-size --no-confirm
+          install: true
+          cache: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build mdBook
         run: |
