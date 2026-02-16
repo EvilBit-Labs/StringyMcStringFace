@@ -25,9 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@1.93.0
+      - uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9
         with:
           components: rustfmt, clippy
+          toolchain: 1.93.0
       - uses: jdx/mise-action@v3
         with:
           install: true
@@ -42,9 +43,20 @@ jobs:
 
   msrv:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - toolchain: stable
+          - toolchain: stable minus 1 releases
+          - toolchain: stable minus 2 releases
+          - toolchain: stable minus 3 releases
+          - toolchain: stable minus 4 releases
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@1.91.0
+      - uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9
+        with:
+          components: rustfmt, clippy
+          toolchain: ${{ matrix.toolchain }}
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
