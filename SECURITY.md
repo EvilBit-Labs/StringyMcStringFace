@@ -2,10 +2,10 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
-| < 0.1   | :x:                |
+| Version | Supported |
+| ------- | --------- |
+| 0.1.x   | Yes       |
+| < 0.1   | No        |
 
 Users on unsupported versions should upgrade to the latest release. Please review the [release notes](https://github.com/EvilBit-Labs/Stringy/releases) when upgrading.
 
