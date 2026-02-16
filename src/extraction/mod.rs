@@ -40,7 +40,7 @@
 //! and noise filtering. It implements byte-level scanning for contiguous UTF-16LE character
 //! sequences, following the pattern established in the ASCII extractor.
 //!
-//! - `extract_utf16le_strings()`: Basic byte-level UTF-16LE string scanning
+//! - `extract_utf16_strings()`: Basic byte-level UTF-16 string scanning
 //! - `extract_from_section()`: Section-aware extraction with proper metadata population
 //! - `Utf16ExtractionConfig`: Configuration for minimum/maximum character count and confidence thresholds
 //!
@@ -89,6 +89,7 @@
 //! use stringy::extraction::{BasicExtractor, ExtractionConfig, StringExtractor};
 //! use stringy::container::{detect_format, create_parser};
 //!
+//! # fn example() -> stringy::Result<()> {
 //! let data = std::fs::read("example.exe")?;
 //! let format = detect_format(&data);
 //! let parser = create_parser(format)?;
@@ -100,7 +101,7 @@
 //!
 //! // Format-specific extractors
 //! use stringy::extraction::{
-//!     extract_ascii_strings, extract_utf16le_strings, extract_load_command_strings, extract_resources,
+//!     extract_ascii_strings, extract_utf16_strings, extract_load_command_strings, extract_resources,
 //!     extract_resource_strings, AsciiExtractionConfig, Utf16ExtractionConfig,
 //! };
 //!
@@ -108,9 +109,9 @@
 //! let ascii_config = AsciiExtractionConfig::default();
 //! let ascii_strings = extract_ascii_strings(&data, &ascii_config);
 //!
-//! // UTF-16LE extraction
+//! // UTF-16 extraction
 //! let utf16_config = Utf16ExtractionConfig::default();
-//! let utf16le_strings = extract_utf16le_strings(&data, &utf16_config);
+//! let utf16_strings = extract_utf16_strings(&data, &utf16_config);
 //!
 //! // Phase 1: Get resource metadata
 //! let metadata = extract_resources(&data);
@@ -121,11 +122,14 @@
 //! // Mach-O load command extraction
 //! let macho_data = std::fs::read("example.dylib")?;
 //! let load_command_strings = extract_load_command_strings(&macho_data);
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::classification::{SemanticClassifier, SymbolDemangler};
 use crate::types::{
-    ContainerInfo, Encoding, FoundString, Result, SectionInfo, SectionType, StringSource,
+    ContainerInfo, Encoding, FoundString, Result, SectionInfo, SectionType, StringContext,
+    StringSource,
 };
 
 pub mod ascii;
@@ -148,12 +152,39 @@ pub use utf16::{
     extract_utf16_strings,
 };
 
-fn apply_semantic_enrichment(strings: &mut [FoundString]) {
+fn apply_semantic_enrichment(strings: &mut [FoundString], container_info: &ContainerInfo) {
     let classifier = SemanticClassifier::new();
     let demangler = SymbolDemangler::new();
+
+    // Build a map from section name to SectionInfo for fast lookup
+    let section_map: std::collections::HashMap<&str, &SectionInfo> = container_info
+        .sections
+        .iter()
+        .map(|s| (s.name.as_str(), s))
+        .collect();
+
     for string in strings {
         demangler.demangle(string);
-        let tags = classifier.classify(string);
+
+        // Look up section info to get real section_type
+        let section_type = string
+            .section
+            .as_ref()
+            .and_then(|name| section_map.get(name.as_str()))
+            .map(|info| info.section_type)
+            .unwrap_or(SectionType::Other);
+
+        let context = StringContext::new(
+            section_type,
+            container_info.format,
+            string.encoding,
+            string.source,
+        );
+        let context = match &string.section {
+            Some(name) => context.with_section_name(name.clone()),
+            None => context,
+        };
+        let tags = classifier.classify(&string.text, &context);
         for tag in tags {
             if !string.tags.contains(&tag) {
                 string.tags.push(tag);
@@ -312,18 +343,21 @@ impl ExtractionConfig {
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,no_run
 /// use stringy::extraction::{BasicExtractor, ExtractionConfig, StringExtractor};
 /// use stringy::container::{detect_format, create_parser};
 ///
-/// let data = std::fs::read("binary_file")?;
-/// let format = detect_format(&data);
-/// let parser = create_parser(format)?;
-/// let container_info = parser.parse(&data)?;
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let data = std::fs::read("binary_file")?;
+///     let format = detect_format(&data);
+///     let parser = create_parser(format)?;
+///     let container_info = parser.parse(&data)?;
 ///
-/// let extractor = BasicExtractor::new();
-/// let config = ExtractionConfig::default();
-/// let strings = extractor.extract(&data, &container_info, &config)?;
+///     let extractor = BasicExtractor::new();
+///     let config = ExtractionConfig::default();
+///     let strings = extractor.extract(&data, &container_info, &config)?;
+///     Ok(())
+/// }
 /// ```
 pub trait StringExtractor {
     /// Extract strings from entire binary using container metadata
@@ -406,31 +440,34 @@ pub trait StringExtractor {
 /// use stringy::extraction::{BasicExtractor, ExtractionConfig, StringExtractor};
 /// use stringy::types::{ContainerInfo, SectionInfo, SectionType, BinaryFormat};
 ///
-/// let extractor = BasicExtractor::new();
-/// let config = ExtractionConfig::default();
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let extractor = BasicExtractor::new();
+///     let config = ExtractionConfig::default();
 ///
-/// // Create a simple container info for testing
-/// let section = SectionInfo {
-///     name: ".rodata".to_string(),
-///     offset: 0,
-///     size: 100,
-///     rva: Some(0x1000),
-///     section_type: SectionType::StringData,
-///     is_executable: false,
-///     is_writable: false,
-///     weight: 1.0,
-/// };
+///     // Create a simple container info for testing
+///     let section = SectionInfo {
+///         name: ".rodata".to_string(),
+///         offset: 0,
+///         size: 100,
+///         rva: Some(0x1000),
+///         section_type: SectionType::StringData,
+///         is_executable: false,
+///         is_writable: false,
+///         weight: 1.0,
+///     };
 ///
-/// let container_info = ContainerInfo::new(
-///     BinaryFormat::Elf,
-///     vec![section],
-///     vec![],
-///     vec![],
-///     None,
-/// );
+///     let container_info = ContainerInfo::new(
+///         BinaryFormat::Elf,
+///         vec![section],
+///         vec![],
+///         vec![],
+///         None,
+///     );
 ///
-/// let data = b"Hello World\0Test String\0";
-/// let strings = extractor.extract(data, &container_info, &config)?;
+///     let data = b"Hello World\0Test String\0";
+///     let strings = extractor.extract(data, &container_info, &config)?;
+///     Ok(())
+/// }
 /// ```
 #[derive(Debug, Clone)]
 pub struct BasicExtractor;
@@ -537,7 +574,7 @@ impl StringExtractor for BasicExtractor {
         }
 
         // Apply demangling and semantic classification before deduplication
-        apply_semantic_enrichment(&mut all_strings);
+        apply_semantic_enrichment(&mut all_strings, container_info);
 
         // Apply deduplication if enabled
         if config.enable_deduplication {
@@ -644,7 +681,7 @@ impl StringExtractor for BasicExtractor {
         }
 
         // Apply demangling and semantic classification before deduplication
-        apply_semantic_enrichment(&mut all_strings);
+        apply_semantic_enrichment(&mut all_strings, container_info);
 
         // Apply deduplication if enabled, otherwise convert each string to a canonical form
         if config.enable_deduplication {

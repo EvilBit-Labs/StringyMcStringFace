@@ -6,7 +6,7 @@
 
 1. **No `unsafe` code** - `#![forbid(unsafe_code)]` enforced
 2. **Zero warnings** - `cargo clippy -- -D warnings` must pass
-3. **ASCII only** - No emojis, em-dashes, smart quotes, or Unicode punctuation
+3. **ASCII only** - No emojis, em-dashes, smart quotes, or Unicode punctuation (except when explicitly testing or working with Unicode strings or emojis)
 4. **File size limit** - Keep files under 500 lines; split larger files
 5. **No blanket `#[allow]`** - Any `allow` requires inline justification
 
@@ -14,7 +14,8 @@
 
 Stringy extracts meaningful strings from ELF, PE, and Mach-O binaries using format-specific knowledge and semantic classification. Unlike standard `strings`, it is section-aware and semantically intelligent.
 
-**Data flow**: Binary -> Format Detection -> Container Parsing -> String Extraction -> Deduplication -> Classification -> Ranking -> Output
+- **Rust**: Edition 2024, MSRV 1.91
+- **Data flow**: Binary -> Format Detection -> Container Parsing -> String Extraction -> Deduplication -> Classification -> Ranking -> Output
 
 ## Module Structure
 
@@ -22,8 +23,8 @@ Stringy extracts meaningful strings from ELF, PE, and Mach-O binaries using form
 | ----------------- | ---------------------------------------------------------------- |
 | `container/`      | Format detection, section analysis, imports/exports via `goblin` |
 | `extraction/`     | ASCII/UTF-8/UTF-16 extraction, deduplication, PE resources       |
-| `classification/` | Semantic tagging (URLs, IPs, domains, paths, GUIDs)              |
-| `output/`         | Formatters (JSON, human-readable, YARA-friendly)                 |
+| `classification/` | Semantic tagging (URLs, IPs, domains, paths, GUIDs), ranking     |
+| `output/`         | Formatters: `json/`, `table/` (tty/plain), `yara/`               |
 | `types/`          | Core data structures, error handling with `thiserror`            |
 
 ## Key Patterns
@@ -38,7 +39,19 @@ Use `thiserror` with detailed context. Include offsets, section names, and file 
 
 ### Public API Structs
 
-Use `#[non_exhaustive]` for public structs and provide explicit constructors.
+Use `#[non_exhaustive]` for public structs and provide explicit constructors. When using `#[non_exhaustive]` structs internally, always use the constructor pattern (`Type::new()`) rather than struct literals - struct literals bypass the forward-compatibility guarantee.
+
+### Test-Only Code
+
+For test utilities that shouldn't be in production builds:
+
+- Add `#[cfg(test)]` to both the struct/type definition AND any impl blocks
+- Use `pub(crate)` visibility for internal test helpers
+- Keep test infrastructure in `#[cfg(test)] mod tests` blocks within the module
+
+### Regex Patterns
+
+Use `lazy_static!` or `once_cell::sync::Lazy` for compiled regexes. Always use `.expect("descriptive message")` instead of `.unwrap()` for regex compilation - invalid regex patterns should fail fast with clear error messages.
 
 ## Development Commands
 
@@ -48,6 +61,10 @@ just test       # Run tests with nextest
 just lint       # Full lint suite
 just fix        # Auto-fix clippy warnings
 just ci-check   # Full CI suite locally
+just build      # Debug build
+just run <args> # Run stringy with arguments
+just bench      # Run benchmarks
+just format     # Format all (Rust, JSON, YAML, Markdown, Justfile)
 ```
 
 ## Testing
@@ -60,10 +77,20 @@ just ci-check   # Full CI suite locally
 
 Import from `stringy::extraction` or `stringy::types`, not deeply nested paths. Re-exports are in `lib.rs`.
 
+## Key Dependencies
+
+- `goblin` - Binary format parsing (ELF, PE, Mach-O)
+- `pelite` - PE resource extraction
+- `thiserror` - Error type definitions
+- `insta` - Snapshot testing (dev)
+- `criterion` - Benchmarking (dev)
+
 ## Adding Features
 
-**New semantic tag**: Add variant to `Tag` enum in `types.rs`, implement pattern in `classification/semantic.rs`
+**New semantic tag**: Add variant to `Tag` enum in `types/mod.rs`, implement pattern in `classification/patterns/` or `classification/mod.rs`
 
 **New section weight**: Add match arm in the relevant `container/*.rs` parser
 
 **New string extractor**: Follow patterns in `extraction/` module
+
+**Splitting large files**: When a file exceeds 500 lines, convert to a module directory: `foo.rs` -> `foo/mod.rs` + `foo/submodule.rs`. Move related code to submodules while keeping public re-exports in `mod.rs`.

@@ -1,0 +1,7 @@
+---
+source: tests/output_table_integration.rs
+expression: result
+---
+中文字符串
+Русский
+😀😁😂

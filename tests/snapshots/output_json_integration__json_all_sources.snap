@@ -1,0 +1,10 @@
+---
+source: tests/output_json_integration.rs
+expression: output
+---
+{"text":"sec","encoding":"Ascii","offset":0,"rva":null,"section":null,"length":3,"tags":[],"score":0,"source":"SectionData","confidence":1.0}
+{"text":"imp","encoding":"Ascii","offset":1,"rva":null,"section":null,"length":3,"tags":[],"score":0,"source":"ImportName","confidence":1.0}
+{"text":"exp","encoding":"Ascii","offset":2,"rva":null,"section":null,"length":3,"tags":[],"score":0,"source":"ExportName","confidence":1.0}
+{"text":"res","encoding":"Ascii","offset":3,"rva":null,"section":null,"length":3,"tags":[],"score":0,"source":"ResourceString","confidence":1.0}
+{"text":"lc","encoding":"Ascii","offset":4,"rva":null,"section":null,"length":2,"tags":[],"score":0,"source":"LoadCommand","confidence":1.0}
+{"text":"dbg","encoding":"Ascii","offset":5,"rva":null,"section":null,"length":3,"tags":[],"score":0,"source":"DebugInfo","confidence":1.0}

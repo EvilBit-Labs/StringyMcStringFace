@@ -13,7 +13,8 @@ use std::str::FromStr;
 /// Pattern matches IPv4 addresses with proper octet validation (0-255).
 /// Matches the entire string (used after port stripping).
 pub(crate) static IPV4_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$").unwrap()
+    Regex::new(r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
+        .expect("Invalid IPv4 regex")
 });
 
 /// Regular expression for matching IPv6 addresses
@@ -21,7 +22,8 @@ pub(crate) static IPV4_REGEX: Lazy<Regex> = Lazy::new(|| {
 /// This is a permissive pre-filter that only allows hex digits, colons,
 /// and dots (for IPv4-mapped suffixes). Canonical validation is still
 /// performed by std::net::Ipv6Addr::from_str.
-pub(crate) static IPV6_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)^[0-9a-f:.]+$").unwrap());
+pub(crate) static IPV6_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?i)^[0-9a-f:.]+$").expect("Invalid IPv6 regex"));
 
 /// Regular expression for detecting and stripping port suffixes
 ///
@@ -30,14 +32,14 @@ pub(crate) static PORT_SUFFIX_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r":(?:[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$",
     )
-    .unwrap()
+    .expect("Invalid port suffix regex")
 });
 
 /// Regular expression for handling bracketed IPv6 addresses
 ///
 /// Matches [IPv6] format used in URLs like [::1]:8080.
 pub(crate) static IPV6_BRACKETS_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^\[([^\]]+)\]$").unwrap());
+    Lazy::new(|| Regex::new(r"^\[([^\]]+)\]$").expect("Invalid IPv6 brackets regex"));
 
 /// Strips the port suffix from an IP address string if present
 ///
@@ -104,7 +106,7 @@ pub fn is_ipv4_address(text: &str) -> bool {
 
 /// Checks if the given text is a valid IPv6 address
 ///
-/// This method handles bracketed IPv6 addresses (e.g., [::1]:8080),
+/// This method handles bracketed IPv6 addresses (e.g., `[::1]:8080`),
 /// strips any port suffix, and validates using both regex and standard library.
 ///
 /// # Arguments

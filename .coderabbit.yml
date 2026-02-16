@@ -351,7 +351,7 @@ reviews:
             - mode: "warning"
               name: "ASCII Only"
               instructions: |
-                  Verify that no Unicode punctuation is introduced:
+                  Verify that no Unicode punctuation is introduced unless explicitly required:
                   1. No emojis in code or documentation
                   2. No em-dashes - use regular hyphens
                   3. No smart quotes - use straight quotes

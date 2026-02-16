@@ -42,10 +42,10 @@
 //! println!("Found {} ASCII strings", ascii_strings.len());
 //!
 //! // UTF-16LE string extraction (Windows PE binaries)
-//! use stringy::extraction::{extract_utf16le_strings, Utf16ExtractionConfig};
+//! use stringy::extraction::{extract_utf16_strings, Utf16ExtractionConfig};
 //! let utf16_config = Utf16ExtractionConfig::default();
-//! let utf16le_strings = extract_utf16le_strings(&data, &utf16_config);
-//! println!("Found {} UTF-16LE strings", utf16le_strings.len());
+//! let utf16_strings = extract_utf16_strings(&data, &utf16_config);
+//! println!("Found {} UTF-16 strings", utf16_strings.len());
 //! # Ok(())
 //! # }
 //! ```
@@ -76,11 +76,17 @@ pub mod types;
 pub use types::{
     BinaryFormat, ContainerInfo, Encoding, ExportInfo, FoundString, ImportInfo, ResourceMetadata,
     ResourceStringEntry, ResourceStringTable, ResourceType, Result, SectionInfo, SectionType,
-    StringSource, StringyError, Tag,
+    StringContext, StringSource, StringyError, Tag,
 };
 
 // Re-export extraction framework types
 pub use extraction::{
     AsciiExtractionConfig, BasicExtractor, CanonicalString, ExtractionConfig, StringExtractor,
     StringOccurrence, Utf16ExtractionConfig, deduplicate,
+};
+
+// Re-export output infrastructure types
+pub use output::{
+    OutputFormat, OutputFormatter, OutputMetadata, format_json, format_output,
+    format_table_with_mode, format_yara,
 };

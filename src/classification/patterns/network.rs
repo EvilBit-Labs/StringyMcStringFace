@@ -12,7 +12,7 @@ use std::collections::HashSet;
 /// Pattern matches URLs starting with http:// or https:// and excludes
 /// problematic characters that could cause false positives.
 pub(crate) static URL_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"https?://[^\s<>"{}|\\\^\[\]\`]+"#).unwrap());
+    Lazy::new(|| Regex::new(r#"https?://[^\s<>"{}|\\\^\[\]\`]+"#).expect("Invalid URL regex"));
 
 /// Regular expression for matching domain names
 ///
@@ -20,7 +20,8 @@ pub(crate) static URL_REGEX: Lazy<Regex> =
 /// It ensures domains start and end with alphanumeric characters, allows hyphens
 /// in the middle, and requires at least a 2-character TLD.
 pub(crate) static DOMAIN_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b").unwrap()
+    Regex::new(r"\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b")
+        .expect("Invalid domain regex")
 });
 
 /// List of common TLDs for validation
@@ -88,10 +89,15 @@ pub fn classify_url(text: &str) -> Option<Tag> {
 ///
 /// # Returns
 /// Returns `Some(Tag::Domain)` if a valid domain is found (and it's not
-/// a URL), `None` otherwise.
+/// a URL or email address), `None` otherwise.
 pub fn classify_domain(text: &str) -> Option<Tag> {
     // First check if it's NOT a URL to prevent double-tagging
     if URL_REGEX.is_match(text) {
+        return None;
+    }
+
+    // Check if it's NOT an email address to prevent double-tagging
+    if text.contains('@') {
         return None;
     }
 

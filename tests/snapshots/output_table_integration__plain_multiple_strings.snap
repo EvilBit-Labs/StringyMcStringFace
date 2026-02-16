@@ -1,0 +1,7 @@
+---
+source: tests/output_table_integration.rs
+expression: result
+---
+https://malware.example.com/beacon
+C:\Windows\System32\cmd.exe
+GetProcAddress

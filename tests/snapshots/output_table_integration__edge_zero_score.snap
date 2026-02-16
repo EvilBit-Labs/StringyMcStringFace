@@ -1,0 +1,7 @@
+---
+source: tests/output_table_integration.rs
+expression: result
+---
+String                                                       | Tags |  Score | Section
+-------------------------------------------------------------|------|--------|--------
+zero score string                                            |      |      0 | .data

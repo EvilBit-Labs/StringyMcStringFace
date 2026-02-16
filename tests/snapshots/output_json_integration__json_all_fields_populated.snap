@@ -1,0 +1,5 @@
+---
+source: tests/output_json_integration.rs
+expression: output
+---
+{"text":"fielded","original_text":"original","encoding":"Ascii","offset":4096,"rva":8192,"section":".rdata","length":7,"tags":["Url"],"score":150,"section_weight":20,"semantic_boost":30,"noise_penalty":-10,"source":"SectionData","confidence":0.9}
