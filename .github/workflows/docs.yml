@@ -33,9 +33,6 @@ jobs:
           cache: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install mdbook-yml-header
-        run: cargo binstall mdbook-yml-header --no-confirm
-
       - name: Build mdBook
         run: |
           cd docs
