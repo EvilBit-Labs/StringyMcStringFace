@@ -94,3 +94,34 @@ Import from `stringy::extraction` or `stringy::types`, not deeply nested paths. 
 **New string extractor**: Follow patterns in `extraction/` module
 
 **Splitting large files**: When a file exceeds 500 lines, convert to a module directory: `foo.rs` -> `foo/mod.rs` + `foo/submodule.rs`. Move related code to submodules while keeping public re-exports in `mod.rs`.
+
+## Open-Source Quality Standards (OSSF Best Practices)
+
+Maintain these standards for OSSF Scorecard compliance:
+
+### Every PR Must
+
+- Sign off commits with `git commit -s` (DCO enforced by GitHub App)
+- Pass CI (clippy, rustfmt, tests, CodeQL, cargo-deny) before merge
+- Include tests for new functionality -- this is policy, not optional
+- Be reviewed (human or CodeRabbit) for correctness, safety, and style
+- Not introduce `unwrap()` in library code, unchecked errors, or unvalidated input
+
+### Every Release Must
+
+- Have human-readable release notes via git-cliff (not raw git log)
+- Use unique SemVer identifiers (`vX.Y.Z` tags)
+- Be built reproducibly (pinned toolchain, committed `Cargo.lock`, cargo-dist)
+
+### Security
+
+- Vulnerabilities go through private reporting (GitHub advisories or <support@evilbitlabs.io>), never public issues
+- `cargo-deny` and `cargo-audit` run in CI -- fix findings promptly
+- Medium+ severity vulnerabilities: we aim to release a fix within 90 days of confirmation (see SECURITY.md for canonical policy)
+
+### Documentation
+
+- Exported APIs require rustdoc comments with examples where appropriate
+- CONTRIBUTING.md documents code review criteria, test policy, DCO, and governance
+- SECURITY.md documents vulnerability reporting with scope, safe harbor, and PGP key
+- AGENTS.md must accurately reflect implemented features (not aspirational)
