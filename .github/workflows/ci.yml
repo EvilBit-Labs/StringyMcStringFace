@@ -25,18 +25,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@1.93.0
+        with:
+          components: rustfmt, clippy
       - uses: jdx/mise-action@v3
         with:
           install: true
           cache: true
-          cache_key_prefix: mise-v1
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Verify toolchain
-        run: |
-          rustc --version
-          cargo --version
-          rustfmt --version
 
       - name: Rustfmt Check
         run: cargo fmt --all -- --check
@@ -64,7 +60,6 @@ jobs:
         with:
           install: true
           cache: true
-          cache_key_prefix: mise-v1
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests (all features)
@@ -85,19 +80,13 @@ jobs:
             platform: "Windows"
 
     runs-on: ${{ matrix.os }}
-    env:
-      MISE_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@v6
       - uses: jdx/mise-action@v3
         with:
-          install: false
+          install: true
           cache: true
-          cache_key_prefix: mise-v1
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install test dependencies
-        run: mise install rust "cargo:cargo-nextest"
 
       - run: cargo nextest run --all-features
       - run: cargo build --release --all-features
@@ -111,7 +100,6 @@ jobs:
         with:
           install: true
           cache: true
-          cache_key_prefix: mise-v1
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate coverage
