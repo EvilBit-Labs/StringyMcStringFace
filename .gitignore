@@ -131,3 +131,4 @@ megalinter-reports/*
 target/*
 stringy-output/*
 tests/fixtures/*
+.claude.local.md

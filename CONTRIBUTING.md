@@ -10,7 +10,7 @@ Thanks for your interest in Stringy. This guide explains how to propose changes 
 
 ## Development setup
 
-Stringy uses Rust 2024 (MSRV 1.85+, see `rust-toolchain.toml`). We also use just for common tasks.
+Stringy uses Rust 2024 (MSRV 1.91+, see `rust-toolchain.toml`). We also use just for common tasks.
 
 Recommended workflow:
 
@@ -28,7 +28,7 @@ If you do not use just, the critical requirement is that:
 
 These rules are enforced by CI:
 
-- No unsafe code
+- No unsafe code (`#![forbid(unsafe_code)]`)
 - Zero warnings (`clippy -D warnings`)
 - ASCII only in code and documentation, unless explicitly working with Unicode handling
 - Keep files under 500-600 lines; split when needed
@@ -45,22 +45,21 @@ Module layout:
 - `extraction/` handles string extraction, filtering, and deduplication
 - `classification/` handles semantic tagging and ranking
 - `output/` handles output formatters
-- `types.rs` contains core data structures and error types
+- `types/` contains core data structures and error types
 
 Key patterns:
 
 - Section weights: add new section weights in `container/*.rs` using existing match patterns. Higher weight means more likely to contain useful strings.
-- Semantic tags: add new Tag variants in `types.rs`, implement detection in `classification/semantic.rs`, and update any tag merging logic if needed.
+- Semantic tags: add new Tag variants in `types/mod.rs`, implement detection in `classification/`, and update any tag merging logic if needed.
 - Deduplication: preserve all occurrences and merge tags across occurrences in `extraction/dedup.rs`.
 - Public structs: keep public API structs non_exhaustive and provide explicit constructors.
-- Imports: prefer `stringy::extraction` or `stringy::types`. Do not import locally-defined types inside `extraction/mod.rs`.
+- Imports: prefer `stringy::extraction` or `stringy::types`. Do not import deeply nested paths.
 
 ## Tests
 
 - Add or update tests for behavior changes.
 - Use insta snapshots for output verification when appropriate.
 - Integration tests live in tests/ and fixtures in tests/fixtures/.
-- Use insta snapshots for output verification when changing output formatters.
 
 Run:
 
@@ -73,13 +72,67 @@ Run:
 - Link related issues in the PR description.
 - Update documentation when behavior changes.
 
+### Code review requirements
+
+All pull requests require review before merging. Reviewers check for:
+
+- **Correctness**: Does the code do what it claims? Are edge cases handled?
+- **Safety**: No unsafe code, proper bounds checking, no panics/unwraps in library code
+- **Tests**: New functionality has tests, existing tests still pass
+- **Style**: Follows project conventions, passes `cargo fmt` and `cargo clippy -- -D warnings`
+- **Documentation**: Public APIs have rustdoc, AGENTS.md updated if architecture changes
+
+CI must pass before merge. This includes formatting, linting, tests, security audit, and CodeQL analysis. Branch protection enforces these checks on the `main` branch.
+
+## Developer Certificate of Origin (DCO)
+
+This project requires all contributors to sign off on their commits, certifying that they have the right to submit the code under the project's license. This is enforced by the [DCO GitHub App](https://github.com/apps/dco).
+
+To sign off, add `-s` to your commit command:
+
+```bash
+git commit -s -m "feat: add new feature"
+```
+
+This adds a `Signed-off-by` line to your commit message:
+
+```text
+Signed-off-by: Your Name <your.email@example.com>
+```
+
+By signing off, you agree to the [Developer Certificate of Origin](https://developercertificate.org/).
+
 ## Documentation
 
 Docs live under docs/ and project planning artifacts are in project_plan/. Update them when you change user-facing behavior.
 
 ## Security
 
-If you believe you found a security issue, please do not open a public issue. Use GitHub Security Advisories if available, or contact the maintainers privately.
+If you believe you found a security issue, please do not open a public issue. See [SECURITY.md](SECURITY.md) for reporting instructions, scope, and our PGP key.
+
+## Project governance
+
+### Decision-making
+
+Stringy uses a **maintainer-driven** governance model. Decisions are made by the project maintainers through consensus on GitHub issues and pull requests.
+
+### Roles
+
+| Role            | Responsibilities                                                           | Current                                                                                        |
+| --------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Maintainer**  | Merge PRs, manage releases, set project direction, review security reports | [@unclesp1d3r](https://github.com/unclesp1d3r), [@KryptoKat08](https://github.com/KryptoKat08) |
+| **Contributor** | Submit issues, PRs, and participate in discussions                         | Anyone following this guide                                                                    |
+
+### How decisions are made
+
+- **Bug fixes and minor changes**: Any maintainer can review and merge
+- **New features**: Discussed in a GitHub issue before implementation; maintainer approval required
+- **Architecture changes**: Require agreement from both maintainers
+- **Breaking API changes**: Discussed in a GitHub issue with community input; require agreement from both maintainers
+
+### Becoming a maintainer
+
+As the project grows, active contributors who demonstrate sustained, high-quality contributions and alignment with project goals may be invited to become maintainers.
 
 ## AI-assisted development
 
