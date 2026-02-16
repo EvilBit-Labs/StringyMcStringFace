@@ -29,7 +29,14 @@ jobs:
         with:
           install: true
           cache: true
+          cache_key_prefix: mise-v1
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify toolchain
+        run: |
+          rustc --version
+          cargo --version
+          rustfmt --version
 
       - name: Rustfmt Check
         run: cargo fmt --all -- --check
@@ -57,6 +64,7 @@ jobs:
         with:
           install: true
           cache: true
+          cache_key_prefix: mise-v1
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests (all features)
@@ -85,6 +93,7 @@ jobs:
         with:
           install: false
           cache: true
+          cache_key_prefix: mise-v1
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install test dependencies
@@ -102,6 +111,7 @@ jobs:
         with:
           install: true
           cache: true
+          cache_key_prefix: mise-v1
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate coverage
