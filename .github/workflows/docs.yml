@@ -34,7 +34,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install mdbook-yml-header
-        run: cargo binstall mdbook-yml-header --no-confirm
+        run: cargo binstall mdbook-yml-header@0.1.5 --no-confirm
 
       - name: Build mdBook
         run: |
