@@ -32,7 +32,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Rustfmt Check
-        uses: actions-rust-lang/rustfmt@v1
+        run: cargo fmt --all -- --check
 
       - name: Run clippy (all features)
         run: cargo clippy --all-targets --all-features -- -D warnings
@@ -77,6 +77,8 @@ jobs:
             platform: "Windows"
 
     runs-on: ${{ matrix.os }}
+    env:
+      MISE_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@v6
       - uses: jdx/mise-action@v3
