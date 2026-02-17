@@ -38,6 +38,10 @@ backend = "cargo:cargo-llvm-cov"
 version = "0.9.123-b.4"
 backend = "cargo:cargo-nextest"
 
+[[tools."cargo:cargo-outdated"]]
+version = "0.17.0"
+backend = "cargo:cargo-outdated"
+
 [[tools."cargo:cargo-release"]]
 version = "0.25.22"
 backend = "cargo:cargo-release"
@@ -58,6 +62,10 @@ backend = "cargo:mdbook-admonish"
 version = "0.4.0"
 backend = "cargo:mdbook-i18n-helpers"
 
+[[tools."cargo:mdbook-image-size"]]
+version = "0.2.1"
+backend = "cargo:mdbook-image-size"
+
 [[tools."cargo:mdbook-linkcheck"]]
 version = "0.7.7"
 backend = "cargo:mdbook-linkcheck"
@@ -77,6 +85,10 @@ backend = "cargo:mdbook-tabs"
 [[tools."cargo:mdbook-toc"]]
 version = "0.15.3"
 backend = "cargo:mdbook-toc"
+
+[[tools."cargo:mdbook-yml-header"]]
+version = "0.1.5"
+backend = "cargo:mdbook-yml-header"
 
 [[tools.claude]]
 version = "2.1.42"
@@ -130,7 +142,7 @@ version = "3.14.2"
 backend = "core:python"
 
 [[tools.rust]]
-version = "1.92.0"
+version = "1.93.0"
 backend = "core:rust"
 
 [[tools.zig]]

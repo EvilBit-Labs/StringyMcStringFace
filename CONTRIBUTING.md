@@ -82,7 +82,7 @@ All pull requests require review before merging. Reviewers check for:
 - **Style**: Follows project conventions, passes `cargo fmt` and `cargo clippy -- -D warnings`
 - **Documentation**: Public APIs have rustdoc, AGENTS.md updated if architecture changes
 
-CI must pass before merge. This includes formatting, linting, tests, security audit, and CodeQL analysis. Branch protection enforces these checks on the `main` branch.
+CI must pass before merge. The merge queue requires quality, MSRV, test, cross-platform test, and coverage checks. Security audit and CodeQL run as additional CI jobs but are not currently merge-blocking.
 
 ## Developer Certificate of Origin (DCO)
 

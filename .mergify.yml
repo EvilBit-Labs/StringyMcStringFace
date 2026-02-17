@@ -3,7 +3,11 @@ queue_rules:
     merge_method: squash
     merge_conditions:
       - check-success = quality
-      - check-success = msrv
+      - "check-success = msrv (stable)"
+      - "check-success = msrv (stable minus 1 releases)"
+      - "check-success = msrv (stable minus 2 releases)"
+      - "check-success = msrv (stable minus 3 releases)"
+      - "check-success = msrv (stable minus 4 releases)"
       - check-success = test
       - "check-success = test-cross-platform (ubuntu-latest, Linux)"
       - "check-success = test-cross-platform (macos-latest, macOS)"
@@ -74,7 +78,11 @@ merge_protections:
       - base = main
     success_conditions:
       - check-success = quality
-      - check-success = msrv
+      - "check-success = msrv (stable)"
+      - "check-success = msrv (stable minus 1 releases)"
+      - "check-success = msrv (stable minus 2 releases)"
+      - "check-success = msrv (stable minus 3 releases)"
+      - "check-success = msrv (stable minus 4 releases)"
       - check-success = test
       - "check-success = test-cross-platform (ubuntu-latest, Linux)"
       - "check-success = test-cross-platform (macos-latest, macOS)"

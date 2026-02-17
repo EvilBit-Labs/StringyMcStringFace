@@ -25,27 +25,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@1.91.0
+      - uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9
         with:
           components: rustfmt, clippy
-
-      - name: Install just
-        uses: extractions/setup-just@v3
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+          toolchain: 1.93.0
+      - uses: jdx/mise-action@v3
+        with:
+          install: true
+          cache: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Rustfmt Check
-        uses: actions-rust-lang/rustfmt@v1
+        run: cargo fmt --all -- --check
 
       - name: Run clippy (all features)
         run: cargo clippy --all-targets --all-features -- -D warnings
 
   msrv:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - toolchain: stable
+          - toolchain: stable minus 1 releases
+          - toolchain: stable minus 2 releases
+          - toolchain: stable minus 3 releases
+          - toolchain: stable minus 4 releases
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@1.91.0
+      - uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9
+        with:
+          components: rustfmt, clippy
+          toolchain: ${{ matrix.toolchain }}
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -57,16 +68,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.91.0
+      - uses: jdx/mise-action@v3
         with:
-          components: rustfmt, clippy
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
+          install: true
+          cache: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests (all features)
         run: cargo nextest run --all-features
@@ -88,14 +94,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.91.0
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
+      - uses: jdx/mise-action@v3
         with:
-          tool: cargo-nextest
+          install: true
+          cache: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - run: cargo nextest run --all-features
       - run: cargo build --release --all-features
@@ -105,16 +108,11 @@ jobs:
     needs: [test, test-cross-platform]
     steps:
       - uses: actions/checkout@v6
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.91.0
+      - uses: jdx/mise-action@v3
         with:
-          components: llvm-tools
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-llvm-cov
+          install: true
+          cache: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate coverage
         run: cargo llvm-cov --all-features --no-report
@@ -129,7 +127,3 @@ jobs:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: EvilBit-Labs/Stringy
-      - uses: qltysh/qlty-action/coverage@v2
-        with:
-          token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
-          files: target/lcov.info
