@@ -219,7 +219,7 @@ build:
     @{{ mise_exec }} cargo build --workspace
 
 build-release:
-    @{{ mise_exec }} cargo build --workspace --release
+    @{{ mise_exec }} cargo build --workspace --release --all-features
 
 test:
     @{{ mise_exec }} cargo nextest run --workspace --no-capture
@@ -248,7 +248,7 @@ test-fs:
     @just rmrf tmp/xfstest
 
 test-ci:
-    @{{ mise_exec }} cargo nextest run --workspace --no-capture
+    @{{ mise_exec }} cargo nextest run --workspace --all-features --no-capture
 
 # Run all tests including ignored/slow tests across workspace
 test-all:
@@ -272,17 +272,20 @@ audit:
 deny:
     @{{ mise_exec }} cargo deny check
 
+outdated:
+    @{{ mise_exec }} cargo outdated --depth=1 --exit-code=1
+
 # =============================================================================
 # CI AND QUALITY ASSURANCE
 # =============================================================================
 
 # Generate coverage report
 coverage:
-    @{{ mise_exec }} cargo llvm-cov --workspace --lcov --output-path lcov.info
+    @{{ mise_exec }} cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
 
 # Check coverage thresholds
 coverage-check:
-    @{{ mise_exec }} cargo llvm-cov --workspace --lcov --output-path lcov.info --fail-under-lines 9.7
+    @{{ mise_exec }} cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info --fail-under-lines 9.7
 
 # Full local CI parity check
 ci-check: pre-commit-run fmt-check lint-rust lint-rust-min test-ci build-release audit coverage-check dist-plan
@@ -302,7 +305,7 @@ dist:
     @{{ mise_exec }} dist build
 
 dist-check:
-    @{{ mise_exec }} dist check
+    @{{ mise_exec }} dist plan
 
 dist-plan:
     @{{ mise_exec }} dist plan
