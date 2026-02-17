@@ -117,7 +117,7 @@ impl StringExtractor for BasicExtractor {
             // Convert canonical strings back to FoundString for backward compatibility
             Ok(canonical_strings
                 .into_iter()
-                .map(|cs| cs.to_found_string())
+                .filter_map(|cs| cs.to_found_string())
                 .collect())
         } else {
             Ok(all_strings)

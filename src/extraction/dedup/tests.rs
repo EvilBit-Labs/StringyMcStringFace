@@ -3,6 +3,7 @@
 use super::*;
 use crate::types::{Encoding, StringSource, Tag};
 
+// Test helper needs many parameters to construct FoundString with full metadata
 #[allow(clippy::too_many_arguments)]
 fn create_test_string(
     text: &str,
@@ -395,7 +396,9 @@ fn test_to_found_string() {
     ];
 
     let canonical = deduplicate(strings, None, true);
-    let found = canonical[0].to_found_string();
+    let found = canonical[0]
+        .to_found_string()
+        .expect("canonical string with occurrences should convert");
     assert_eq!(found.text, "Test");
     assert_eq!(found.offset, 0x100); // First occurrence
     assert_eq!(found.score, canonical[0].combined_score);
@@ -549,7 +552,9 @@ fn test_length_preservation() {
     assert_eq!(canonical[0].occurrences[1].length, 8);
 
     // Verify to_found_string() uses stored length, not text.len()
-    let found = canonical[0].to_found_string();
+    let found = canonical[0]
+        .to_found_string()
+        .expect("canonical string with occurrences should convert");
     assert_eq!(found.length, 8); // Should be 8 bytes, not 4 (text.len())
     assert_eq!(found.text.len(), 4); // But text is still 4 characters
 }

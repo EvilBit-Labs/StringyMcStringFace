@@ -69,7 +69,7 @@ just format     # Format all (Rust, JSON, YAML, Markdown, Justfile)
 
 ## CI Architecture
 
-- CI workflows use `just` recipes (not raw cargo commands) as single source of truth
+- CI workflows use `just` recipes as single source of truth, except Quality/MSRV jobs (see below)
 - **Quality/MSRV jobs**: Use `dtolnay/rust-toolchain` for Rust (pinned toolchain, matrix support) -- do NOT use `just` recipes here (they use `mise exec --` which conflicts)
 - **All other jobs**: Use `jdx/mise-action@v3` for tooling -- `just` recipes work here
 - cargo subcommands installed via mise (e.g. cargo-dist) must be invoked as standalone binaries (`dist plan`) not cargo subcommands (`cargo dist plan`) -- cargo can't find mise-managed subcommands

@@ -72,6 +72,7 @@ fn run(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_else(|| cli.input.display().to_string());
 
     let output_format = cli.format.to_output_format();
+    // No post-extraction filtering yet, so total == filtered
     let metadata = OutputMetadata::new(binary_name, output_format, strings.len(), strings.len());
 
     let output = format_output(&strings, &metadata)?;

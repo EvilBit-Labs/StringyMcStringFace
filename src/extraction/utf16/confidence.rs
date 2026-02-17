@@ -87,11 +87,7 @@ fn check_printable_ratio(chars: &[u16]) -> f32 {
         i += consumed;
     }
 
-    if chars.is_empty() {
-        0.0
-    } else {
-        printable_count as f32 / chars.len() as f32
-    }
+    printable_count as f32 / chars.len() as f32
 }
 
 /// Verify byte order consistency throughout the string

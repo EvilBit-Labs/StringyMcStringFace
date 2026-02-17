@@ -92,6 +92,7 @@ fn decode_utf16be(bytes: &[u8]) -> Result<(String, Vec<u16>), ()> {
 /// # Returns
 ///
 /// Decoded UTF-8 string, or error if decoding fails
+// Unit error is intentional: callers only need success/failure, no actionable error detail
 #[allow(clippy::result_unit_err)]
 pub fn decode_utf16le_bytes(bytes: &[u8]) -> Result<String, ()> {
     decode_utf16le(bytes).map(|(s, _)| s)

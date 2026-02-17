@@ -282,14 +282,16 @@ fn test_extract_from_section_rva_calculation() {
     let config = AsciiExtractionConfig::default();
     let strings = extract_from_section(&section, data, &config, None, false, 0.5);
 
-    if !strings.is_empty() {
-        // Section data is data[5..15] = "Hello\0suf"
-        // "Hello" is at relative offset 0
-        // Absolute offset = 5 + 0 = 5
-        // RVA = 0x1000 + 0 = 0x1000
-        assert_eq!(strings[0].offset, 5);
-        assert_eq!(strings[0].rva, Some(0x1000));
-    }
+    assert!(
+        !strings.is_empty(),
+        "Should extract at least one string from section"
+    );
+    // Section data is data[5..15] = "Hello\0suf"
+    // "Hello" is at relative offset 0
+    // Absolute offset = 5 + 0 = 5
+    // RVA = 0x1000 + 0 = 0x1000
+    assert_eq!(strings[0].offset, 5);
+    assert_eq!(strings[0].rva, Some(0x1000));
 }
 
 #[test]

@@ -209,15 +209,15 @@ impl CanonicalString {
     /// # Returns
     ///
     /// FoundString representing this canonical string
-    pub fn to_found_string(&self) -> FoundString {
-        let first_occurrence = &self.occurrences[0];
+    pub fn to_found_string(&self) -> Option<FoundString> {
+        let first_occurrence = self.occurrences.first()?;
         let max_confidence = self
             .occurrences
             .iter()
             .map(|occ| occ.confidence)
             .fold(0.0f32, f32::max);
 
-        FoundString {
+        Some(FoundString {
             text: self.text.clone(),
             original_text: first_occurrence.original_text.clone(),
             encoding: self.encoding,
@@ -232,6 +232,6 @@ impl CanonicalString {
             noise_penalty: None,
             source: first_occurrence.source,
             confidence: max_confidence,
-        }
+        })
     }
 }

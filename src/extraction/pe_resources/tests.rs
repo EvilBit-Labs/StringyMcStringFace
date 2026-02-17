@@ -97,19 +97,31 @@ fn test_detect_version_info_missing() {
     let pe_data = fs::read(&fixture_path).expect("Failed to read PE fixture");
     let resources = extract_resources(&pe_data);
     // test_binary_pe.exe doesn't have VERSIONINFO, so we shouldn't find any
-    let _has_version = resources
+    let has_version = resources
         .iter()
         .any(|r| matches!(r.resource_type, ResourceType::VersionInfo));
-    // It's OK if there are no version info resources
-    // The test verifies graceful handling
+    assert!(
+        !has_version,
+        "test_binary_pe.exe should not have VERSIONINFO resources"
+    );
 }
 
 #[test]
 fn test_detect_version_info_empty_directory() {
-    // Test when RT_VERSION exists but has no entries
-    // This edge case is handled by the implementation's iteration logic
-    // If directory exists but has no id_entries(), the loop simply doesn't execute
-    // Verified by the fact that extract_resources doesn't panic
+    // Test when binary has no RT_VERSION directory entries
+    // extract_resources should return empty or non-VERSIONINFO resources
+    let fixture_path = get_fixture_path("test_binary_pe.exe");
+    if !fixture_path.exists() {
+        return; // Skip if fixture not available
+    }
+    let pe_data = fs::read(&fixture_path).expect("Failed to read PE fixture");
+    let resources = extract_resources(&pe_data);
+    // No VERSIONINFO resources should be detected
+    let version_count = resources
+        .iter()
+        .filter(|r| matches!(r.resource_type, ResourceType::VersionInfo))
+        .count();
+    assert_eq!(version_count, 0, "Expected no VERSIONINFO resources");
 }
 
 #[test]
@@ -362,10 +374,10 @@ fn test_extract_resources_from_fixture_with_resources() {
     let has_string_table = resources
         .iter()
         .any(|r| matches!(r.resource_type, ResourceType::StringTable));
-    // At least one type should be present in a resource-enabled binary
+    // Resource-enabled binary should have at least one known resource type
     assert!(
-        has_version_info || has_string_table || !resources.is_empty(),
-        "Resource-enabled binary should have some resources detected"
+        has_version_info || has_string_table,
+        "Resource-enabled binary should have VERSIONINFO or STRINGTABLE resources"
     );
 }
 

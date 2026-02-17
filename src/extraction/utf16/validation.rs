@@ -130,6 +130,7 @@ pub fn is_printable_utf16le_char(low: u8, high: u8) -> bool {
 /// # Returns
 ///
 /// `true` if the sequence is valid UTF-16
+// Kept for use by future validation and test code
 #[allow(dead_code)]
 pub(crate) fn is_valid_utf16_sequence(chars: &[u16]) -> bool {
     let mut i = 0;
@@ -222,11 +223,7 @@ pub(crate) fn check_valid_unicode_range(chars: &[u16]) -> f32 {
         i += 1;
     }
 
-    if chars.is_empty() {
-        0.0
-    } else {
-        valid_count as f32 / chars.len() as f32
-    }
+    valid_count as f32 / chars.len() as f32
 }
 
 /// Detect suspicious null patterns

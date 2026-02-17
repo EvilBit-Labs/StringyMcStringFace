@@ -38,6 +38,11 @@ fn cli_invalid_file() {
         .expect("Failed to execute stringy");
 
     assert!(!output.status.success(), "Should fail for missing file");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.trim().is_empty(),
+        "Should produce an error message on stderr"
+    );
 }
 
 #[test]
@@ -48,4 +53,17 @@ fn cli_min_length_flag() {
         .expect("Failed to execute stringy");
 
     assert!(output.status.success(), "Exit code: {}", output.status);
+    // With min_length=20, output should differ from the default (min_length=4)
+    let default_output = Command::new(env!("CARGO_BIN_EXE_stringy"))
+        .arg("tests/fixtures/test_binary_elf")
+        .output()
+        .expect("Failed to execute stringy");
+
+    let filtered_stdout = String::from_utf8_lossy(&output.stdout);
+    let default_stdout = String::from_utf8_lossy(&default_output.stdout);
+    // Higher min_length should produce equal or fewer output lines
+    assert!(
+        filtered_stdout.lines().count() <= default_stdout.lines().count(),
+        "min_length=20 should produce fewer or equal lines than default"
+    );
 }

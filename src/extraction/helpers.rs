@@ -121,6 +121,7 @@ pub(super) fn extract_ascii_utf8_strings(
         } else {
             // End of current string candidate
             // Check length conditions first, then extract start to avoid borrow checker issues
+            // Separate if blocks needed: collapsing would cause borrow checker errors with std::mem::take
             #[allow(clippy::collapsible_if)]
             if current_string_bytes.len() >= min_length && current_string_bytes.len() <= max_length
             {
@@ -148,7 +149,7 @@ pub(super) fn extract_ascii_utf8_strings(
     }
 
     // Handle string at end of data
-    // Check length conditions first, then extract start to avoid borrow checker issues
+    // Separate if blocks needed: collapsing would cause borrow checker errors with std::mem::take
     #[allow(clippy::collapsible_if)]
     if current_string_bytes.len() >= min_length && current_string_bytes.len() <= max_length {
         if let Some(start) = current_string_start {
