@@ -1,0 +1,76 @@
+//! VERSIONINFO string extraction
+//!
+//! Uses pelite's high-level `version_info()` API to extract all StringFileInfo
+//! key-value pairs from PE VERSIONINFO resources.
+
+use crate::types::{Encoding, FoundString, StringSource, Tag};
+use pelite::PeFile;
+
+/// Extract strings from VERSIONINFO resources
+///
+/// Uses pelite's high-level `version_info()` API to extract all StringFileInfo
+/// key-value pairs. Supports multiple language variants via translation table.
+///
+/// # Arguments
+///
+/// * `data` - Raw PE binary data
+///
+/// # Returns
+///
+/// Vector of FoundString entries with version information
+pub fn extract_version_info_strings(data: &[u8]) -> Vec<FoundString> {
+    let pe = match PeFile::from_bytes(data) {
+        Ok(pe) => pe,
+        Err(_) => return Vec::new(),
+    };
+
+    let resources = match pe.resources() {
+        Ok(resources) => resources,
+        Err(_) => return Vec::new(),
+    };
+
+    let version_info = match resources.version_info() {
+        Ok(vi) => vi,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut strings = Vec::new();
+
+    // Get all translations (languages)
+    let translations = version_info.translation();
+
+    // Iterate through each language variant
+    for translation in translations {
+        // Extract all string key-value pairs for this language
+        // Note: We intentionally do not include the key name (e.g., "CompanyName") in the
+        // extracted string text to maintain consistency with other extractors and avoid
+        // breaking the API. The key information is available via pelite's API if needed,
+        // but including it would change the semantic meaning of the `text` field from
+        // "the actual string value" to "key: value pair", which could break downstream
+        // consumers expecting just the value.
+        version_info.strings(*translation, |_key, value| {
+            let text = value.to_string();
+            // Length is based on decoded string bytes (String::len() returns byte length)
+            let length = text.len() as u32;
+            let found_string = FoundString {
+                text,
+                original_text: None,
+                encoding: Encoding::Utf16Le,
+                offset: 0, // pelite doesn't provide offsets easily
+                rva: None,
+                section: Some(".rsrc".to_string()),
+                length,
+                tags: vec![Tag::Version, Tag::Resource],
+                score: 0,
+                section_weight: None,
+                semantic_boost: None,
+                noise_penalty: None,
+                source: StringSource::ResourceString,
+                confidence: 1.0,
+            };
+            strings.push(found_string);
+        });
+    }
+
+    strings
+}
