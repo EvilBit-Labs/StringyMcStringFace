@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 //! Stringy - A smarter alternative to the strings command
 //!
 //! Stringy leverages format-specific knowledge to distinguish meaningful strings
