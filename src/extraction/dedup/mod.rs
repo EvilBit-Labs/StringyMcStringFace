@@ -69,7 +69,6 @@ pub struct StringOccurrence {
 ///
 /// * `strings` - Vector of found strings to deduplicate
 /// * `dedup_threshold` - Optional minimum occurrence count to deduplicate (None = deduplicate all)
-/// * `preserve_all_occurrences` - If false, only store occurrence count instead of full metadata
 ///
 /// # Returns
 ///
@@ -83,12 +82,11 @@ pub struct StringOccurrence {
 ///
 /// let mut strings = Vec::new();
 /// // ... populate strings ...
-/// let canonical = deduplicate(strings, None, true);
+/// let canonical = deduplicate(strings, None);
 /// ```
 pub fn deduplicate(
     strings: Vec<FoundString>,
     dedup_threshold: Option<usize>,
-    _preserve_all_occurrences: bool,
 ) -> Vec<CanonicalString> {
     if strings.is_empty() {
         return Vec::new();

@@ -41,7 +41,9 @@ pub use config::Utf16ExtractionConfig;
 pub use extraction::{decode_utf16le_bytes, extract_from_section};
 pub use validation::{is_printable_code_unit_or_pair, is_printable_utf16le_char};
 
-use crate::types::FoundString;
+use std::collections::HashMap;
+
+use crate::types::{Encoding, FoundString};
 use extraction::{extract_utf16be_strings_internal, extract_utf16le_strings_internal};
 
 /// Byte order for UTF-16 string extraction
@@ -78,30 +80,23 @@ pub fn extract_utf16_strings(data: &[u8], config: &Utf16ExtractionConfig) -> Vec
             strings.extend(extract_utf16be_strings_internal(data, config));
         }
         ByteOrder::Auto => {
-            // Extract both LE and BE, merge results
+            // Extract both LE and BE, merge results with O(1) dedup
             let le_strings = extract_utf16le_strings_internal(data, config);
             let be_strings = extract_utf16be_strings_internal(data, config);
 
-            // Helper to add string with deduplication
-            let mut add_with_dedup = |string: FoundString| {
-                if let Some(existing) = strings.iter_mut().find(|s| {
-                    s.offset == string.offset
-                        && s.encoding == string.encoding
-                        && s.text == string.text
-                }) {
-                    if string.confidence > existing.confidence {
-                        *existing = string;
+            // Use HashMap for O(1) dedup by (offset, encoding, text)
+            let mut seen: HashMap<(u64, Encoding, String), usize> = HashMap::new();
+
+            for string in le_strings.into_iter().chain(be_strings) {
+                let key = (string.offset, string.encoding, string.text.clone());
+                if let Some(&idx) = seen.get(&key) {
+                    if string.confidence > strings[idx].confidence {
+                        strings[idx] = string;
                     }
                 } else {
+                    seen.insert(key, strings.len());
                     strings.push(string);
                 }
-            };
-
-            for string in le_strings {
-                add_with_dedup(string);
-            }
-            for string in be_strings {
-                add_with_dedup(string);
             }
         }
     }

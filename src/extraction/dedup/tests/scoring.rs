@@ -28,7 +28,7 @@ fn test_score_calculation() {
         ),
     ];
 
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
     assert_eq!(canonical.len(), 1);
     // Base: 15 (max), Occurrence bonus: 5, Confidence: 9 (0.9 * 10)
     assert_eq!(canonical[0].combined_score, 15 + 5 + 9);
@@ -59,7 +59,7 @@ fn test_cross_section_bonus() {
         ),
     ];
 
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
     assert_eq!(canonical.len(), 1);
     // Base: 10, Occurrence bonus: 5, Cross-section: 10, Confidence: 8
     assert_eq!(canonical[0].combined_score, 10 + 5 + 10 + 8);
@@ -90,7 +90,7 @@ fn test_multi_source_bonus() {
         ),
     ];
 
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
     assert_eq!(canonical.len(), 1);
     // Base: 10, Occurrence bonus: 5, Multi-source: 15, Confidence: 8
     assert_eq!(canonical[0].combined_score, 10 + 5 + 15 + 8);
@@ -162,12 +162,12 @@ fn test_dedup_threshold() {
     ];
 
     // No threshold - all should be deduplicated
-    let canonical = deduplicate(strings.clone(), None, true);
+    let canonical = deduplicate(strings.clone(), None);
     assert_eq!(canonical.len(), 3);
 
     // Threshold of 2 - strings appearing 2+ times get deduplication bonuses,
     // but strings below threshold are still preserved (just without bonuses)
-    let canonical = deduplicate(strings.clone(), Some(2), true);
+    let canonical = deduplicate(strings.clone(), Some(2));
     assert_eq!(canonical.len(), 3); // All strings preserved: "Once", "Twice", "Thrice"
     assert!(canonical.iter().any(|c| c.text == "Once"));
     assert!(canonical.iter().any(|c| c.text == "Twice"));
@@ -188,7 +188,7 @@ fn test_dedup_threshold() {
     assert!(thrice.combined_score > 10); // Should have bonuses
 
     // Threshold of 3 - strings appearing 3+ times get bonuses, others preserved without
-    let canonical = deduplicate(strings, Some(3), true);
+    let canonical = deduplicate(strings, Some(3));
     assert_eq!(canonical.len(), 3); // All strings preserved
     let once = canonical.iter().find(|c| c.text == "Once").unwrap();
     assert_eq!(once.combined_score, 10); // No bonuses
@@ -236,7 +236,7 @@ fn test_length_preservation() {
         },
     ];
 
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
     assert_eq!(canonical.len(), 1);
     assert_eq!(canonical[0].occurrences[0].length, 8);
     assert_eq!(canonical[0].occurrences[1].length, 8);

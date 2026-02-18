@@ -16,6 +16,102 @@ use super::helpers::{apply_semantic_enrichment, extract_ascii_utf8_strings};
 use super::traits::{BasicExtractor, ExtractionConfig, StringExtractor};
 use super::utf16::{self, ByteOrder};
 
+/// Collect all strings from sections and symbols, applying semantic enrichment.
+///
+/// This is the shared extraction pipeline used by both `extract()` and
+/// `extract_canonical()`. It handles section sorting, filtering, per-section
+/// extraction, symbol inclusion, and semantic enrichment.
+fn collect_all_strings(
+    extractor: &BasicExtractor,
+    data: &[u8],
+    container_info: &ContainerInfo,
+    config: &ExtractionConfig,
+) -> Result<Vec<FoundString>> {
+    let mut all_strings = Vec::new();
+
+    // Sort sections by priority from config.section_priority
+    let mut sections: Vec<_> = container_info.sections.iter().collect();
+    sections.sort_by_key(|section| {
+        config
+            .section_priority
+            .iter()
+            .position(|&st| st == section.section_type)
+            .unwrap_or_else(|| {
+                // Fallback to section weight (higher weight = higher priority)
+                // Convert weight to usize for consistent key type
+                // Use a large offset to ensure fallback sections sort after prioritized ones
+                let weight_int = (section.weight * 1000.0) as usize;
+                config.section_priority.len() + (10000 - weight_int.min(10000))
+            })
+    });
+
+    for section in sections {
+        // Filter sections based on config
+        if section.section_type == SectionType::Debug && !config.include_debug {
+            continue;
+        }
+
+        // Filter code sections by both type and executable flag
+        if (section.section_type == SectionType::Code || section.is_executable)
+            && !config.scan_code_sections
+        {
+            continue;
+        }
+
+        // Extract strings from this section
+        let section_strings = extractor.extract_from_section(data, section, config)?;
+        all_strings.extend(section_strings);
+    }
+
+    // Include import/export symbols if configured
+    if config.include_symbols {
+        for import in &container_info.imports {
+            let length = import.name.len() as u32;
+            all_strings.push(FoundString {
+                text: import.name.clone(),
+                original_text: None,
+                encoding: Encoding::Utf8,
+                offset: 0,
+                rva: None,
+                section: None,
+                length,
+                tags: Vec::new(),
+                score: 0,
+                section_weight: None,
+                semantic_boost: None,
+                noise_penalty: None,
+                source: StringSource::ImportName,
+                confidence: 1.0,
+            });
+        }
+
+        for export in &container_info.exports {
+            let length = export.name.len() as u32;
+            all_strings.push(FoundString {
+                text: export.name.clone(),
+                original_text: None,
+                encoding: Encoding::Utf8,
+                offset: 0,
+                rva: None,
+                section: None,
+                length,
+                tags: Vec::new(),
+                score: 0,
+                section_weight: None,
+                semantic_boost: None,
+                noise_penalty: None,
+                source: StringSource::ExportName,
+                confidence: 1.0,
+            });
+        }
+    }
+
+    // Apply demangling and semantic classification before deduplication
+    apply_semantic_enrichment(&mut all_strings, container_info);
+
+    Ok(all_strings)
+}
+
 impl StringExtractor for BasicExtractor {
     fn extract(
         &self,
@@ -23,97 +119,11 @@ impl StringExtractor for BasicExtractor {
         container_info: &ContainerInfo,
         config: &ExtractionConfig,
     ) -> Result<Vec<FoundString>> {
-        let mut all_strings = Vec::new();
-
-        // Sort sections by priority from config.section_priority
-        let mut sections: Vec<_> = container_info.sections.iter().collect();
-        sections.sort_by_key(|section| {
-            config
-                .section_priority
-                .iter()
-                .position(|&st| st == section.section_type)
-                .unwrap_or_else(|| {
-                    // Fallback to section weight (higher weight = higher priority)
-                    // Convert weight to usize for consistent key type
-                    // Use a large offset to ensure fallback sections sort after prioritized ones
-                    let weight_int = (section.weight * 1000.0) as usize;
-                    config.section_priority.len() + (10000 - weight_int.min(10000))
-                })
-        });
-
-        for section in sections {
-            // Filter sections based on config
-            if section.section_type == SectionType::Debug && !config.include_debug {
-                continue;
-            }
-
-            // Filter code sections by both type and executable flag
-            if (section.section_type == SectionType::Code || section.is_executable)
-                && !config.scan_code_sections
-            {
-                continue;
-            }
-
-            // Extract strings from this section
-            let section_strings = self.extract_from_section(data, section, config)?;
-            all_strings.extend(section_strings);
-        }
-
-        // Include import/export symbols if configured
-        if config.include_symbols {
-            // Add import names
-            for import in &container_info.imports {
-                let length = import.name.len() as u32;
-                all_strings.push(FoundString {
-                    text: import.name.clone(),
-                    original_text: None,
-                    encoding: Encoding::Utf8,
-                    offset: 0,
-                    rva: None,
-                    section: None,
-                    length,
-                    tags: Vec::new(),
-                    score: 0,
-                    section_weight: None,
-                    semantic_boost: None,
-                    noise_penalty: None,
-                    source: StringSource::ImportName,
-                    confidence: 1.0,
-                });
-            }
-
-            // Add export names
-            for export in &container_info.exports {
-                let length = export.name.len() as u32;
-                all_strings.push(FoundString {
-                    text: export.name.clone(),
-                    original_text: None,
-                    encoding: Encoding::Utf8,
-                    offset: 0,
-                    rva: None,
-                    section: None,
-                    length,
-                    tags: Vec::new(),
-                    score: 0,
-                    section_weight: None,
-                    semantic_boost: None,
-                    noise_penalty: None,
-                    source: StringSource::ExportName,
-                    confidence: 1.0,
-                });
-            }
-        }
-
-        // Apply demangling and semantic classification before deduplication
-        apply_semantic_enrichment(&mut all_strings, container_info);
+        let all_strings = collect_all_strings(self, data, container_info, config)?;
 
         // Apply deduplication if enabled
         if config.enable_deduplication {
-            let canonical_strings = deduplicate(
-                all_strings,
-                config.dedup_threshold,
-                config.preserve_all_occurrences,
-            );
+            let canonical_strings = deduplicate(all_strings, config.dedup_threshold);
             // Convert canonical strings back to FoundString for backward compatibility
             Ok(canonical_strings
                 .into_iter()
@@ -130,97 +140,11 @@ impl StringExtractor for BasicExtractor {
         container_info: &ContainerInfo,
         config: &ExtractionConfig,
     ) -> Result<Vec<CanonicalString>> {
-        let mut all_strings = Vec::new();
-
-        // Sort sections by priority from config.section_priority
-        let mut sections: Vec<_> = container_info.sections.iter().collect();
-        sections.sort_by_key(|section| {
-            config
-                .section_priority
-                .iter()
-                .position(|&st| st == section.section_type)
-                .unwrap_or_else(|| {
-                    // Fallback to section weight (higher weight = higher priority)
-                    // Convert weight to usize for consistent key type
-                    // Use a large offset to ensure fallback sections sort after prioritized ones
-                    let weight_int = (section.weight * 1000.0) as usize;
-                    config.section_priority.len() + (10000 - weight_int.min(10000))
-                })
-        });
-
-        for section in sections {
-            // Filter sections based on config
-            if section.section_type == SectionType::Debug && !config.include_debug {
-                continue;
-            }
-
-            // Filter code sections by both type and executable flag
-            if (section.section_type == SectionType::Code || section.is_executable)
-                && !config.scan_code_sections
-            {
-                continue;
-            }
-
-            // Extract strings from this section
-            let section_strings = self.extract_from_section(data, section, config)?;
-            all_strings.extend(section_strings);
-        }
-
-        // Include import/export symbols if configured
-        if config.include_symbols {
-            // Add import names
-            for import in &container_info.imports {
-                let length = import.name.len() as u32;
-                all_strings.push(FoundString {
-                    text: import.name.clone(),
-                    original_text: None,
-                    encoding: Encoding::Utf8,
-                    offset: 0,
-                    rva: None,
-                    section: None,
-                    length,
-                    tags: Vec::new(),
-                    score: 0,
-                    section_weight: None,
-                    semantic_boost: None,
-                    noise_penalty: None,
-                    source: StringSource::ImportName,
-                    confidence: 1.0,
-                });
-            }
-
-            // Add export names
-            for export in &container_info.exports {
-                let length = export.name.len() as u32;
-                all_strings.push(FoundString {
-                    text: export.name.clone(),
-                    original_text: None,
-                    encoding: Encoding::Utf8,
-                    offset: 0,
-                    rva: None,
-                    section: None,
-                    length,
-                    tags: Vec::new(),
-                    score: 0,
-                    section_weight: None,
-                    semantic_boost: None,
-                    noise_penalty: None,
-                    source: StringSource::ExportName,
-                    confidence: 1.0,
-                });
-            }
-        }
-
-        // Apply demangling and semantic classification before deduplication
-        apply_semantic_enrichment(&mut all_strings, container_info);
+        let all_strings = collect_all_strings(self, data, container_info, config)?;
 
         // Apply deduplication if enabled, otherwise convert each string to a canonical form
         if config.enable_deduplication {
-            Ok(deduplicate(
-                all_strings,
-                config.dedup_threshold,
-                config.preserve_all_occurrences,
-            ))
+            Ok(deduplicate(all_strings, config.dedup_threshold))
         } else {
             // Convert each FoundString to a CanonicalString with a single occurrence
             Ok(all_strings
@@ -277,9 +201,7 @@ impl StringExtractor for BasicExtractor {
         };
 
         // Extract ASCII strings only if ASCII encoding is enabled
-        // Check both encodings and enabled_encodings fields
-        let ascii_enabled = config.encodings.contains(&Encoding::Ascii)
-            || config.enabled_encodings.contains(&Encoding::Ascii);
+        let ascii_enabled = config.enabled_encodings.contains(&Encoding::Ascii);
 
         let mut found_strings = Vec::new();
 
@@ -302,9 +224,7 @@ impl StringExtractor for BasicExtractor {
         }
 
         // For UTF-8 strings, use the existing helper (only if UTF-8 is enabled)
-        // Check both encodings and enabled_encodings fields
-        let utf8_enabled = config.encodings.contains(&Encoding::Utf8)
-            || config.enabled_encodings.contains(&Encoding::Utf8);
+        let utf8_enabled = config.enabled_encodings.contains(&Encoding::Utf8);
         if utf8_enabled {
             let raw_strings =
                 extract_ascii_utf8_strings(section_data, config.min_length, config.max_length);
@@ -326,9 +246,8 @@ impl StringExtractor for BasicExtractor {
                 // Determine encoding
                 let encoding = Encoding::Utf8;
 
-                // Filter by configured encodings (check both fields)
-                let encoding_allowed = config.encodings.contains(&encoding)
-                    || config.enabled_encodings.contains(&encoding);
+                // Filter by configured encodings
+                let encoding_allowed = config.enabled_encodings.contains(&encoding);
                 if !encoding_allowed {
                     continue;
                 }
@@ -375,11 +294,8 @@ impl StringExtractor for BasicExtractor {
         }
 
         // For UTF-16 strings, use the UTF-16 extractor (only if UTF-16LE or UTF-16BE is enabled)
-        // Check both encodings and enabled_encodings fields
-        let utf16le_enabled = config.encodings.contains(&Encoding::Utf16Le)
-            || config.enabled_encodings.contains(&Encoding::Utf16Le);
-        let utf16be_enabled = config.encodings.contains(&Encoding::Utf16Be)
-            || config.enabled_encodings.contains(&Encoding::Utf16Be);
+        let utf16le_enabled = config.enabled_encodings.contains(&Encoding::Utf16Le);
+        let utf16be_enabled = config.enabled_encodings.contains(&Encoding::Utf16Be);
 
         if utf16le_enabled || utf16be_enabled {
             // Determine which byte order(s) to scan based on enabled encodings and config

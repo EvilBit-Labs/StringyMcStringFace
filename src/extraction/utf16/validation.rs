@@ -36,6 +36,11 @@ pub fn is_printable_code_unit_or_pair(
                 let low_bits = low as u32 & 0x3FF;
                 let code_point = 0x10000 + high_bits + low_bits;
 
+                // Reject noncharacters in supplementary planes (U+xFFFE, U+xFFFF)
+                if code_point & 0xFFFE == 0xFFFE {
+                    return (false, 2);
+                }
+
                 // Check if the decoded character is printable
                 if let Some(ch) = char::from_u32(code_point) {
                     // Allow whitespace characters

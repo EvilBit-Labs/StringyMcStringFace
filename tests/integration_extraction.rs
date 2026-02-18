@@ -386,9 +386,9 @@ fn test_extraction_config_defaults() {
     // Verify all default values match specification
     assert_eq!(config.min_length, 4);
     assert_eq!(config.max_length, 4096);
-    assert_eq!(config.encodings.len(), 2);
-    assert!(config.encodings.contains(&Encoding::Ascii));
-    assert!(config.encodings.contains(&Encoding::Utf8));
+    assert_eq!(config.enabled_encodings.len(), 2);
+    assert!(config.enabled_encodings.contains(&Encoding::Ascii));
+    assert!(config.enabled_encodings.contains(&Encoding::Utf8));
     assert!(config.scan_code_sections);
     assert!(!config.include_debug);
     assert_eq!(config.section_priority.len(), 3);
@@ -403,7 +403,6 @@ fn test_basic_extractor_encoding_filtering() {
     let extractor = BasicExtractor::new();
     // Only allow ASCII, exclude UTF-8
     let config = ExtractionConfig {
-        encodings: vec![Encoding::Ascii],
         enabled_encodings: vec![Encoding::Ascii],
         ..Default::default()
     };

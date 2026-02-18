@@ -18,8 +18,7 @@ This is the most critical split. The file mixes trait definitions, the core extr
 
 **Step 1: Run full test suite**
 
-Run: `just test-ci`
-Expected: All tests pass
+Run: `just test-ci` Expected: All tests pass
 
 **Step 2: Record line counts for tracking**
 
@@ -30,10 +29,12 @@ Run: `wc -l src/extraction/mod.rs src/extraction/ascii.rs src/extraction/utf16.r
 ### Task 2: Extract `extraction/traits.rs`
 
 **Files:**
+
 - Create: `src/extraction/traits.rs`
 - Modify: `src/extraction/mod.rs`
 
 **What moves to `traits.rs`:**
+
 - `ExtractionConfig` struct + `impl Default` + `validate()` method (lines ~196-336)
 - `StringExtractor` trait definition (lines ~338-429)
 - `BasicExtractor` struct + `impl BasicExtractor::new()` + `impl Default` (lines ~431-486)
@@ -51,8 +52,7 @@ Copy the trait definitions, config struct, and BasicExtractor struct definition 
 
 **Step 3: Run tests**
 
-Run: `just test-ci`
-Expected: All tests pass (public API unchanged via re-exports)
+Run: `just test-ci` Expected: All tests pass (public API unchanged via re-exports)
 
 **Step 4: Commit**
 
@@ -66,10 +66,12 @@ git commit -s -m "refactor(extraction): extract traits and config to traits.rs"
 ### Task 3: Extract `extraction/helpers.rs`
 
 **Files:**
+
 - Create: `src/extraction/helpers.rs`
 - Modify: `src/extraction/mod.rs`
 
 **What moves to `helpers.rs`:**
+
 - `apply_semantic_enrichment()` function (lines ~155-194)
 - `is_printable_text_byte()` function (lines ~894-912)
 - `could_be_utf8_byte()` function (lines ~914-920)
@@ -87,8 +89,7 @@ Move the helper functions. Use `pub(crate)` visibility for internal helpers (`is
 
 **Step 3: Run tests**
 
-Run: `just test-ci`
-Expected: All tests pass
+Run: `just test-ci` Expected: All tests pass
 
 **Step 4: Commit**
 
@@ -102,10 +103,12 @@ git commit -s -m "refactor(extraction): extract helper functions to helpers.rs"
 ### Task 4: Extract `extraction/basic_extractor.rs`
 
 **Files:**
+
 - Create: `src/extraction/basic_extractor.rs`
 - Modify: `src/extraction/mod.rs`
 
 **What moves to `basic_extractor.rs`:**
+
 - `impl StringExtractor for BasicExtractor` block containing:
   - `extract()` method (lines ~488-594)
   - `extract_canonical()` method (lines ~596-709)
@@ -122,8 +125,7 @@ Move the impl block. Add imports for all dependencies: `BasicExtractor`, `String
 
 **Step 3: Run tests**
 
-Run: `just test-ci`
-Expected: All tests pass
+Run: `just test-ci` Expected: All tests pass
 
 **Step 4: Commit**
 
@@ -137,10 +139,12 @@ git commit -s -m "refactor(extraction): extract BasicExtractor impl to basic_ext
 ### Task 5: Extract `extraction/tests.rs`
 
 **Files:**
+
 - Create: `src/extraction/tests.rs`
 - Modify: `src/extraction/mod.rs`
 
 **What moves:**
+
 - Entire `#[cfg(test)] mod tests` block (lines ~1008-1576, ~568 lines)
 
 **Step 1: Create `src/extraction/tests.rs`**
@@ -150,6 +154,7 @@ Move the test module contents (without the outer `mod tests {}` wrapper -- the f
 **Step 2: Update mod.rs**
 
 Replace the inline test module with:
+
 ```rust
 #[cfg(test)]
 mod tests;
@@ -157,13 +162,11 @@ mod tests;
 
 **Step 3: Run tests**
 
-Run: `just test-ci`
-Expected: All tests pass
+Run: `just test-ci` Expected: All tests pass
 
 **Step 4: Verify mod.rs is now under 500 lines**
 
-Run: `wc -l src/extraction/mod.rs`
-Expected: ~150 lines (docs + imports + mod declarations + re-exports)
+Run: `wc -l src/extraction/mod.rs` Expected: ~150 lines (docs + imports + mod declarations + re-exports)
 
 **Step 5: Commit**
 
@@ -181,11 +184,13 @@ Each file follows the same pattern: convert `foo.rs` to `foo/mod.rs` + submodule
 ### Task 6: Split `extraction/filters.rs` (702 lines)
 
 **Files:**
+
 - Rename: `src/extraction/filters.rs` -> `src/extraction/filters/mod.rs`
 - Create: `src/extraction/filters/implementations.rs`
 - Create: `src/extraction/filters/tests.rs`
 
 **Split strategy:**
+
 - `mod.rs` (~130 lines): FilterContext struct + impl, NoiseFilter trait, CompositeNoiseFilter struct + impl
 - `implementations.rs` (~340 lines): All 6 filter structs (CharDistributionFilter, EntropyFilter, LinguisticFilter, LengthFilter, RepetitionFilter, ContextFilter) + their NoiseFilter impls
 - `tests.rs` (~130 lines): All test code
@@ -200,8 +205,7 @@ Move FilterContext, NoiseFilter trait, and CompositeNoiseFilter to `mod.rs`. Mov
 
 **Step 3: Run tests**
 
-Run: `just test-ci`
-Expected: All tests pass
+Run: `just test-ci` Expected: All tests pass
 
 **Step 4: Verify all files under 500 lines**
 
@@ -219,11 +223,13 @@ git commit -s -m "refactor(extraction): split filters.rs into module directory"
 ### Task 7: Split `extraction/ascii.rs` (832 lines)
 
 **Files:**
+
 - Rename: `src/extraction/ascii.rs` -> `src/extraction/ascii/mod.rs`
 - Create: `src/extraction/ascii/extraction.rs`
 - Create: `src/extraction/ascii/tests.rs`
 
 **Split strategy:**
+
 - `mod.rs` (~150 lines): AsciiExtractionConfig struct + impl, is_printable_ascii(), re-exports
 - `extraction.rs` (~300 lines): extract_ascii_strings() + extract_from_section()
 - `tests.rs` (~380 lines): All test code
@@ -239,6 +245,7 @@ git commit -s -m "refactor(extraction): split ascii.rs into module directory"
 ### Task 8: Split `extraction/utf16.rs` (1,273 lines)
 
 **Files:**
+
 - Rename: `src/extraction/utf16.rs` -> `src/extraction/utf16/mod.rs`
 - Create: `src/extraction/utf16/config.rs`
 - Create: `src/extraction/utf16/validation.rs`
@@ -247,6 +254,7 @@ git commit -s -m "refactor(extraction): split ascii.rs into module directory"
 - Create: `src/extraction/utf16/tests.rs`
 
 **Split strategy:**
+
 - `mod.rs` (~120 lines): ByteOrder enum, re-exports, main extract_utf16_strings orchestrator
 - `config.rs` (~70 lines): Utf16ExtractionConfig + impl
 - `validation.rs` (~130 lines): is_valid_utf16_sequence, check_valid_unicode_range, check_null_pattern, printable checks
@@ -265,11 +273,13 @@ git commit -s -m "refactor(extraction): split utf16.rs into module directory"
 ### Task 9: Split `extraction/dedup.rs` (838 lines)
 
 **Files:**
+
 - Rename: `src/extraction/dedup.rs` -> `src/extraction/dedup/mod.rs`
 - Create: `src/extraction/dedup/scoring.rs`
 - Create: `src/extraction/dedup/tests.rs`
 
 **Split strategy:**
+
 - `mod.rs` (~230 lines): CanonicalString, StringOccurrence structs, deduplicate(), merge_tags(), found_string_to_occurrence(), CanonicalString::to_found_string()
 - `scoring.rs` (~50 lines): calculate_combined_score()
 - `tests.rs` (~555 lines): All test code
@@ -285,6 +295,7 @@ git commit -s -m "refactor(extraction): split dedup.rs into module directory"
 ### Task 10: Split `extraction/pe_resources.rs` (1,449 lines)
 
 **Files:**
+
 - Rename: `src/extraction/pe_resources.rs` -> `src/extraction/pe_resources/mod.rs`
 - Create: `src/extraction/pe_resources/detection.rs`
 - Create: `src/extraction/pe_resources/version_info.rs`
@@ -293,6 +304,7 @@ git commit -s -m "refactor(extraction): split dedup.rs into module directory"
 - Create: `src/extraction/pe_resources/tests.rs`
 
 **Split strategy:**
+
 - `mod.rs` (~130 lines): Constants, extract_resources entry point, enumerate_resources, extract_resource_strings orchestrator, decode_utf16le helper
 - `detection.rs` (~200 lines): detect_version_info, detect_string_tables, detect_manifests
 - `version_info.rs` (~70 lines): extract_version_info_strings
@@ -312,18 +324,15 @@ git commit -s -m "refactor(extraction): split pe_resources.rs into module direct
 
 **Step 1: Run full test suite**
 
-Run: `just ci-check`
-Expected: All checks pass
+Run: `just ci-check` Expected: All checks pass
 
 **Step 2: Verify all files under 500 lines**
 
-Run: `find src/ -name '*.rs' -exec wc -l {} + | sort -rn | head -20`
-Expected: No non-test file exceeds 500 lines
+Run: `find src/ -name '*.rs' -exec wc -l {} + | sort -rn | head -20` Expected: No non-test file exceeds 500 lines
 
 **Step 3: Verify public API unchanged**
 
-Run: `cargo doc --no-deps 2>&1 | grep -c warning`
-Expected: 0 warnings (no broken doc links)
+Run: `cargo doc --no-deps 2>&1 | grep -c warning` Expected: 0 warnings (no broken doc links)
 
 **Step 4: Commit any remaining fixes**
 
@@ -334,6 +343,7 @@ Expected: 0 warnings (no broken doc links)
 ### Task 12: Write failing test for CLI file reading
 
 **Files:**
+
 - Create: `tests/integration_cli.rs`
 - Modify: `src/main.rs`
 
@@ -351,15 +361,17 @@ fn cli_accepts_binary_file() {
 
     assert!(output.status.success(), "Exit code: {}", output.status);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(!stdout.contains("coming soon"), "CLI still shows stub message");
+    assert!(
+        !stdout.contains("coming soon"),
+        "CLI still shows stub message"
+    );
     assert!(!stdout.is_empty(), "No output produced");
 }
 ```
 
 **Step 2: Run test to verify it fails**
 
-Run: `cargo nextest run --test integration_cli`
-Expected: FAIL (main.rs still prints "coming soon")
+Run: `cargo nextest run --test integration_cli` Expected: FAIL (main.rs still prints "coming soon")
 
 **Step 3: Commit failing test**
 
@@ -372,6 +384,7 @@ git commit -s -m "test(cli): add failing integration test for binary file proces
 ### Task 13: Implement basic CLI pipeline
 
 **Files:**
+
 - Modify: `src/main.rs`
 
 **Step 1: Extend Cli struct with output format**
@@ -422,7 +435,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         _ => stringy::OutputFormat::Table,
     };
 
-    let binary_name = cli.input
+    let binary_name = cli
+        .input
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
@@ -437,8 +451,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 **Step 3: Run test to verify it passes**
 
-Run: `cargo nextest run --test integration_cli`
-Expected: PASS
+Run: `cargo nextest run --test integration_cli` Expected: PASS
 
 **Step 4: Commit**
 
@@ -451,6 +464,7 @@ git commit -s -m "feat(cli): wire up extraction pipeline in main.rs"
 ### Task 14: Add CLI tests for output formats
 
 **Files:**
+
 - Modify: `tests/integration_cli.rs`
 
 **Step 1: Write tests for JSON and YARA output**
@@ -467,8 +481,7 @@ fn cli_json_output() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     // JSONL format: each line is valid JSON
     for line in stdout.lines().filter(|l| !l.is_empty()) {
-        serde_json::from_str::<serde_json::Value>(line)
-            .expect("Each line should be valid JSON");
+        serde_json::from_str::<serde_json::Value>(line).expect("Each line should be valid JSON");
     }
 }
 
@@ -481,7 +494,10 @@ fn cli_yara_output() {
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("rule"), "YARA output should contain rule keyword");
+    assert!(
+        stdout.contains("rule"),
+        "YARA output should contain rule keyword"
+    );
 }
 
 #[test]
@@ -507,8 +523,7 @@ fn cli_min_length_flag() {
 
 **Step 2: Run tests**
 
-Run: `cargo nextest run --test integration_cli`
-Expected: All pass
+Run: `cargo nextest run --test integration_cli` Expected: All pass
 
 **Step 3: Commit**
 
@@ -522,8 +537,7 @@ git commit -s -m "test(cli): add integration tests for output formats and error 
 
 **Step 1: Run full CI check**
 
-Run: `just ci-check`
-Expected: All checks pass
+Run: `just ci-check` Expected: All checks pass
 
 **Step 2: Verify no file exceeds 500 lines (excluding test files)**
 
@@ -538,6 +552,7 @@ Run: `just coverage`
 ## Verification Checklist
 
 After all tasks complete:
+
 - [ ] `just ci-check` passes (fmt, clippy, tests, coverage, dist)
 - [ ] No source file exceeds 500 lines (test files may be slightly over)
 - [ ] `cargo doc --no-deps` produces zero warnings

@@ -6,7 +6,7 @@
 
 use crate::extraction::config::NoiseFilterConfig;
 use crate::extraction::filters::{CompositeNoiseFilter, FilterContext};
-use crate::types::{Encoding, FoundString, SectionInfo, StringSource};
+use crate::types::{Encoding, FoundString, SectionInfo, StringSource, StringyError};
 
 use super::ByteOrder;
 use super::Utf16ExtractionConfig;
@@ -26,7 +26,7 @@ use super::validation::is_printable_code_unit_or_pair;
 /// # Returns
 ///
 /// `Result<(String, Vec<u16>)>` - Decoded UTF-8 string and u16 vector, or error if decoding fails
-fn decode_utf16le(bytes: &[u8]) -> Result<(String, Vec<u16>), ()> {
+fn decode_utf16le(bytes: &[u8]) -> Result<(String, Vec<u16>), StringyError> {
     // Handle odd-length input by truncating last byte
     let even_bytes = if bytes.len() % 2 == 1 {
         &bytes[..bytes.len() - 1]
@@ -41,7 +41,8 @@ fn decode_utf16le(bytes: &[u8]) -> Result<(String, Vec<u16>), ()> {
         .collect();
 
     // Decode UTF-16 to String
-    let decoded = String::from_utf16(&u16_slice).map_err(|_| ())?;
+    let decoded = String::from_utf16(&u16_slice)
+        .map_err(|e| StringyError::ParseError(format!("UTF-16LE decode failed: {e}")))?;
 
     Ok((decoded, u16_slice))
 }
@@ -59,7 +60,7 @@ fn decode_utf16le(bytes: &[u8]) -> Result<(String, Vec<u16>), ()> {
 /// # Returns
 ///
 /// `Result<(String, Vec<u16>)>` - Decoded UTF-8 string and u16 vector, or error if decoding fails
-fn decode_utf16be(bytes: &[u8]) -> Result<(String, Vec<u16>), ()> {
+fn decode_utf16be(bytes: &[u8]) -> Result<(String, Vec<u16>), StringyError> {
     // Handle odd-length input by truncating last byte
     let even_bytes = if bytes.len() % 2 == 1 {
         &bytes[..bytes.len() - 1]
@@ -74,7 +75,8 @@ fn decode_utf16be(bytes: &[u8]) -> Result<(String, Vec<u16>), ()> {
         .collect();
 
     // Decode UTF-16 to String
-    let decoded = String::from_utf16(&u16_slice).map_err(|_| ())?;
+    let decoded = String::from_utf16(&u16_slice)
+        .map_err(|e| StringyError::ParseError(format!("UTF-16BE decode failed: {e}")))?;
 
     Ok((decoded, u16_slice))
 }
@@ -92,9 +94,7 @@ fn decode_utf16be(bytes: &[u8]) -> Result<(String, Vec<u16>), ()> {
 /// # Returns
 ///
 /// Decoded UTF-8 string, or error if decoding fails
-// Unit error is intentional: callers only need success/failure, no actionable error detail
-#[allow(clippy::result_unit_err)]
-pub fn decode_utf16le_bytes(bytes: &[u8]) -> Result<String, ()> {
+pub fn decode_utf16le_bytes(bytes: &[u8]) -> Result<String, StringyError> {
     decode_utf16le(bytes).map(|(s, _)| s)
 }
 
@@ -195,7 +195,7 @@ fn extract_utf16_strings_with_byte_order(
                     is_printable_code_unit_or_pair(code_unit, next_code_unit);
 
                 if is_printable {
-                    char_count += 1;
+                    char_count += consumed_units;
                     i += consumed_units * 2;
                 } else {
                     break;
@@ -227,7 +227,7 @@ fn extract_utf16_strings_with_byte_order(
                 };
 
                 if let Ok((text, u16_vec)) = decode_result {
-                    let utf16_confidence = calculate_utf16_confidence(&u16_vec, byte_order);
+                    let utf16_confidence = calculate_utf16_confidence(&u16_vec);
 
                     if utf16_confidence >= config.confidence_threshold {
                         found_strings.push(FoundString {

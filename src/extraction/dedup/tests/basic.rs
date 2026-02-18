@@ -37,7 +37,7 @@ fn test_basic_deduplication() {
         ),
     ];
 
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
     assert_eq!(canonical.len(), 1);
     assert_eq!(canonical[0].text, "Hello");
     assert_eq!(canonical[0].occurrences.len(), 3);
@@ -68,7 +68,7 @@ fn test_encoding_separation() {
         ),
     ];
 
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
     assert_eq!(canonical.len(), 2);
     assert!(canonical.iter().any(|c| c.encoding == Encoding::Utf8));
     assert!(canonical.iter().any(|c| c.encoding == Encoding::Utf16Le));
@@ -99,7 +99,7 @@ fn test_metadata_preservation() {
         ),
     ];
 
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
     assert_eq!(canonical.len(), 1);
     let occ = &canonical[0].occurrences;
     assert_eq!(occ.len(), 2);
@@ -136,7 +136,7 @@ fn test_tag_merging() {
         ),
     ];
 
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
     assert_eq!(canonical.len(), 1);
     let merged = &canonical[0].merged_tags;
     assert_eq!(merged.len(), 3);
@@ -148,7 +148,7 @@ fn test_tag_merging() {
 #[test]
 fn test_empty_input() {
     let strings = Vec::new();
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
     assert!(canonical.is_empty());
 }
 
@@ -165,7 +165,7 @@ fn test_single_occurrence() {
         0.8,
     )];
 
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
     assert_eq!(canonical.len(), 1);
     assert_eq!(canonical[0].occurrences.len(), 1);
     // Base: 10, Confidence: 8, no bonuses
@@ -207,7 +207,7 @@ fn test_sorting() {
         ),
     ];
 
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
     assert_eq!(canonical.len(), 3);
     // Should be sorted by combined_score descending
     assert_eq!(canonical[0].text, "High");
@@ -228,7 +228,7 @@ fn test_edge_case_empty_string() {
         0.8,
     )];
 
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
     assert_eq!(canonical.len(), 1);
     assert_eq!(canonical[0].text, "");
 }
@@ -258,7 +258,7 @@ fn test_to_found_string() {
         ),
     ];
 
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
     let found = canonical[0]
         .to_found_string()
         .expect("canonical string with occurrences should convert");

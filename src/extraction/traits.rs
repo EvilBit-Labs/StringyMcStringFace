@@ -40,8 +40,6 @@ pub struct ExtractionConfig {
     pub min_length: usize,
     /// Maximum string length in bytes (default: 4096)
     pub max_length: usize,
-    /// Encodings to search for (default: ASCII, UTF-8)
-    pub encodings: Vec<Encoding>,
     /// Whether to scan executable sections (default: true)
     pub scan_code_sections: bool,
     /// Whether to include debug sections (default: false)
@@ -81,10 +79,6 @@ pub struct ExtractionConfig {
     /// If set, only strings appearing at least this many times will be deduplicated.
     /// Other strings will be passed through unchanged.
     pub dedup_threshold: Option<usize>,
-    /// Whether to preserve all occurrence metadata (default: true)
-    ///
-    /// When true, full occurrence lists are kept. When false, only occurrence count is preserved.
-    pub preserve_all_occurrences: bool,
 }
 
 impl Default for ExtractionConfig {
@@ -92,7 +86,6 @@ impl Default for ExtractionConfig {
         Self {
             min_length: 4,
             max_length: 4096,
-            encodings: vec![Encoding::Ascii, Encoding::Utf8],
             scan_code_sections: true,
             include_debug: false,
             section_priority: vec![
@@ -111,7 +104,6 @@ impl Default for ExtractionConfig {
             utf16_confidence_threshold: 0.5,
             enable_deduplication: true,
             dedup_threshold: None,
-            preserve_all_occurrences: true,
         }
     }
 }

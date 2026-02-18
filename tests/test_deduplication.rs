@@ -73,7 +73,7 @@ fn test_deduplication_with_basic_extractor() {
     assert!(hello_count >= 2, "Should have at least 2 'Hello' strings");
 
     // Apply deduplication
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
 
     // Verify deduplication reduced count
     assert!(
@@ -161,7 +161,7 @@ fn test_deduplication_metadata_preservation() {
     let strings = extractor
         .extract(data, &container_info, &config_no_dedup)
         .unwrap();
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
 
     // Find "TestString"
     let test_string = canonical.iter().find(|c| c.text == "TestString");
@@ -219,7 +219,7 @@ fn test_deduplication_with_real_fixture() {
     let strings = extractor.extract(&data, &container_info, &config).unwrap();
 
     // For comparison, also test manual deduplication
-    let canonical = deduplicate(strings_no_dedup, None, true);
+    let canonical = deduplicate(strings_no_dedup, None);
 
     // Verify deduplication worked (both integrated and manual)
     assert!(
@@ -300,7 +300,7 @@ fn test_deduplication_score_bonuses() {
         .with_confidence(0.9),
     ];
 
-    let canonical = deduplicate(strings, None, true);
+    let canonical = deduplicate(strings, None);
     assert_eq!(canonical.len(), 1);
 
     let cs = &canonical[0];
