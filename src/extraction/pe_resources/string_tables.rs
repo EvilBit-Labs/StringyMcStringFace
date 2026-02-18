@@ -47,9 +47,9 @@ fn parse_string_table_block(bytes: &[u8]) -> Vec<Option<String>> {
         // Calculate byte length (length * 2 for UTF-16)
         let byte_length = length * 2;
         if offset + byte_length > bytes.len() {
-            // Not enough data for string
+            // Not enough data for string -- stop parsing to avoid misaligned reads
             strings.push(None);
-            continue;
+            break;
         }
 
         // Extract string bytes and decode
@@ -171,7 +171,7 @@ pub fn extract_string_table_strings(data: &[u8]) -> Vec<FoundString> {
 }
 
 #[cfg(test)]
-mod internal_tests {
+mod tests {
     use super::*;
 
     #[test]
@@ -196,5 +196,26 @@ mod internal_tests {
         for item in strings.iter().skip(2) {
             assert_eq!(item, &None);
         }
+    }
+
+    #[test]
+    fn test_parse_string_table_block_truncated_entry() {
+        // When an entry claims more bytes than remain, parsing should stop
+        // to avoid misaligned reads on subsequent entries
+        let mut block = Vec::new();
+        // Entry 0: "A" = 01 00 41 00
+        block.extend_from_slice(&[0x01, 0x00, 0x41, 0x00]);
+        // Entry 1: claims length 100 (far exceeds remaining buffer)
+        block.extend_from_slice(&[0x64, 0x00]);
+        // Only 2 bytes of "data" follow (not enough for 100 code units)
+        block.extend_from_slice(&[0x42, 0x00]);
+
+        let strings = parse_string_table_block(&block);
+        // Entry 0 should parse successfully
+        assert_eq!(strings[0], Some("A".to_string()));
+        // Entry 1 should be None (truncated)
+        assert_eq!(strings[1], None);
+        // Should have exactly 2 entries (break after truncation)
+        assert_eq!(strings.len(), 2);
     }
 }

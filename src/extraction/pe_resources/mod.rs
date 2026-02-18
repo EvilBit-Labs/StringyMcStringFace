@@ -6,7 +6,7 @@
 //! handles resource directory parsing.
 //!
 //! **Note**: General UTF-16 string extraction from binary sections is now handled by the
-//! `utf16` module (`src/extraction/utf16.rs`), which supports both UTF-16LE and UTF-16BE
+//! `utf16` module (`src/extraction/utf16/`), which supports both UTF-16LE and UTF-16BE
 //! with advanced confidence scoring. This module focuses specifically on PE resource-specific
 //! extraction (VERSIONINFO, STRINGTABLE, MANIFEST).
 //!

@@ -1,21 +1,7 @@
-//! Tests for PE resource extraction
-//!
-//! Comprehensive unit tests covering invalid/malformed PE data handling,
-//! missing resource directories, empty resource sections, multiple language
-//! variants, and edge cases in VERSIONINFO, STRINGTABLE, and MANIFEST detection.
+//! Phase 1 tests: resource detection, metadata validation, and boundary conditions
 
 use super::*;
-use crate::types::{Encoding, ResourceType, StringSource, Tag};
-use std::fs;
-use std::path::Path;
-
-// Helper to get fixture path
-fn get_fixture_path(name: &str) -> std::path::PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("fixtures")
-        .join(name)
-}
+use crate::types::ResourceType;
 
 // Tests for extract_resources function
 
@@ -154,11 +140,11 @@ fn test_detect_version_info_multiple_languages() {
 
 #[test]
 #[ignore] // Requires test_binary_with_resources.exe fixture
-// To run: cargo test -- --ignored test_detect_version_info_no_translation
-fn test_detect_version_info_no_translation() {
-    // Test VERSIONINFO without translation array
-    // The implementation uses fallback language handling
-    // This test verifies that behavior doesn't panic
+// To run: cargo test -- --ignored test_version_info_fallback_language_handling
+fn test_version_info_fallback_language_handling() {
+    // Test VERSIONINFO fallback language handling
+    // The implementation gracefully handles missing/unexpected translations
+    // This test verifies the code does not panic on any language configuration
     let fixture_path = get_fixture_path("test_binary_with_resources.exe");
     assert!(
         fixture_path.exists(),
@@ -420,15 +406,15 @@ fn test_resource_metadata_validation() {
     let pe_data = fs::read(&fixture_path).expect("Failed to read resource fixture");
     let resources = extract_resources(&pe_data);
     for resource in resources {
-        // Type should be one of the known types
-        match resource.resource_type {
-            ResourceType::VersionInfo | ResourceType::StringTable | ResourceType::Manifest => {
-                // Valid types
-            }
-            _ => {
-                // Other types are also valid for future expansion
-            }
-        }
+        // Type should be one of the currently detected types
+        assert!(
+            matches!(
+                resource.resource_type,
+                ResourceType::VersionInfo | ResourceType::StringTable | ResourceType::Manifest
+            ),
+            "Unexpected resource type: {:?}",
+            resource.resource_type
+        );
         assert!(resource.data_size > 0, "Resource should have non-zero size");
         assert!(
             resource.language <= 0xFFFF,
@@ -507,126 +493,5 @@ fn test_extract_resources_large_resource_section() {
     for resource in resources {
         assert!(resource.data_size > 0, "Resource should have non-zero size");
         assert!(resource.language <= 0xFFFF, "Language ID should be valid");
-    }
-}
-
-// Phase 2: String extraction tests
-
-#[test]
-fn test_decode_utf16le_valid() {
-    // Test UTF-16LE decoding with valid input
-    // "Hello" in UTF-16LE: 48 00 65 00 6C 00 6C 00 6F 00
-    let bytes = [0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00];
-    let result = decode_utf16le(&bytes);
-    assert!(result.is_ok());
-    assert_eq!(result.expect("decode should succeed"), "Hello");
-}
-
-#[test]
-fn test_decode_utf16le_with_null() {
-    // Test stripping trailing null terminators
-    // "Hi" + null terminator: 48 00 69 00 00 00
-    let bytes = [0x48, 0x00, 0x69, 0x00, 0x00, 0x00];
-    let result = decode_utf16le(&bytes);
-    assert!(result.is_ok());
-    assert_eq!(result.expect("decode should succeed"), "Hi");
-}
-
-#[test]
-fn test_decode_utf16le_odd_length() {
-    // Test error handling for odd-length input
-    // Should truncate last byte gracefully
-    let bytes = [0x48, 0x00, 0x65, 0x00, 0x6C]; // Odd length
-    let result = decode_utf16le(&bytes);
-    // Should still decode what it can
-    assert!(result.is_ok());
-}
-
-#[test]
-#[ignore] // Requires test_binary_with_resources.exe fixture
-fn test_extract_version_info_strings_from_fixture() {
-    let fixture_path = get_fixture_path("test_binary_with_resources.exe");
-    assert!(
-        fixture_path.exists(),
-        "Fixture test_binary_with_resources.exe not found. See other test comments for build instructions."
-    );
-    let pe_data = fs::read(&fixture_path).expect("Failed to read resource fixture");
-    let strings = extract_version_info_strings(&pe_data);
-
-    // Should extract at least some version strings
-    assert!(!strings.is_empty(), "Should extract version info strings");
-    for string in &strings {
-        assert!(string.tags.contains(&Tag::Version));
-        assert!(string.tags.contains(&Tag::Resource));
-        assert_eq!(string.encoding, Encoding::Utf16Le);
-        assert_eq!(string.source, StringSource::ResourceString);
-    }
-}
-
-#[test]
-#[ignore] // Requires test_binary_with_resources.exe fixture
-fn test_extract_string_table_strings_from_fixture() {
-    let fixture_path = get_fixture_path("test_binary_with_resources.exe");
-    assert!(
-        fixture_path.exists(),
-        "Fixture test_binary_with_resources.exe not found. See other test comments for build instructions."
-    );
-    let pe_data = fs::read(&fixture_path).expect("Failed to read resource fixture");
-    let strings = extract_string_table_strings(&pe_data);
-
-    // Should extract at least some string table strings
-    assert!(!strings.is_empty(), "Should extract string table strings");
-    for string in &strings {
-        assert!(string.tags.contains(&Tag::Resource));
-        assert!(!string.tags.contains(&Tag::Version));
-        assert_eq!(string.encoding, Encoding::Utf16Le);
-        assert_eq!(string.source, StringSource::ResourceString);
-    }
-}
-
-#[test]
-fn test_detect_manifest_encoding_utf8() {
-    // Test UTF-8 detection
-    let bytes = [0xEF, 0xBB, 0xBF, b'<', b'?', b'x', b'm'];
-    let encoding = detect_manifest_encoding(&bytes);
-    assert_eq!(encoding, Encoding::Utf8);
-}
-
-#[test]
-fn test_detect_manifest_encoding_utf16le() {
-    // Test UTF-16LE detection
-    let bytes = [0xFF, 0xFE, b'<', 0x00, b'?', 0x00];
-    let encoding = detect_manifest_encoding(&bytes);
-    assert_eq!(encoding, Encoding::Utf16Le);
-}
-
-#[test]
-fn test_extract_manifest_strings_empty() {
-    // Test with no manifest
-    let invalid_data = b"NOT_A_PE_FILE";
-    let strings = extract_manifest_strings(invalid_data);
-    assert!(strings.is_empty());
-}
-
-#[test]
-#[ignore] // Requires test_binary_with_resources.exe fixture
-fn test_extract_resource_strings_integration() {
-    // Test full orchestrator
-    let fixture_path = get_fixture_path("test_binary_with_resources.exe");
-    assert!(
-        fixture_path.exists(),
-        "Fixture test_binary_with_resources.exe not found. See other test comments for build instructions."
-    );
-    let pe_data = fs::read(&fixture_path).expect("Failed to read resource fixture");
-    let strings = extract_resource_strings(&pe_data);
-
-    // Should extract strings from at least one resource type
-    assert!(!strings.is_empty(), "Should extract some resource strings");
-
-    // Verify all strings have proper metadata
-    for string in &strings {
-        assert!(!string.text.is_empty());
-        assert!(string.tags.contains(&Tag::Resource));
-        assert_eq!(string.source, StringSource::ResourceString);
     }
 }

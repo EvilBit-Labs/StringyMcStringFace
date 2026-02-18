@@ -115,7 +115,7 @@ impl AsciiExtractionConfig {
 /// **Note on printable character definitions**: This function uses a strict definition
 /// of printable ASCII (0x20-0x7E only), excluding whitespace control characters like
 /// tab, newline, and carriage return. This differs from `is_printable_text_byte` in
-/// `extraction::mod`, which includes common whitespace characters (0x09, 0x0A, 0x0D)
+/// `extraction::helpers`, which includes common whitespace characters (0x09, 0x0A, 0x0D)
 /// to handle formatted text. This strict definition ensures ASCII-only extraction
 /// produces predictable, consistent results.
 ///
