@@ -75,10 +75,10 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests (all features)
-        run: cargo nextest run --all-features
+        run: just test-ci
 
       - name: Build release
-        run: cargo build --release --all-features
+        run: just build-release
 
   test-cross-platform:
     strategy:
@@ -100,8 +100,10 @@ jobs:
           cache: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: cargo nextest run --all-features
-      - run: cargo build --release --all-features
+      - name: Run tests (all features)
+        run: just test-ci
+      - name: Build release
+        run: just build-release
 
   coverage:
     runs-on: ubuntu-latest
@@ -115,10 +117,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate coverage
-        run: cargo llvm-cov --all-features --no-report
-
-      - name: Combine coverage reports
-        run: cargo llvm-cov report --lcov --output-path lcov.info
+        run: just coverage
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5

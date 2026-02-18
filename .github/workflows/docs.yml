@@ -36,16 +36,8 @@ jobs:
       - name: Install mdbook-yml-header
         run: cargo binstall mdbook-yml-header@0.1.5 --no-confirm
 
-      - name: Build mdBook
-        run: |
-          cd docs
-          mdbook build
-
-      - name: Build rustdoc
-        run: |
-          cargo doc --no-deps --document-private-items
-          mkdir -p docs/book/api
-          cp -r target/doc/* docs/book/api/
+      - name: Build documentation
+        run: just docs-build
 
       - name: Setup Pages
         if: github.ref == 'refs/heads/main'
