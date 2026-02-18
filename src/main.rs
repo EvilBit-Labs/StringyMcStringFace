@@ -45,8 +45,8 @@ struct Cli {
     format: CliOutputFormat,
 
     /// Minimum string length in bytes (must be >= 1)
-    #[arg(long, short = 'l', default_value_t = 4, value_parser = clap::value_parser!(u64).range(1..))]
-    min_length: u64,
+    #[arg(long, short = 'l', default_value_t = 4)]
+    min_length: usize,
 }
 
 fn run(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
@@ -56,11 +56,10 @@ fn run(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     let parser = create_parser(binary_format)?;
     let container_info = parser.parse(&data)?;
 
-    let min_len = cli.min_length as usize;
     let config = ExtractionConfig {
-        min_length: min_len,
-        min_ascii_length: min_len,
-        min_wide_length: min_len,
+        min_length: cli.min_length,
+        min_ascii_length: cli.min_length,
+        min_wide_length: cli.min_length,
         ..ExtractionConfig::default()
     };
     config.validate()?;
