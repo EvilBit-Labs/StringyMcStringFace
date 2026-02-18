@@ -104,16 +104,13 @@ pub fn deduplicate(
     // Convert each group to a CanonicalString
     let mut canonical_strings: Vec<CanonicalString> = groups
         .into_iter()
-        .map(|((text, _encoding), found_strings)| {
+        .map(|((text, encoding), found_strings)| {
             // Check if group meets dedup_threshold
             let meets_threshold = if let Some(threshold) = dedup_threshold {
                 found_strings.len() >= threshold
             } else {
                 true // No threshold means all groups are eligible for deduplication
             };
-
-            // All strings in group have same encoding, use first one
-            let encoding = found_strings[0].encoding;
 
             let occurrences: Vec<StringOccurrence> = found_strings
                 .into_iter()

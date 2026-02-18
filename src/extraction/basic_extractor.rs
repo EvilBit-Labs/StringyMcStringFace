@@ -226,13 +226,17 @@ impl StringExtractor for BasicExtractor {
             Ok(all_strings
                 .into_iter()
                 .map(|fs| {
-                    let occurrence = found_string_to_occurrence(fs.clone());
+                    let text = fs.text.clone();
+                    let encoding = fs.encoding;
+                    let tags = fs.tags.clone();
+                    let score = fs.score;
+                    let occurrence = found_string_to_occurrence(fs);
                     CanonicalString {
-                        text: fs.text,
-                        encoding: fs.encoding,
+                        text,
+                        encoding,
                         occurrences: vec![occurrence],
-                        merged_tags: fs.tags,
-                        combined_score: fs.score,
+                        merged_tags: tags,
+                        combined_score: score,
                     }
                 })
                 .collect())

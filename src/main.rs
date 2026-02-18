@@ -77,6 +77,10 @@ fn run(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
 
     let output = format_output(&strings, &metadata)?;
     print!("{output}");
+    // Ensure output ends with newline for proper shell behavior
+    if !output.ends_with('\n') {
+        println!();
+    }
 
     Ok(())
 }

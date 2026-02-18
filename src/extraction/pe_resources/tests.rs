@@ -195,16 +195,29 @@ fn test_detect_string_tables_missing() {
     let pe_data = fs::read(&fixture_path).expect("Failed to read PE fixture");
     let resources = extract_resources(&pe_data);
     // test_binary_pe.exe doesn't have STRINGTABLE, so we shouldn't find any
-    let _has_string_table = resources
+    let has_string_table = resources
         .iter()
         .any(|r| matches!(r.resource_type, ResourceType::StringTable));
-    // It's OK if there are no string table resources
+    assert!(
+        !has_string_table,
+        "test_binary_pe.exe should not have STRINGTABLE resources"
+    );
 }
 
 #[test]
 fn test_detect_string_tables_empty_directory() {
-    // Test when RT_STRING exists but has no entries
-    // Handled by iteration logic - empty directory means no entries in loop
+    // Verify extract_resources handles a PE with no RT_STRING entries gracefully
+    let fixture_path = get_fixture_path("test_binary_pe.exe");
+    if !fixture_path.exists() {
+        return; // Skip if fixture not available
+    }
+    let pe_data = fs::read(&fixture_path).expect("Failed to read PE fixture");
+    let resources = extract_resources(&pe_data);
+    let string_table_count = resources
+        .iter()
+        .filter(|r| matches!(r.resource_type, ResourceType::StringTable))
+        .count();
+    assert_eq!(string_table_count, 0, "Expected no STRINGTABLE resources");
 }
 
 #[test]
@@ -276,16 +289,29 @@ fn test_detect_manifests_missing() {
     let pe_data = fs::read(&fixture_path).expect("Failed to read PE fixture");
     let resources = extract_resources(&pe_data);
     // test_binary_pe.exe doesn't have MANIFEST
-    let _has_manifest = resources
+    let has_manifest = resources
         .iter()
         .any(|r| matches!(r.resource_type, ResourceType::Manifest));
-    // It's OK if there are no manifest resources
+    assert!(
+        !has_manifest,
+        "test_binary_pe.exe should not have MANIFEST resources"
+    );
 }
 
 #[test]
 fn test_detect_manifests_empty_directory() {
-    // Test when RT_MANIFEST exists but has no entries
-    // Handled by iteration logic
+    // Verify extract_resources handles a PE with no RT_MANIFEST entries gracefully
+    let fixture_path = get_fixture_path("test_binary_pe.exe");
+    if !fixture_path.exists() {
+        return; // Skip if fixture not available
+    }
+    let pe_data = fs::read(&fixture_path).expect("Failed to read PE fixture");
+    let resources = extract_resources(&pe_data);
+    let manifest_count = resources
+        .iter()
+        .filter(|r| matches!(r.resource_type, ResourceType::Manifest))
+        .count();
+    assert_eq!(manifest_count, 0, "Expected no MANIFEST resources");
 }
 
 #[test]

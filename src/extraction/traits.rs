@@ -147,6 +147,18 @@ impl ExtractionConfig {
                 self.max_length, self.min_length
             )));
         }
+        if self.max_length < self.min_ascii_length {
+            return Err(StringyError::ConfigError(format!(
+                "max_length ({}) must be >= min_ascii_length ({})",
+                self.max_length, self.min_ascii_length
+            )));
+        }
+        if self.max_length < self.min_wide_length {
+            return Err(StringyError::ConfigError(format!(
+                "max_length ({}) must be >= min_wide_length ({})",
+                self.max_length, self.min_wide_length
+            )));
+        }
         if !(0.0..=1.0).contains(&self.min_confidence_threshold) {
             return Err(StringyError::ConfigError(
                 "min_confidence_threshold must be between 0.0 and 1.0".to_string(),

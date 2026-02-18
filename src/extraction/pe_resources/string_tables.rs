@@ -143,8 +143,8 @@ pub fn extract_string_table_strings(data: &[u8]) -> Vec<FoundString> {
             for text in parsed_strings.into_iter().flatten() {
                 // String ID calculation: ((block_id - 1) << 4) | index
                 // (stored for potential future use but not currently needed)
-                // Length is based on decoded string bytes (String::len() returns byte length)
-                let text_len = text.len() as u32;
+                // Source encoding is UTF-16LE: 2 bytes per code unit
+                let text_len = (text.encode_utf16().count() * 2) as u32;
 
                 let found_string = FoundString {
                     text,

@@ -50,8 +50,8 @@ pub fn extract_version_info_strings(data: &[u8]) -> Vec<FoundString> {
         // consumers expecting just the value.
         version_info.strings(*translation, |_key, value| {
             let text = value.to_string();
-            // Length is based on decoded string bytes (String::len() returns byte length)
-            let length = text.len() as u32;
+            // Source encoding is UTF-16LE: 2 bytes per code unit
+            let length = (text.encode_utf16().count() * 2) as u32;
             let found_string = FoundString {
                 text,
                 original_text: None,
