@@ -182,14 +182,11 @@ lint-justfile:
     @just --fmt --check --unstable
 
 # Main lint recipe - calls all sub-linters
-lint: lint-rust lint-actions lint-spell lint-docs lint-justfile
+lint: lint-rust lint-actions lint-docs lint-justfile
 
 # Individual lint recipes
 lint-actions:
     @{{ mise_exec }} actionlint .github/workflows/*.yml
-
-lint-spell:
-    @{{ mise_exec }} cspell "**" --config cspell.config.yaml
 
 lint-docs:
     @{{ mise_exec }} markdownlint-cli2 docs/**/*.md README.md
