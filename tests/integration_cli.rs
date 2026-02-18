@@ -58,6 +58,11 @@ fn cli_min_length_flag() {
         .arg("tests/fixtures/test_binary_elf")
         .output()
         .expect("Failed to execute stringy");
+    assert!(
+        default_output.status.success(),
+        "Default run should succeed: {}",
+        default_output.status
+    );
 
     let filtered_stdout = String::from_utf8_lossy(&output.stdout);
     let default_stdout = String::from_utf8_lossy(&default_output.stdout);
