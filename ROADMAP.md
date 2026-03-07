@@ -1,222 +1,194 @@
 # Stringy Development Roadmap
 
-This document tracks medium-term and long-term improvements identified during the comprehensive code review (2026-01-18). Issues are organized by priority and category.
+This document tracks planned improvements and future directions for Stringy. Items are organized by priority and timeframe.
 
-## Medium-Term Issues (Next 1-3 Releases)
+Last updated: 2026-03-07
 
-### Architecture Improvements
+---
 
-#### 1. Split `extraction/mod.rs` into smaller modules
+## Near-Term (Next 1-2 Releases)
 
-**Priority:** High **Current state:** 1542 lines (exceeds 500-line project limit by 1042 lines) **Files affected:** `src/extraction/mod.rs`
+### Architecture
 
-Recommended split:
+#### Add `#[non_exhaustive]` to remaining public enums
 
-- `src/extraction/config.rs` - Move `ExtractionConfig` and validation logic
-- `src/extraction/trait.rs` - Move `StringExtractor` trait definition
-- `src/extraction/basic.rs` - Move `BasicExtractor` implementation
-- `src/extraction/helpers.rs` - Move internal helper functions (`is_printable_text_byte`, `could_be_utf8_byte`, `extract_ascii_utf8_strings`)
+**Priority:** Medium
 
-Other oversized files to address:
+`Encoding` and `BinaryFormat` enums in `src/types/mod.rs` lack `#[non_exhaustive]`, which limits forward compatibility. `Tag` and public structs like `ContainerInfo` and `FoundString` already have it.
 
-| File                             | Lines | Overage |
-| -------------------------------- | ----- | ------- |
-| `src/extraction/pe_resources.rs` | 1449  | +949    |
-| `src/extraction/utf16.rs`        | 1273  | +773    |
-| `src/extraction/dedup.rs`        | 849   | +349    |
-| `src/extraction/ascii.rs`        | 832   | +332    |
-| `src/output/table.rs`            | 708   | +208    |
-| `src/extraction/filters.rs`      | 702   | +202    |
-| `src/container/pe.rs`            | 661   | +161    |
-| `src/container/elf.rs`           | 627   | +127    |
-| `src/container/macho.rs`         | 574   | +74     |
-| `src/types.rs`                   | 558   | +58     |
+#### Add constructors to remaining public structs
 
-#### 2. Move PE resources to container module
+**Priority:** Medium
 
-**Priority:** Medium **Current state:** `src/extraction/pe_resources.rs` is in extraction but conceptually belongs in container **Rationale:** PE resource parsing is part of container analysis, not string extraction
+`ImportInfo`, `ExportInfo`, and `SectionInfo` lack explicit `new()` constructors. Since other public structs use `#[non_exhaustive]` with constructors, these should follow the same pattern for API consistency.
 
-#### 3. Decouple semantic enrichment from extraction
+#### Move PE resources to container module
 
-**Priority:** Medium **Current state:** `extraction` module imports from `classification` creating bidirectional dependency **Files affected:** `src/extraction/mod.rs:129` **Recommendation:** Move semantic enrichment to an orchestration layer that callers control
+**Priority:** Medium
 
-#### 4. Add `#[non_exhaustive]` to remaining public enums
+`src/extraction/pe_resources/` is conceptually container analysis (parsing PE resource structures), not string extraction. Moving it to `container/` would better reflect the data flow.
 
-**Priority:** Medium **Files affected:**
+#### Decouple semantic enrichment from extraction
 
-- `src/types.rs:4-10` - `Encoding` enum
-- `src/types.rs:130-136` - `BinaryFormat` enum
+**Priority:** Medium
+
+The `extraction` module imports from `classification`, creating a bidirectional dependency. Semantic enrichment should move to an orchestration layer that callers control.
 
 ### Error Handling
 
-#### 5. Add `SerializationError` variant to `StringyError`
+#### Add `SerializationError` variant to `StringyError`
 
-**Priority:** Medium **Current state:** `ConfigError` is incorrectly used for JSON serialization failures **Files affected:** `src/output/json.rs:14-16`, `src/types.rs`
+**Priority:** Medium
 
-#### 6. Add format-specific error variants
+JSON serialization failures currently use `ConfigError`, which is misleading. A dedicated `SerializationError` variant would improve error clarity.
 
-**Priority:** Low **Recommendation:** Add `InvalidPeError`, `InvalidElfError`, `InvalidMachOError` instead of generic `ParseError(String)`
+#### Add format-specific error variants
 
-### API Improvements
+**Priority:** Low
 
-#### 7. Add constructors to remaining public structs
-
-**Priority:** Medium **Files affected:** `src/types.rs` **Structs needing constructors:** `ImportInfo`, `ExportInfo`, `SectionInfo` **Rationale:** Required for `#[non_exhaustive]` compatibility
-
-#### 8. Add `#[allow]` justification comments
-
-**Priority:** Low **Files affected:**
-
-- `src/extraction/utf16.rs:334` - `#[allow(clippy::result_unit_err)]`
-- `src/extraction/utf16.rs:350` - `#[allow(dead_code)]`
-
-### Documentation
-
-#### 9. Update API documentation for accuracy
-
-**Priority:** Medium **Files affected:** `docs/src/api.md` **Issues:** Some function signatures don't match actual implementation
-
-#### 10. Add security considerations to README
-
-**Priority:** Medium **Content to add:** Document malware analysis use case, safe handling of untrusted binaries
-
-#### 11. Document deduplication feature in user docs
-
-**Priority:** Medium **Files affected:** README.md, `docs/src/string-extraction.md`
+Replace generic `ParseError(String)` with `InvalidPeError`, `InvalidElfError`, `InvalidMachOError` for better diagnostics.
 
 ### Performance
 
-#### 12. Add memory mapping for large files
+#### Add memory mapping for large files
 
-**Priority:** High **Current state:** Entire file is loaded into memory **Impact:** Processing 1GB+ binaries requires 1GB+ RAM **Recommendation:** Use `memmap2` crate for memory-mapped file access
+**Priority:** High
 
-```rust
-// Recommended approach
-use memmap2::Mmap;
-use std::fs::File;
+The entire file is currently loaded into memory. For 1GB+ binaries this is impractical. Use `memmap2` for memory-mapped read-only access.
 
-let file = File::open(path)?;
-let mmap = unsafe { Mmap::map(&file)? };
-let data: &[u8] = &mmap;
-```
+#### Optimize redundant regex matching
 
-#### 13. Optimize redundant regex matching
+**Priority:** Low
 
-**Priority:** Low **Files affected:** `src/classification/patterns/network.rs:92-106` **Issue:** URL_REGEX runs twice on URLs (in `classify_url` then `classify_domain`)
+`URL_REGEX` runs twice on URLs (once in `classify_url`, again in `classify_domain`). Could be deduplicated.
+
+### Documentation
+
+#### Update API documentation for accuracy
+
+**Priority:** Medium
+
+Some function signatures in `docs/src/api.md` may not match the current implementation.
+
+#### Add security considerations to README
+
+**Priority:** Medium
+
+Document the malware analysis use case, safe handling of untrusted binaries, and limitations when processing packed/obfuscated samples.
+
+#### Document deduplication in user docs
+
+**Priority:** Medium
+
+The deduplication feature is not covered in README.md or `docs/src/string-extraction.md`.
 
 ### Testing
 
-#### 14. Set up code coverage metrics
+#### Add fuzzing for binary parsers
 
-**Priority:** Medium **Tool:** `cargo-tarpaulin` **Command:** `cargo tarpaulin --out Html`
+**Priority:** Medium
 
-#### 15. Add performance benchmarks
-
-**Priority:** Medium **Tool:** `criterion` **Focus areas:** Deduplication with large input sets, regex pattern matching
-
-#### 16. Add fuzzing for binary parsers
-
-**Priority:** Medium **Tool:** `cargo-fuzz` **Targets:** `container/*.rs` parsers with malformed input
+Use `cargo-fuzz` to fuzz `container/*.rs` parsers with malformed input. These are the primary attack surface for untrusted binaries.
 
 ---
 
-## Long-Term Issues (Future Releases)
+## Medium-Term (v1.x Releases)
+
+### Oversized Files
+
+The following files still exceed the 500-line project limit and should be split:
+
+| File                     | Lines | Overage |
+| ------------------------ | ----- | ------- |
+| `src/container/pe.rs`    | 661   | +161    |
+| `src/container/elf.rs`   | 627   | +127    |
+| `src/container/macho.rs` | 574   | +74     |
+
+### Feature Integration
+
+#### Integrate Mach-O load command strings into main pipeline
+
+**Priority:** Medium
+
+`extract_load_command_strings()` exists in `src/extraction/macho_load_commands.rs` and the `StringSource::LoadCommand` variant is defined, but load command extraction is not wired into `BasicExtractor`. It requires a separate manual call.
+
+#### Parse all Mach-O architectures in fat binaries
+
+**Priority:** Low
+
+Currently only the first architecture in a fat/universal binary is parsed. Multi-arch support would allow extracting strings from all slices.
+
+### Dependency Modernization
+
+#### Migrate from `once_cell` to `std::sync::LazyLock`
+
+**Priority:** Low
+
+All files in `src/classification/patterns/` use `once_cell::sync::Lazy`. `std::sync::LazyLock` has been stable since Rust 1.80 and removes the external dependency.
 
 ### Performance Optimizations
 
-#### 17. Consider parallel extraction with rayon
+#### Parallel extraction with rayon
 
-**Priority:** Low **Rationale:** Section-by-section extraction is embarrassingly parallel
+**Priority:** Low
 
-```rust
-use rayon::prelude::*;
+Section-by-section extraction is embarrassingly parallel. Using `rayon` could improve throughput on multi-core systems for large binaries, especially combined with memory mapping.
 
-let section_strings: Vec<Vec<FoundString>> = sections
-    .par_iter()
-    .map(|section| extractor.extract_from_section(data, section, config))
-    .collect();
-```
+#### `Cow<str>` for hot paths
 
-#### 18. Consider `Cow<str>` for hot paths
+**Priority:** Low
 
-**Priority:** Low **Files affected:** `src/types.rs:236-237` **Benefit:** Avoid cloning when strings could be borrowed
+`FoundString` fields currently clone strings. Using `Cow<str>` could avoid allocations when strings can be borrowed directly from mapped memory.
 
-#### 19. Consider `SmallVec` for tags
+#### `SmallVec` for tags
 
-**Priority:** Low **Field:** `FoundString::tags` **Rationale:** Typical 0-3 tags could use stack allocation with `SmallVec<[Tag; 4]>`
+**Priority:** Low
 
-### Dependency Management
-
-#### 20. Migrate to `std::sync::LazyLock`
-
-**Priority:** Low **Current state:** Uses `once_cell::sync::Lazy` **Target:** `std::sync::LazyLock` (stabilized in Rust 1.80) **Files affected:** All files in `src/classification/patterns/`
-
-### Feature Enhancements
-
-#### 21. Implement main CLI
-
-**Priority:** High **Current state:** `src/main.rs` is a stub with TODO **File:** `src/main.rs:18`
-
-#### 22. Integrate Mach-O load command strings
-
-**Priority:** Medium **Current state:** Feature exists but not integrated into main pipeline **File:** `src/container/macho.rs:198`
-
-#### 23. Parse all Mach-O architectures
-
-**Priority:** Low **Current state:** Only parses first architecture in fat binaries **File:** `src/container/macho.rs:312`
+Most strings have 0-3 tags. `SmallVec<[Tag; 4]>` would use stack allocation for the common case.
 
 ### Build Configuration
 
-#### 24. Add feature flags for output formats
+#### Feature flags for output formats
 
-**Priority:** Low **File:** `Cargo.toml`
+**Priority:** Low
 
-```toml
-[features]
-default = ["json", "yara", "table"]
-json = []
-yara = []
-table = []
-```
-
-#### 25. Add `include` field to Cargo.toml
-
-**Priority:** Low **Purpose:** Control what gets published to crates.io
-
-```toml
-[package]
-include = ["src/**/*", "Cargo.toml", "LICENSE", "README.md"]
-```
+Allow compile-time selection of output formats (json, yara, table) via Cargo features for smaller binaries.
 
 ---
 
-## Completed Items
+## Long-Term (v2+)
 
-The following issues from the comprehensive review have been addressed:
+### Binary Analysis Enhancements
 
-- [x] Fix failing doctests in `extraction/mod.rs` (2026-01-18)
-- [x] Fix rustdoc warning in `patterns/ip.rs:107` (2026-01-18)
-- [x] Create `CHANGELOG.md` (2026-01-18)
-- [x] Fix O(n^2) algorithms in `dedup.rs` using HashSet (2026-01-18)
-- [x] Add `OutputFormatter` trait for extensibility (2026-01-18)
-- [x] Add `#[non_exhaustive]` to `OutputFormat` enum (2026-01-18)
-- [x] Create `examples/` directory with usage examples (2026-01-18)
-- [x] Add `Hash` derive to `Encoding` and `StringSource` enums (2026-01-18)
+- **Light XREF hinting**: Check ELF relocations targeting `.rodata` addresses; strings with inbound relocs rank higher
+- **Capstone-lite pass**: Scan for immediates in `.text` that point into string pools; mark as "referenced" (flag only, no CFG)
+- **DWARF skim**: Extract function/file names with `gimli` to augment context
+- **PDB integration**: Use `pdb` crate to enrich imports/function names (no symbol server fetch)
+- **Go build info**: Detect Go binaries and extract build paths, module info
+- **.NET metadata**: Surface .NET-specific strings and metadata
+- **UPX/packer detection**: Detect common packers; offer `--expect-upx` mode to reduce false negatives
+
+### Red Team / Analyst Features
+
+- `--diff old.bin new.bin` to highlight string deltas between binary versions
+- `--mask common` to drop common libc/CRT strings and reduce noise
+- `--profile malware` to enhance tags with suspicious keywords, cloud endpoints, and telemetry beacons
+- Stable NDJSON schema for pipeline integration with `jq` and similar tools
 
 ---
 
-## Review Summary
+## Completed
 
-**Overall Rating from Comprehensive Review: B+ (85/100)**
-
-| Dimension      | Rating |
-| -------------- | ------ |
-| Code Quality   | B+     |
-| Architecture   | B+     |
-| Security       | A      |
-| Performance    | B      |
-| Testing        | B+     |
-| Documentation  | B+     |
-| Best Practices | A-     |
-
-With the immediate issues addressed and medium-term improvements completed, this project would be ready for a stable 1.0 release.
+- [x] Split `extraction/mod.rs` into focused submodules (PR #135)
+- [x] Split all oversized extraction files (`ascii`, `utf16`, `dedup`, `filters`, `pe_resources`, `table`)
+- [x] Implement working CLI with format selection, min-length filtering
+- [x] Add criterion benchmarks (`benches/`)
+- [x] Set up code coverage in CI (`cargo llvm-cov` + Codecov)
+- [x] Add `#[non_exhaustive]` to `Tag`, `OutputFormat`, `ContainerInfo`, `FoundString`
+- [x] Add `OutputFormatter` trait for extensibility
+- [x] Fix O(n^2) deduplication using HashSet
+- [x] Add `Hash` derive to `Encoding` and `StringSource` enums
+- [x] Fix failing doctests in extraction module
+- [x] Create CHANGELOG.md
+- [x] Add `#[allow]` justification comments to all directives
+- [x] Wire up CLI to full extraction pipeline
