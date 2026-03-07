@@ -49,6 +49,10 @@ For test utilities that shouldn't be in production builds:
 - Use `pub(crate)` visibility for internal test helpers
 - Keep test infrastructure in `#[cfg(test)] mod tests` blocks within the module
 
+### CLI (clap)
+
+Use idiomatic `clap` derive API patterns. Push validation into clap wherever possible -- use `value_parser`, `PossibleValue`, range constraints, and custom value parsers rather than manual post-parse validation. Keep `main.rs` thin by letting clap handle argument conflicts, defaults, and error messages.
+
 ### Regex Patterns
 
 Use `lazy_static!` or `once_cell::sync::Lazy` for compiled regexes. Always use `.expect("descriptive message")` instead of `.unwrap()` for regex compilation - invalid regex patterns should fail fast with clear error messages.
