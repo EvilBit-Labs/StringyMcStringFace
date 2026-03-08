@@ -109,6 +109,7 @@ Import from `stringy::extraction` or `stringy::types`, not deeply nested paths. 
 ## Key Dependencies
 
 - `goblin` - Binary format parsing (ELF, PE, Mach-O)
+- `mmap-guard` - Safe memory-mapped file I/O (wraps `memmap2`)
 - `pelite` - PE resource extraction
 - `thiserror` - Error type definitions
 - `indicatif` - Progress bars and spinners for CLI output

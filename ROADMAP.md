@@ -2,7 +2,7 @@
 
 This document tracks planned improvements and future directions for Stringy. Items are organized by priority and timeframe.
 
-Last updated: 2026-03-07
+Last updated: 2026-03-08
 
 ---
 
@@ -49,12 +49,6 @@ JSON serialization failures currently use `ConfigError`, which is misleading. A 
 Replace generic `ParseError(String)` with `InvalidPeError`, `InvalidElfError`, `InvalidMachOError` for better diagnostics.
 
 ### Performance
-
-#### Add memory mapping for large files
-
-**Priority:** High **Blocked by:** [`mmap-guard`](https://github.com/EvilBit-Labs/mmap-guard) crate (safe mmap wrapper)
-
-The entire file is currently loaded into memory. For disk images and 1GB+ binaries this is impractical. Use `mmap-guard` (feature-gated) for memory-mapped read-only access, with `std::fs::read` remaining the default path.
 
 #### Optimize redundant regex matching
 
@@ -192,3 +186,4 @@ Allow compile-time selection of output formats (json, yara, table) via Cargo fea
 - [x] Create CHANGELOG.md
 - [x] Add `#[allow]` justification comments to all directives
 - [x] Wire up CLI to full extraction pipeline
+- [x] Add memory-mapped file I/O via `mmap-guard` (replaces `std::fs::read`)
