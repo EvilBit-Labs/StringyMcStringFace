@@ -186,3 +186,71 @@ fn cli_long_help_has_examples() {
         .success()
         .stdout(predicate::str::contains("EXAMPLES:"));
 }
+
+#[test]
+fn cli_top_flag() {
+    let top_output = stringy()
+        .args(["tests/fixtures/test_binary_elf", "--top", "1", "--json"])
+        .output()
+        .expect("should succeed");
+
+    assert!(top_output.status.success());
+    let stdout = String::from_utf8_lossy(&top_output.stdout);
+    let line_count = stdout.lines().filter(|l| !l.is_empty()).count();
+    assert!(
+        line_count <= 1,
+        "--top 1 should produce at most 1 result line, got {line_count}"
+    );
+}
+
+#[test]
+fn cli_enc_flag() {
+    stringy()
+        .args(["tests/fixtures/test_binary_elf", "--enc", "ascii"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn cli_raw_flag() {
+    stringy()
+        .args(["tests/fixtures/test_binary_elf", "--raw"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Score").not());
+}
+
+#[test]
+fn cli_raw_conflicts_with_yara() {
+    stringy()
+        .args(["tests/fixtures/test_binary_elf", "--raw", "--yara"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("cannot be used with"));
+}
+
+#[test]
+fn cli_only_tags_filter_excludes_untagged() {
+    let assert = stringy()
+        .args([
+            "tests/fixtures/test_binary_elf",
+            "--only-tags",
+            "url",
+            "--json",
+        ])
+        .assert()
+        .success();
+
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+    for line in stdout.lines().filter(|l| !l.is_empty()) {
+        let value: serde_json::Value =
+            serde_json::from_str(line).expect("each line should be valid JSON");
+        let tags = value["tags"]
+            .as_array()
+            .expect("tags field should be an array");
+        assert!(
+            tags.iter().any(|t| t.as_str() == Some("url")),
+            "every result should contain the 'url' tag, got: {tags:?}"
+        );
+    }
+}

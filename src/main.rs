@@ -1,15 +1,18 @@
 #![forbid(unsafe_code)]
 
 use std::io::IsTerminal;
+use std::io::Write;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use clap::{ArgAction, Parser, ValueEnum};
 use patharg::InputArg;
+use tempfile::NamedTempFile;
 
-use stringy::container::{create_parser, detect_format};
-use stringy::extraction::{BasicExtractor, ExtractionConfig, StringExtractor};
-use stringy::output::{OutputFormat, OutputMetadata, format_output};
+use stringy::extraction::ExtractionConfig;
+use stringy::output::OutputFormat;
 use stringy::types::{StringyError, Tag};
+use stringy::{Encoding, EncodingFilter, FilterConfig, Pipeline, PipelineConfig};
 
 /// Encoding filter for string extraction
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -30,6 +33,17 @@ fn parse_positive_usize(s: &str) -> Result<usize, String> {
         return Err("value must be >= 1".to_string());
     }
     Ok(value)
+}
+
+/// Map CLI encoding variant to pipeline `EncodingFilter`.
+fn cli_encoding_to_filter(enc: CliEncoding) -> EncodingFilter {
+    match enc {
+        CliEncoding::Ascii => EncodingFilter::Exact(Encoding::Ascii),
+        CliEncoding::Utf8 => EncodingFilter::Exact(Encoding::Utf8),
+        CliEncoding::Utf16 => EncodingFilter::Utf16Any,
+        CliEncoding::Utf16Le => EncodingFilter::Exact(Encoding::Utf16Le),
+        CliEncoding::Utf16Be => EncodingFilter::Exact(Encoding::Utf16Be),
+    }
 }
 
 /// A smarter alternative to the strings command that leverages format-specific knowledge
@@ -116,28 +130,8 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
         ));
     }
 
-    let data = cli.input.read().map_err(|e| {
-        StringyError::IoError(std::io::Error::new(
-            e.kind(),
-            format!("{}: {}", cli.input, e),
-        ))
-    })?;
-
-    let binary_format = detect_format(&data);
-    let parser = create_parser(binary_format)?;
-    let container_info = parser.parse(&data)?;
-
-    let min_length = cli.min_len.unwrap_or(4);
-    let config = ExtractionConfig {
-        min_length,
-        min_ascii_length: min_length,
-        min_wide_length: min_length,
-        ..ExtractionConfig::default()
-    };
-    config.validate()?;
-
-    let extractor = BasicExtractor::new();
-    let strings = extractor.extract(&data, &container_info, &config)?;
+    // Resolve input to a file path (Pipeline::run requires &Path)
+    let (file_path, _temp_guard) = resolve_input_path(cli)?;
 
     let binary_name = match &cli.input {
         InputArg::Stdin => "<stdin>".to_string(),
@@ -147,6 +141,32 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
             .unwrap_or_else(|| p.display().to_string()),
     };
 
+    // -- Extraction config --
+    let min_length = cli.min_len.unwrap_or(4);
+    let extraction_config = ExtractionConfig {
+        min_length,
+        min_ascii_length: min_length,
+        min_wide_length: min_length,
+        ..ExtractionConfig::default()
+    };
+    extraction_config.validate()?;
+
+    // -- Filter config --
+    let mut filter_config = FilterConfig::new().with_min_length(min_length);
+    if let Some(enc) = cli.enc {
+        filter_config = filter_config.with_encoding(cli_encoding_to_filter(enc));
+    }
+    if !cli.only_tags.is_empty() {
+        filter_config = filter_config.with_include_tags(cli.only_tags.clone());
+    }
+    if !cli.notags.is_empty() {
+        filter_config = filter_config.with_exclude_tags(cli.notags.clone());
+    }
+    if let Some(n) = cli.top {
+        filter_config = filter_config.with_top_n(n);
+    }
+
+    // -- Output format --
     let output_format = if cli.json {
         OutputFormat::Json
     } else if cli.yara {
@@ -155,26 +175,49 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
         OutputFormat::Table
     };
 
-    // Pipeline stubs for flags not yet wired into extraction/output
-    let _top = cli.top;
-    let _enc = cli.enc;
-    let _raw = cli.raw;
-    let _debug = cli.debug;
-    let _summary = cli.summary;
-    let _only_tags = &cli.only_tags;
-    let _notags = &cli.notags;
+    // -- Pipeline config --
+    let config = PipelineConfig::new(binary_name)
+        .with_extraction_config(extraction_config)
+        .with_filter_config(filter_config)
+        .with_debug_mode(cli.debug)
+        .with_raw_mode(cli.raw)
+        .with_show_summary(cli.summary)
+        .with_output_format(output_format);
 
-    // No post-extraction filtering yet, so total == filtered
-    let metadata = OutputMetadata::new(binary_name, output_format, strings.len(), strings.len());
-
-    let output = format_output(&strings, &metadata)?;
-    print!("{output}");
-    // Ensure output ends with newline for proper shell behavior
-    if !output.ends_with('\n') {
-        println!();
-    }
+    Pipeline::new(config).run(&file_path)?;
 
     Ok(())
+}
+
+/// Resolve `InputArg` to a filesystem path. For stdin, writes the data to a
+/// unique temporary file and returns the path along with a guard that cleans
+/// it up when dropped.
+fn resolve_input_path(cli: &Cli) -> Result<(PathBuf, Option<NamedTempFile>), StringyError> {
+    match &cli.input {
+        InputArg::Path(p) => Ok((p.clone(), None)),
+        InputArg::Stdin => {
+            let data = cli.input.read().map_err(|e| {
+                StringyError::IoError(std::io::Error::new(
+                    e.kind(),
+                    format!("{}: {}", cli.input, e),
+                ))
+            })?;
+            let mut temp_file = NamedTempFile::with_prefix("stringy-stdin-").map_err(|e| {
+                StringyError::IoError(std::io::Error::new(
+                    e.kind(),
+                    format!("failed to create temp file: {e}"),
+                ))
+            })?;
+            temp_file.write_all(&data).map_err(|e| {
+                StringyError::IoError(std::io::Error::new(
+                    e.kind(),
+                    format!("failed to write temp file: {e}"),
+                ))
+            })?;
+            let path = temp_file.path().to_path_buf();
+            Ok((path, Some(temp_file)))
+        }
+    }
 }
 
 fn main() {

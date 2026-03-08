@@ -72,6 +72,7 @@ pub mod classification;
 pub mod container;
 pub mod extraction;
 pub mod output;
+pub mod pipeline;
 pub mod types;
 
 // Re-export commonly used types
@@ -92,3 +93,6 @@ pub use output::{
     OutputFormat, OutputFormatter, OutputMetadata, format_json, format_output,
     format_table_with_mode, format_yara,
 };
+
+// Re-export pipeline types
+pub use pipeline::{EncodingFilter, FilterConfig, Pipeline, PipelineConfig};

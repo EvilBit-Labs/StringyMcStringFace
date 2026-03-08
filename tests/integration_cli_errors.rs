@@ -6,15 +6,14 @@ fn stringy() -> Command {
 }
 
 #[test]
-fn error_unsupported_format_lists_supported() {
-    // Feed a plain text file -- not ELF/PE/Mach-O
+fn unknown_format_falls_back_to_raw_scan() {
+    // Feed a plain text file -- not ELF/PE/Mach-O.
+    // The pipeline gracefully falls back to unstructured byte scanning.
     stringy()
         .arg("Cargo.toml")
         .assert()
-        .failure()
-        .stderr(predicate::str::contains("ELF"))
-        .stderr(predicate::str::contains("PE"))
-        .stderr(predicate::str::contains("Mach-O"));
+        .success()
+        .stderr(predicate::str::contains("unknown data"));
 }
 
 #[test]
@@ -34,6 +33,10 @@ fn exit_code_2_for_clap_errors() {
 
 #[test]
 fn exit_code_1_for_runtime_errors() {
-    // Cargo.toml is not a valid binary format
-    stringy().arg("Cargo.toml").assert().failure().code(1);
+    // Non-existent file triggers a runtime I/O error
+    stringy()
+        .arg("this_file_also_does_not_exist.bin")
+        .assert()
+        .failure()
+        .code(1);
 }

@@ -40,10 +40,23 @@ use super::{
 /// - Section name
 pub(super) fn format_table_tty(
     strings: &[FoundString],
-    _metadata: &OutputMetadata,
+    metadata: &OutputMetadata,
 ) -> Result<String> {
-    if strings.is_empty() {
+    if strings.is_empty() && !metadata.show_summary {
         return Ok(String::new());
+    }
+
+    if strings.is_empty() {
+        let format_label = match metadata.binary_format {
+            crate::types::BinaryFormat::Elf => "ELF",
+            crate::types::BinaryFormat::Pe => "PE",
+            crate::types::BinaryFormat::MachO => "Mach-O",
+            crate::types::BinaryFormat::Unknown => "unknown",
+        };
+        return Ok(format!(
+            "Strings: {} shown / {} extracted  [{}]",
+            metadata.filtered_strings, metadata.total_strings, format_label,
+        ));
     }
 
     let mut output = String::new();
@@ -86,7 +99,10 @@ pub(super) fn format_table_tty(
             pad_string(&truncated_text, STRING_COLUMN_WIDTH, Alignment::Left),
             pad_string(&tags_display, tags_width, Alignment::Left),
             pad_string(
-                &found_string.score.to_string(),
+                &found_string
+                    .display_score
+                    .unwrap_or(found_string.score)
+                    .to_string(),
                 SCORE_COLUMN_WIDTH,
                 Alignment::Right
             ),
@@ -99,6 +115,19 @@ pub(super) fn format_table_tty(
     // Remove trailing newline for consistency
     if output.ends_with('\n') {
         output.pop();
+    }
+
+    if metadata.show_summary {
+        let format_label = match metadata.binary_format {
+            crate::types::BinaryFormat::Elf => "ELF",
+            crate::types::BinaryFormat::Pe => "PE",
+            crate::types::BinaryFormat::MachO => "Mach-O",
+            crate::types::BinaryFormat::Unknown => "unknown",
+        };
+        output.push_str(&format!(
+            "\n\nStrings: {} shown / {} extracted  [{}]",
+            metadata.filtered_strings, metadata.total_strings, format_label,
+        ));
     }
 
     Ok(output)
@@ -203,6 +232,46 @@ mod tests {
         let result = format_table_with_mode(&[found], &make_metadata(), true).unwrap();
         // Should not crash and should contain the string
         assert!(result.contains("minimal"));
+    }
+
+    #[test]
+    fn display_score_preferred_over_score() {
+        let found = make_test_string("test")
+            .with_score(50)
+            .with_display_score(75);
+        let result = format_table_with_mode(&[found], &make_metadata(), true).unwrap();
+        assert!(result.contains("75"));
+        assert!(!result.contains(" 50"));
+    }
+
+    #[test]
+    fn summary_block_appended_when_enabled() {
+        let strings = vec![make_test_string("hello")];
+        let metadata = make_metadata()
+            .with_show_summary(true)
+            .with_binary_format(crate::types::BinaryFormat::Elf);
+        let result = format_table_with_mode(&strings, &metadata, true).unwrap();
+        assert!(result.contains("Strings:"));
+        assert!(result.contains("ELF"));
+    }
+
+    #[test]
+    fn empty_strings_with_summary_returns_summary_block() {
+        let metadata = make_metadata()
+            .with_show_summary(true)
+            .with_binary_format(crate::types::BinaryFormat::Pe);
+        let result = format_table_with_mode(&[], &metadata, true).unwrap();
+        assert!(result.contains("Strings:"));
+        assert!(result.contains("PE"));
+        assert!(result.contains("shown"));
+        assert!(result.contains("extracted"));
+    }
+
+    #[test]
+    fn summary_block_absent_when_disabled() {
+        let strings = vec![make_test_string("hello")];
+        let result = format_table_with_mode(&strings, &make_metadata(), true).unwrap();
+        assert!(!result.contains("Strings:"));
     }
 
     mod column_width_tests {

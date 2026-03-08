@@ -1,0 +1,283 @@
+//! Pipeline orchestrator for Stringy.
+//!
+//! Wires together all processing stages (parsing, extraction, classification,
+//! ranking, normalization, filtering, output) into a single `Pipeline::run`
+//! entry point.
+
+pub mod config;
+pub mod filter;
+pub mod normalizer;
+
+pub use config::{EncodingFilter, FilterConfig, PipelineConfig};
+pub use filter::FilterEngine;
+pub use normalizer::ScoreNormalizer;
+
+use std::path::Path;
+
+use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+
+use crate::classification::{RankingEngine, SemanticClassifier, SymbolDemangler};
+use crate::container::{create_parser, detect_format};
+use crate::extraction::{BasicExtractor, StringExtractor};
+use crate::output::{OutputMetadata, format_output};
+use crate::types::{
+    BinaryFormat, ContainerInfo, FoundString, SectionInfo, SectionType, StringContext, StringyError,
+};
+
+/// Top-level pipeline orchestrator.
+#[derive(Debug)]
+pub struct Pipeline {
+    config: PipelineConfig,
+}
+
+impl Pipeline {
+    /// Create a new `Pipeline` with the given configuration.
+    #[must_use]
+    pub fn new(config: PipelineConfig) -> Self {
+        Self { config }
+    }
+
+    /// Run the full Stringy pipeline: load, parse, extract, classify, rank,
+    /// normalize, filter, and output.
+    ///
+    /// # Errors
+    ///
+    /// Returns `StringyError` on I/O failure, parse failure, extraction
+    /// failure, or output formatting failure.
+    pub fn run(&self, file_path: &Path) -> crate::types::Result<()> {
+        let data = load_file(file_path)?;
+
+        let pb = create_spinner();
+
+        // -- Parsing --
+        set_stage(&pb, "Parsing...");
+        let container_info = parse_container(&data);
+
+        // -- Extracting --
+        set_stage(&pb, "Extracting...");
+        let mut strings = extract_strings(&data, &container_info, &self.config)?;
+
+        // -- Raw-mode early exit --
+        if self.config.raw_mode {
+            pb.finish_and_clear();
+            return emit_output(&strings, &self.config, &container_info, strings.len());
+        }
+
+        // -- Classifying --
+        set_stage(&pb, "Classifying...");
+        let (demangle_failures, classification_failures) =
+            classify_strings(&mut strings, &container_info);
+
+        // -- Ranking --
+        set_stage(&pb, "Ranking...");
+        rank_strings(&mut strings, &container_info, self.config.debug_mode);
+
+        // -- Score normalization --
+        ScoreNormalizer::new().normalize(&mut strings);
+
+        // -- Filtering --
+        let total_count = strings.len();
+        let filtered = FilterEngine::new().apply(strings, &self.config.filter_config);
+
+        // -- Finish spinner, emit warnings --
+        pb.finish_and_clear();
+        emit_processing_warnings(demangle_failures, classification_failures);
+
+        // -- Output --
+        emit_output(&filtered, &self.config, &container_info, total_count)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Private helpers — each keeps `Pipeline::run` readable and `mod.rs` under
+// the 500-line file limit.
+// ---------------------------------------------------------------------------
+
+/// Load file contents into memory.
+fn load_file(file_path: &Path) -> crate::types::Result<Vec<u8>> {
+    std::fs::read(file_path).map_err(|e| {
+        StringyError::IoError(std::io::Error::new(
+            e.kind(),
+            format!("{}: {}", file_path.display(), e),
+        ))
+    })
+}
+
+/// Create an `indicatif` spinner targeting stderr.
+fn create_spinner() -> ProgressBar {
+    let pb = ProgressBar::with_draw_target(None, ProgressDrawTarget::stderr());
+    let style = ProgressStyle::default_spinner()
+        .template("{spinner} {msg}")
+        .expect("invalid spinner template");
+    pb.set_style(style);
+    pb.enable_steady_tick(std::time::Duration::from_millis(120));
+    pb
+}
+
+/// Update the spinner message.
+fn set_stage(pb: &ProgressBar, msg: &str) {
+    pb.set_message(msg.to_string());
+}
+
+/// Detect format and parse container, falling back to a synthetic
+/// `ContainerInfo` for unknown or unparseable data.
+fn parse_container(data: &[u8]) -> ContainerInfo {
+    let binary_format = detect_format(data);
+
+    if binary_format == BinaryFormat::Unknown {
+        eprintln!(
+            "Info: Source identified as unknown data; proceeding with unstructured byte scan"
+        );
+        return build_unknown_container(data);
+    }
+
+    match create_parser(binary_format).and_then(|parser| parser.parse(data)) {
+        Ok(info) => info,
+        Err(_) => {
+            eprintln!(
+                "Info: Source identified as unknown data; proceeding with unstructured byte scan"
+            );
+            build_unknown_container(data)
+        }
+    }
+}
+
+/// Build a synthetic `ContainerInfo` for unknown/unparseable data.
+fn build_unknown_container(data: &[u8]) -> ContainerInfo {
+    let section = SectionInfo {
+        name: "raw-bytes".to_string(),
+        offset: 0,
+        size: data.len() as u64,
+        section_type: SectionType::Other,
+        weight: 1.0,
+        is_executable: false,
+        is_writable: false,
+        rva: None,
+    };
+    ContainerInfo::new(BinaryFormat::Unknown, vec![section], vec![], vec![], None)
+}
+
+/// Run the extraction stage.
+fn extract_strings(
+    data: &[u8],
+    container_info: &ContainerInfo,
+    config: &PipelineConfig,
+) -> crate::types::Result<Vec<FoundString>> {
+    let extractor = BasicExtractor::new();
+    extractor.extract(data, container_info, &config.extraction_config)
+}
+
+/// Classify and demangle all strings. Returns (demangle_failures, classification_failures).
+fn classify_strings(strings: &mut [FoundString], container_info: &ContainerInfo) -> (usize, usize) {
+    let classifier = SemanticClassifier::new();
+    let demangler = SymbolDemangler::new();
+
+    let mut demangle_failures: usize = 0;
+    let mut classification_failures: usize = 0;
+
+    for s in strings.iter_mut() {
+        // Demangle (wrapping in catch_unwind for safety against third-party crate panics)
+        let text_clone = s.text.clone();
+        let demangle_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            demangler.demangle(s);
+        }));
+        if demangle_result.is_err() {
+            demangle_failures += 1;
+            // Restore text if panic corrupted it
+            s.text = text_clone;
+        }
+
+        // Classify (catch panics from classifier as actual failures)
+        let section_type = container_info
+            .sections
+            .iter()
+            .find(|sec| Some(&sec.name) == s.section.as_ref())
+            .map(|sec| sec.section_type)
+            .unwrap_or(SectionType::Other);
+
+        let context = StringContext::new(section_type, container_info.format, s.encoding, s.source);
+        let context = match &s.section {
+            Some(name) => context.with_section_name(name.clone()),
+            None => context,
+        };
+
+        let text_for_classify = s.text.clone();
+        let classify_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            classifier.classify(&text_for_classify, &context)
+        }));
+
+        match classify_result {
+            Ok(tags) => {
+                for tag in tags {
+                    if !s.tags.contains(&tag) {
+                        s.tags.push(tag);
+                    }
+                }
+            }
+            Err(_) => {
+                classification_failures += 1;
+            }
+        }
+    }
+
+    (demangle_failures, classification_failures)
+}
+
+/// Score every string using the ranking engine.
+fn rank_strings(strings: &mut [FoundString], container_info: &ContainerInfo, debug_mode: bool) {
+    let ranking_engine = RankingEngine::new(debug_mode);
+
+    for s in strings.iter_mut() {
+        let section_info = container_info
+            .sections
+            .iter()
+            .find(|sec| Some(&sec.name) == s.section.as_ref());
+        ranking_engine.calculate_score(s, section_info);
+    }
+}
+
+/// Emit processing warnings to stderr when counters are non-zero.
+fn emit_processing_warnings(demangle_failures: usize, classification_failures: usize) {
+    if demangle_failures > 0 || classification_failures > 0 {
+        let mut parts = Vec::new();
+        if demangle_failures > 0 {
+            parts.push(format!("demangle_failures: {demangle_failures}"));
+        }
+        if classification_failures > 0 {
+            parts.push(format!(
+                "classification_failures: {classification_failures}"
+            ));
+        }
+        eprintln!(
+            "Warning: Completed with partial processing issues ({})",
+            parts.join(", ")
+        );
+    }
+}
+
+/// Format and print the final output.
+fn emit_output(
+    strings: &[FoundString],
+    config: &PipelineConfig,
+    container_info: &ContainerInfo,
+    total_count: usize,
+) -> crate::types::Result<()> {
+    let filtered_count = strings.len();
+
+    let metadata = OutputMetadata::new(
+        config.binary_name.clone(),
+        config.output_format,
+        total_count,
+        filtered_count,
+    )
+    .with_show_summary(config.show_summary)
+    .with_binary_format(container_info.format);
+
+    let output = format_output(strings, &metadata)?;
+    print!("{output}");
+    if !output.ends_with('\n') {
+        println!();
+    }
+
+    Ok(())
+}

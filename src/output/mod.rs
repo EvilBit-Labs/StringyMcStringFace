@@ -34,7 +34,7 @@
 //! # Ok::<(), stringy::StringyError>(())
 //! ```
 
-use crate::types::{FoundString, Result};
+use crate::types::{BinaryFormat, FoundString, Result};
 
 pub mod json;
 pub mod table;
@@ -116,6 +116,10 @@ pub struct OutputMetadata {
     ///
     /// When set, formatters may use this value instead of runtime timestamps.
     pub generated_at: Option<String>,
+    /// Whether to append a summary block after the table output.
+    pub show_summary: bool,
+    /// The detected binary format of the analyzed file.
+    pub binary_format: BinaryFormat,
 }
 
 impl OutputMetadata {
@@ -133,6 +137,8 @@ impl OutputMetadata {
             total_strings,
             filtered_strings,
             generated_at: None,
+            show_summary: false,
+            binary_format: BinaryFormat::Unknown,
         }
     }
 
@@ -140,6 +146,20 @@ impl OutputMetadata {
     #[must_use]
     pub fn with_generated_at(mut self, generated_at: String) -> Self {
         self.generated_at = Some(generated_at);
+        self
+    }
+
+    /// Enable or disable the summary block after table output.
+    #[must_use]
+    pub fn with_show_summary(mut self, show_summary: bool) -> Self {
+        self.show_summary = show_summary;
+        self
+    }
+
+    /// Set the binary format of the analyzed file.
+    #[must_use]
+    pub fn with_binary_format(mut self, binary_format: BinaryFormat) -> Self {
+        self.binary_format = binary_format;
         self
     }
 }
@@ -179,7 +199,7 @@ fn format_output_with<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Encoding, StringSource, StringyError};
+    use crate::types::{BinaryFormat, Encoding, StringSource, StringyError};
 
     fn build_found_string(text: &str) -> FoundString {
         FoundString::new(
@@ -225,6 +245,10 @@ mod tests {
         assert_eq!(other.format, OutputFormat::Json);
         assert_eq!(other.total_strings, 1);
         assert_eq!(other.filtered_strings, 1);
+
+        // New fields default correctly
+        assert!(!metadata.show_summary);
+        assert_eq!(metadata.binary_format, BinaryFormat::Unknown);
     }
 
     #[test]
@@ -234,6 +258,14 @@ mod tests {
 
         let with_timestamp = metadata.with_generated_at("12345".to_string());
         assert_eq!(with_timestamp.generated_at, Some("12345".to_string()));
+
+        let metadata = OutputMetadata::new("test.bin".to_string(), OutputFormat::Yara, 0, 0);
+        let with_summary = metadata.with_show_summary(true);
+        assert!(with_summary.show_summary);
+
+        let metadata = OutputMetadata::new("test.bin".to_string(), OutputFormat::Table, 0, 0);
+        let with_format = metadata.with_binary_format(BinaryFormat::Elf);
+        assert_eq!(with_format.binary_format, BinaryFormat::Elf);
     }
 
     #[test]
