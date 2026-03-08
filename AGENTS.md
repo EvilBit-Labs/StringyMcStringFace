@@ -41,6 +41,8 @@ Use `thiserror` with detailed context. Include offsets, section names, and file 
 
 Use `#[non_exhaustive]` for public structs and provide explicit constructors. When using `#[non_exhaustive]` structs internally, always use the constructor pattern (`Type::new()`) rather than struct literals - struct literals bypass the forward-compatibility guarantee.
 
+**`FoundString` struct literals**: Adding a field to `FoundString` requires updating struct literals in `extraction/`, `classification/`, and `types/tests.rs`. Search for an adjacent field (e.g., `noise_penalty: None,`) to find all sites. Prefer using `FoundString::new()` + builder methods over struct literals where possible.
+
 ### Test-Only Code
 
 For test utilities that shouldn't be in production builds:
@@ -52,6 +54,26 @@ For test utilities that shouldn't be in production builds:
 ### CLI (clap)
 
 Use idiomatic `clap` derive API patterns. Push validation into clap wherever possible -- use `value_parser`, `PossibleValue`, range constraints, and custom value parsers rather than manual post-parse validation. Keep `main.rs` thin by letting clap handle argument conflicts, defaults, and error messages.
+
+- `clap::value_parser!(usize).range(..)` does not exist -- use a custom `fn(s: &str) -> Result<usize, String>` value parser for range-constrained `usize` args
+- `Tag::from_str` in `value_parser` requires `use std::str::FromStr` in scope (clap resolves it as an associated fn, not a trait method)
+- CLI flag changes in `main.rs` require updating `tests/integration_cli.rs` (uses `Command` with flag names)
+
+### Current CLI Flags (main.rs)
+
+| Flag          | Type                  | Notes                                                                  |
+| ------------- | --------------------- | ---------------------------------------------------------------------- |
+| `FILE`        | positional            | Input binary                                                           |
+| `--json`      | bool                  | Conflicts with `--yara`                                                |
+| `--yara`      | bool                  | Conflicts with `--json`                                                |
+| `--only-tags` | `Vec<Tag>`            | Repeatable, `value_parser = Tag::from_str`                             |
+| `--notags`    | `Vec<Tag>`            | Repeatable, runtime overlap check with `--only-tags`                   |
+| `--min-len`   | `Option<usize>`       | Default 4, custom parser enforces >= 1                                 |
+| `--top`       | `Option<usize>`       | Custom parser enforces >= 1                                            |
+| `--enc`       | `Option<CliEncoding>` | ascii, utf8, utf16, utf16le, utf16be                                   |
+| `--raw`       | bool                  | Conflicts with `--only-tags`, `--notags`, `--top`, `--debug`, `--yara` |
+| `--summary`   | bool                  | Conflicts with `--json`, `--yara`; runtime TTY check                   |
+| `--debug`     | bool                  | Conflicts with `--raw`                                                 |
 
 ### Regex Patterns
 
