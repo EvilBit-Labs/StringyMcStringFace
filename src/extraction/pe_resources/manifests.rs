@@ -190,6 +190,7 @@ pub fn extract_manifest_strings(data: &[u8]) -> Vec<FoundString> {
                 section_weight: None,
                 semantic_boost: None,
                 noise_penalty: None,
+                display_score: None,
                 source: StringSource::ResourceString,
                 confidence: 1.0,
             };

@@ -112,6 +112,7 @@ fn extract_dylib_strings(macho: &MachO) -> Vec<FoundString> {
             section_weight: None,
             semantic_boost: None,
             noise_penalty: None,
+            display_score: None,
             confidence: 1.0,
         });
     }
@@ -145,6 +146,7 @@ fn extract_rpath_strings(macho: &MachO) -> Vec<FoundString> {
             section_weight: None,
             semantic_boost: None,
             noise_penalty: None,
+            display_score: None,
             confidence: 1.0,
         });
     }

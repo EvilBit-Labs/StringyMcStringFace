@@ -107,6 +107,7 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                         section_weight: None,
                         semantic_boost: None,
                         noise_penalty: None,
+                        display_score: None,
                         source: StringSource::SectionData,
                         confidence: 1.0,
                     });
@@ -141,6 +142,7 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                         section_weight: None,
                         semantic_boost: None,
                         noise_penalty: None,
+                        display_score: None,
                         source: StringSource::SectionData,
                         confidence: 1.0,
                     });
@@ -161,6 +163,7 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                     section_weight: None,
                     semantic_boost: None,
                     noise_penalty: None,
+                    display_score: None,
                     source: StringSource::SectionData,
                     confidence: 1.0,
                 });

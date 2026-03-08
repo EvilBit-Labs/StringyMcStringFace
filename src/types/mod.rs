@@ -55,6 +55,37 @@ pub enum Tag {
     FrameworkPath,
 }
 
+impl std::str::FromStr for Tag {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "url" => Ok(Tag::Url),
+            "domain" => Ok(Tag::Domain),
+            "ipv4" => Ok(Tag::IPv4),
+            "ipv6" => Ok(Tag::IPv6),
+            "filepath" => Ok(Tag::FilePath),
+            "regpath" => Ok(Tag::RegistryPath),
+            "guid" => Ok(Tag::Guid),
+            "email" => Ok(Tag::Email),
+            "b64" => Ok(Tag::Base64),
+            "fmt" => Ok(Tag::FormatString),
+            "user-agent-ish" => Ok(Tag::UserAgent),
+            "demangled" => Ok(Tag::DemangledSymbol),
+            "import" => Ok(Tag::Import),
+            "export" => Ok(Tag::Export),
+            "version" => Ok(Tag::Version),
+            "manifest" => Ok(Tag::Manifest),
+            "resource" => Ok(Tag::Resource),
+            "dylib-path" => Ok(Tag::DylibPath),
+            "rpath" => Ok(Tag::Rpath),
+            "rpath-var" => Ok(Tag::RpathVariable),
+            "framework-path" => Ok(Tag::FrameworkPath),
+            _ => Err(format!("unknown tag: {s}")),
+        }
+    }
+}
+
 /// Type of section based on its purpose and likelihood of containing strings
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SectionType {
@@ -286,6 +317,13 @@ pub struct FoundString {
     /// populated by the ranking system in debug mode.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub noise_penalty: Option<i32>,
+    /// Display score shown in output (debug only)
+    ///
+    /// When debug mode is enabled, this field contains the final computed score
+    /// used for display purposes. This is `None` unless explicitly populated
+    /// by the ranking system in debug mode.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub display_score: Option<i32>,
     /// Source of the string (section data, import, etc.)
     pub source: StringSource,
     /// Confidence score from noise filtering (0.0-1.0)
@@ -381,6 +419,7 @@ impl FoundString {
             section_weight: None,
             semantic_boost: None,
             noise_penalty: None,
+            display_score: None,
             source,
             confidence: 1.0,
         }
@@ -446,6 +485,13 @@ impl FoundString {
     #[must_use]
     pub fn with_noise_penalty(mut self, penalty: i32) -> Self {
         self.noise_penalty = Some(penalty);
+        self
+    }
+
+    /// Sets the display score (debug mode)
+    #[must_use]
+    pub fn with_display_score(mut self, score: i32) -> Self {
+        self.display_score = Some(score);
         self
     }
 

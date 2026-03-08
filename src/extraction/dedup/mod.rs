@@ -225,6 +225,7 @@ impl CanonicalString {
             section_weight: None,
             semantic_boost: None,
             noise_penalty: None,
+            display_score: None,
             source: first_occurrence.source,
             confidence: max_confidence,
         })

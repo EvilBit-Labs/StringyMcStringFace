@@ -18,6 +18,9 @@ pub enum StringyError {
     #[error("Configuration error: {0}")]
     ConfigError(String),
 
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+
     #[error("Memory mapping error: {0}")]
     MemoryMapError(String),
 }

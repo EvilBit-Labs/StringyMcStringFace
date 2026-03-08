@@ -47,6 +47,7 @@ fn create_test_string(
         section_weight: None,
         semantic_boost: None,
         noise_penalty: None,
+        display_score: None,
         source,
         confidence,
     }

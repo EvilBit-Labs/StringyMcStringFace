@@ -247,6 +247,7 @@ fn extract_utf16_strings_with_byte_order(
                             section_weight: None,
                             semantic_boost: None,
                             noise_penalty: None,
+                            display_score: None,
                             source: StringSource::SectionData,
                             confidence: utf16_confidence,
                         });

@@ -80,6 +80,7 @@ fn collect_all_strings(
                 section_weight: None,
                 semantic_boost: None,
                 noise_penalty: None,
+                display_score: None,
                 source: StringSource::ImportName,
                 confidence: 1.0,
             });
@@ -100,6 +101,7 @@ fn collect_all_strings(
                 section_weight: None,
                 semantic_boost: None,
                 noise_penalty: None,
+                display_score: None,
                 source: StringSource::ExportName,
                 confidence: 1.0,
             });
@@ -285,6 +287,7 @@ impl StringExtractor for BasicExtractor {
                     section_weight: None,
                     semantic_boost: None,
                     noise_penalty: None,
+                    display_score: None,
                     source: StringSource::SectionData,
                     confidence,
                 };

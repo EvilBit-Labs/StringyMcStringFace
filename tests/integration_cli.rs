@@ -19,7 +19,7 @@ fn cli_accepts_binary_file() {
 #[test]
 fn cli_json_output() {
     let output = Command::new(env!("CARGO_BIN_EXE_stringy"))
-        .args(["tests/fixtures/test_binary_elf", "--format", "json"])
+        .args(["tests/fixtures/test_binary_elf", "--json"])
         .output()
         .expect("Failed to execute stringy");
 
@@ -48,7 +48,7 @@ fn cli_invalid_file() {
 #[test]
 fn cli_min_length_flag() {
     let output = Command::new(env!("CARGO_BIN_EXE_stringy"))
-        .args(["tests/fixtures/test_binary_elf", "-l", "20"])
+        .args(["tests/fixtures/test_binary_elf", "--min-len", "20"])
         .output()
         .expect("Failed to execute stringy");
 
