@@ -52,9 +52,9 @@ Replace generic `ParseError(String)` with `InvalidPeError`, `InvalidElfError`, `
 
 #### Add memory mapping for large files
 
-**Priority:** High
+**Priority:** High **Blocked by:** [`mmap-guard`](https://github.com/EvilBit-Labs/mmap-guard) crate (safe mmap wrapper)
 
-The entire file is currently loaded into memory. For 1GB+ binaries this is impractical. Use `memmap2` for memory-mapped read-only access.
+The entire file is currently loaded into memory. For disk images and 1GB+ binaries this is impractical. Use `mmap-guard` (feature-gated) for memory-mapped read-only access, with `std::fs::read` remaining the default path.
 
 #### Optimize redundant regex matching
 
