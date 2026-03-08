@@ -3,7 +3,7 @@
 /// Error types for the stringy library
 #[derive(Debug, thiserror::Error)]
 pub enum StringyError {
-    #[error("Unsupported file format")]
+    #[error("Unsupported file format (supported: ELF, PE, Mach-O)")]
     UnsupportedFormat,
 
     #[error("File I/O error: {0}")]

@@ -1,10 +1,10 @@
 #![forbid(unsafe_code)]
 
 use std::io::IsTerminal;
-use std::path::PathBuf;
 use std::str::FromStr;
 
 use clap::{ArgAction, Parser, ValueEnum};
+use patharg::InputArg;
 
 use stringy::container::{create_parser, detect_format};
 use stringy::extraction::{BasicExtractor, ExtractionConfig, StringExtractor};
@@ -34,13 +34,26 @@ fn parse_positive_usize(s: &str) -> Result<usize, String> {
 
 /// A smarter alternative to the strings command that leverages format-specific knowledge
 #[derive(Parser)]
-#[command(name = "stringy")]
+#[command(name = "stringy", author, version)]
 #[command(about = "Extract meaningful strings from binary files")]
-#[command(version)]
+#[command(
+    long_about = "A smarter alternative to the strings command that leverages \
+    format-specific knowledge.\n\n\
+    Stringy is section-aware, encoding-aware, and semantically intelligent. \
+    It extracts strings from ELF, PE, and Mach-O binaries, classifies them \
+    (URLs, file paths, IPs, GUIDs, etc.), and ranks results by relevance."
+)]
+#[command(after_help = "EXAMPLES:\n  \
+    stringy binary.exe\n  \
+    stringy --json binary.elf\n  \
+    stringy --yara malware.dll\n  \
+    stringy --min-len 8 --only-tags url,domain binary.exe\n  \
+    stringy --top 50 --json binary.elf\n\n\
+    More info: https://github.com/EvilBit-Labs/Stringy")]
 struct Cli {
-    /// Input binary file to analyze
+    /// Input binary file to analyze (use "-" for stdin)
     #[arg(value_name = "FILE")]
-    input: PathBuf,
+    input: InputArg,
 
     /// Emit JSONL output (one JSON object per line)
     #[arg(long, conflicts_with = "yara")]
@@ -103,7 +116,12 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
         ));
     }
 
-    let data = std::fs::read(&cli.input)?;
+    let data = cli.input.read().map_err(|e| {
+        StringyError::IoError(std::io::Error::new(
+            e.kind(),
+            format!("{}: {}", cli.input, e),
+        ))
+    })?;
 
     let binary_format = detect_format(&data);
     let parser = create_parser(binary_format)?;
@@ -121,11 +139,13 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
     let extractor = BasicExtractor::new();
     let strings = extractor.extract(&data, &container_info, &config)?;
 
-    let binary_name = cli
-        .input
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_else(|| cli.input.display().to_string());
+    let binary_name = match &cli.input {
+        InputArg::Stdin => "<stdin>".to_string(),
+        InputArg::Path(p) => p
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| p.display().to_string()),
+    };
 
     let output_format = if cli.json {
         OutputFormat::Json
