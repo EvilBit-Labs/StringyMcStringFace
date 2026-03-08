@@ -18,6 +18,9 @@ pub enum StringyError {
     #[error("Configuration error: {0}")]
     ConfigError(String),
 
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
+
     #[error("Validation error: {0}")]
     ValidationError(String),
 

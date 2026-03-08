@@ -25,3 +25,15 @@ fn error_missing_file_shows_path() {
         .failure()
         .stderr(predicate::str::contains("this_file_does_not_exist.bin"));
 }
+
+#[test]
+fn exit_code_2_for_clap_errors() {
+    // Missing required argument
+    stringy().assert().failure().code(2);
+}
+
+#[test]
+fn exit_code_1_for_runtime_errors() {
+    // Cargo.toml is not a valid binary format
+    stringy().arg("Cargo.toml").assert().failure().code(1);
+}
