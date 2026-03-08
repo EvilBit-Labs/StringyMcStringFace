@@ -93,14 +93,24 @@ impl Pipeline {
 // the 500-line file limit.
 // ---------------------------------------------------------------------------
 
-/// Load file contents into memory.
-fn load_file(file_path: &Path) -> crate::types::Result<Vec<u8>> {
-    std::fs::read(file_path).map_err(|e| {
-        StringyError::IoError(std::io::Error::new(
+/// Load file contents via memory-mapped I/O.
+///
+/// Uses [`mmap_guard::map_file()`] for zero-copy read-only access with
+/// advisory locking and pre-flight validation. Empty files are
+/// short-circuited to an empty buffer (there are no strings to extract).
+fn load_file(file_path: &Path) -> crate::types::Result<mmap_guard::FileData> {
+    match mmap_guard::map_file(file_path) {
+        Ok(data) => Ok(data),
+        Err(e) if e.kind() == std::io::ErrorKind::InvalidInput => {
+            // mmap_guard rejects empty files (zero bytes cannot be mapped).
+            // Return an empty buffer so the pipeline can proceed gracefully.
+            Ok(mmap_guard::FileData::Loaded(Vec::new()))
+        }
+        Err(e) => Err(StringyError::IoError(std::io::Error::new(
             e.kind(),
             format!("{}: {}", file_path.display(), e),
-        ))
-    })
+        ))),
+    }
 }
 
 /// Create an `indicatif` spinner targeting stderr.
