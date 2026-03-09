@@ -35,8 +35,16 @@ Adding a field to `OutputMetadata` requires: (1) add field to struct, (2) initia
 - Mergify merge protections evaluate from the **main branch** config, not the PR branch
 - Quality/MSRV jobs use `dtolnay/rust-toolchain` -- do NOT use `just` recipes here (they use `mise exec --` which conflicts)
 
+## Justfile Recipes
+
+- All tool invocations must use `{{ mise_exec }}` prefix to ensure mise-managed versions
+- Use `just rmrf` for cross-platform file/directory cleanup (not raw `rm` or `Remove-Item`)
+- Unix shebang recipes use `set -euo pipefail`; Windows recipes need `$ErrorActionPreference = "Stop"` for parity
+- Keep recipe output minimal -- no excessive echo/Write-Host; let tools speak for themselves
+
 ## Test Fixtures
 
+- When gitignoring already-tracked files, always `git rm --cached` them too -- `.gitignore` only affects untracked files
 - Compiled binary fixtures (ELF, PE, Mach-O) are gitignored -- `just gen-fixtures` must run before tests
 - `test_binary.c` changes require rebuilding all fixtures and regenerating insta snapshots
 - All fixtures are cross-compiled via `zig cc` (managed by mise) -- no Docker or platform-specific compilers needed
