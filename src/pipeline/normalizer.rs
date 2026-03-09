@@ -71,6 +71,7 @@ mod tests {
     #[test]
     fn test_clamp_negative() {
         assert_eq!(normalize_score(-10), 0);
+        assert_eq!(normalize_score(-5), 0);
     }
 
     #[test]
