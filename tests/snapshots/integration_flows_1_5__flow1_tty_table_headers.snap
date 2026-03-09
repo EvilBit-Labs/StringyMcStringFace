@@ -1,0 +1,9 @@
+---
+source: tests/integration_flows_1_5.rs
+expression: result
+---
+String                                                       | Tags |  Score | Section
+-------------------------------------------------------------|------|--------|--------
+https://github.com/EvilBit-Labs/Stringy                      | url  |   1050 | .rodata
+Project: %s                                                  | fmt  |   1002 | .rodata
+Helper called                                                |      |    993 | .rodata
