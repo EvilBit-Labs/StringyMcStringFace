@@ -47,16 +47,9 @@ pub(super) fn format_table_tty(
     }
 
     if strings.is_empty() {
-        let format_label = match metadata.binary_format {
-            crate::types::BinaryFormat::Elf => "ELF",
-            crate::types::BinaryFormat::Pe => "PE",
-            crate::types::BinaryFormat::MachO => "Mach-O",
-            crate::types::BinaryFormat::Unknown => "unknown",
-        };
-        return Ok(format!(
-            "Strings: {} shown / {} extracted  [{}]",
-            metadata.filtered_strings, metadata.total_strings, format_label,
-        ));
+        return Ok(format_summary_block(metadata)
+            .trim_start_matches('\n')
+            .to_string());
     }
 
     let mut output = String::new();
@@ -118,19 +111,46 @@ pub(super) fn format_table_tty(
     }
 
     if metadata.show_summary {
-        let format_label = match metadata.binary_format {
-            crate::types::BinaryFormat::Elf => "ELF",
-            crate::types::BinaryFormat::Pe => "PE",
-            crate::types::BinaryFormat::MachO => "Mach-O",
-            crate::types::BinaryFormat::Unknown => "unknown",
-        };
-        output.push_str(&format!(
-            "\n\nStrings: {} shown / {} extracted  [{}]",
-            metadata.filtered_strings, metadata.total_strings, format_label,
-        ));
+        output.push_str(&format_summary_block(metadata));
     }
 
     Ok(output)
+}
+
+/// Format the summary block appended after table output.
+fn format_summary_block(metadata: &OutputMetadata) -> String {
+    let format_label = match metadata.binary_format {
+        crate::types::BinaryFormat::Elf => "ELF",
+        crate::types::BinaryFormat::Pe => "PE",
+        crate::types::BinaryFormat::MachO => "Mach-O",
+        crate::types::BinaryFormat::Unknown => "unknown",
+    };
+
+    let mut block = format!(
+        "\n\nBinary: {} [{}]\nStrings: {} shown / {} extracted",
+        metadata.binary_name, format_label, metadata.filtered_strings, metadata.total_strings,
+    );
+
+    if !metadata.top_tags.is_empty() {
+        let tag_parts: Vec<String> = metadata
+            .top_tags
+            .iter()
+            .map(|(tag, count)| format!("{tag:?}: {count}"))
+            .collect();
+        block.push_str(&format!("\nTop tags: {}", tag_parts.join(", ")));
+    }
+
+    if let Some(duration) = metadata.analysis_duration {
+        let millis = duration.as_millis();
+        if millis < 1000 {
+            block.push_str(&format!("\nAnalysis time: {millis}ms"));
+        } else {
+            let secs = duration.as_secs_f64();
+            block.push_str(&format!("\nAnalysis time: {secs:.2}s"));
+        }
+    }
+
+    block
 }
 
 /// Calculate the optimal width for the section column based on content.

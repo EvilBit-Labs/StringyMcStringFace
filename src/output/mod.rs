@@ -34,7 +34,10 @@
 //! # Ok::<(), stringy::StringyError>(())
 //! ```
 
-use crate::types::{BinaryFormat, FoundString, Result};
+use std::collections::HashMap;
+use std::time::Duration;
+
+use crate::types::{BinaryFormat, FoundString, Result, Tag};
 
 pub mod json;
 pub mod table;
@@ -120,6 +123,10 @@ pub struct OutputMetadata {
     pub show_summary: bool,
     /// The detected binary format of the analyzed file.
     pub binary_format: BinaryFormat,
+    /// Top tag distribution (tag -> count), populated when summary is enabled.
+    pub top_tags: Vec<(Tag, usize)>,
+    /// Total analysis duration, populated when summary is enabled.
+    pub analysis_duration: Option<Duration>,
 }
 
 impl OutputMetadata {
@@ -139,6 +146,8 @@ impl OutputMetadata {
             generated_at: None,
             show_summary: false,
             binary_format: BinaryFormat::Unknown,
+            top_tags: Vec::new(),
+            analysis_duration: None,
         }
     }
 
@@ -161,6 +170,38 @@ impl OutputMetadata {
     pub fn with_binary_format(mut self, binary_format: BinaryFormat) -> Self {
         self.binary_format = binary_format;
         self
+    }
+
+    /// Set the top tag distribution.
+    #[must_use]
+    pub fn with_top_tags(mut self, top_tags: Vec<(Tag, usize)>) -> Self {
+        self.top_tags = top_tags;
+        self
+    }
+
+    /// Set the analysis duration.
+    #[must_use]
+    pub fn with_analysis_duration(mut self, duration: Duration) -> Self {
+        self.analysis_duration = Some(duration);
+        self
+    }
+
+    /// Compute top tag distribution from the given strings.
+    ///
+    /// Returns a sorted `Vec<(Tag, usize)>` of the most frequent tags, limited
+    /// to `limit` entries.
+    #[must_use]
+    pub fn compute_top_tags(strings: &[FoundString], limit: usize) -> Vec<(Tag, usize)> {
+        let mut counts: HashMap<Tag, usize> = HashMap::new();
+        for s in strings {
+            for tag in &s.tags {
+                *counts.entry(tag.clone()).or_insert(0) += 1;
+            }
+        }
+        let mut sorted: Vec<(Tag, usize)> = counts.into_iter().collect();
+        sorted.sort_by(|a, b| b.1.cmp(&a.1));
+        sorted.truncate(limit);
+        sorted
     }
 }
 
@@ -199,7 +240,7 @@ fn format_output_with<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{BinaryFormat, Encoding, StringSource, StringyError};
+    use crate::types::{BinaryFormat, Encoding, StringSource, StringyError, Tag};
 
     fn build_found_string(text: &str) -> FoundString {
         FoundString::new(
@@ -249,6 +290,8 @@ mod tests {
         // New fields default correctly
         assert!(!metadata.show_summary);
         assert_eq!(metadata.binary_format, BinaryFormat::Unknown);
+        assert!(metadata.top_tags.is_empty());
+        assert!(metadata.analysis_duration.is_none());
     }
 
     #[test]
@@ -266,6 +309,34 @@ mod tests {
         let metadata = OutputMetadata::new("test.bin".to_string(), OutputFormat::Table, 0, 0);
         let with_format = metadata.with_binary_format(BinaryFormat::Elf);
         assert_eq!(with_format.binary_format, BinaryFormat::Elf);
+
+        let metadata = OutputMetadata::new("test.bin".to_string(), OutputFormat::Table, 0, 0);
+        let with_tags = metadata.with_top_tags(vec![(Tag::Url, 5), (Tag::Domain, 3)]);
+        assert_eq!(with_tags.top_tags.len(), 2);
+        assert_eq!(with_tags.top_tags[0], (Tag::Url, 5));
+
+        let metadata = OutputMetadata::new("test.bin".to_string(), OutputFormat::Table, 0, 0);
+        let with_duration = metadata.with_analysis_duration(Duration::from_millis(42));
+        assert_eq!(
+            with_duration.analysis_duration,
+            Some(Duration::from_millis(42))
+        );
+    }
+
+    #[test]
+    fn test_compute_top_tags() {
+        let mut s1 = build_found_string("http://example.com");
+        s1.tags = vec![Tag::Url, Tag::Domain];
+        let mut s2 = build_found_string("http://other.com");
+        s2.tags = vec![Tag::Url];
+        let mut s3 = build_found_string("10.0.0.1");
+        s3.tags = vec![Tag::IPv4];
+
+        let top = OutputMetadata::compute_top_tags(&[s1, s2, s3], 2);
+        assert_eq!(top.len(), 2);
+        // Url should be first (count 2)
+        assert_eq!(top[0].0, Tag::Url);
+        assert_eq!(top[0].1, 2);
     }
 
     #[test]
