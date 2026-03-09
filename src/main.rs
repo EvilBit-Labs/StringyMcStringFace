@@ -61,7 +61,7 @@ fn cli_encoding_to_filter(enc: CliEncoding) -> EncodingFilter {
     stringy binary.exe\n  \
     stringy --json binary.elf\n  \
     stringy --yara malware.dll\n  \
-    stringy --min-len 8 --only-tags url,domain binary.exe\n  \
+    stringy --min-len 8 --only-tags url --only-tags domain binary.exe\n  \
     stringy --top 50 --json binary.elf\n\n\
     More info: https://github.com/EvilBit-Labs/Stringy")]
 struct Cli {

@@ -13,6 +13,7 @@ pub use filter::FilterEngine;
 pub use normalizer::ScoreNormalizer;
 
 use std::path::Path;
+use std::time::Instant;
 
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 
@@ -45,6 +46,7 @@ impl Pipeline {
     /// Returns `StringyError` on I/O failure, parse failure, extraction
     /// failure, or output formatting failure.
     pub fn run(&self, file_path: &Path) -> crate::types::Result<()> {
+        let start_time = Instant::now();
         let data = load_file(file_path)?;
 
         let pb = create_spinner();
@@ -67,7 +69,14 @@ impl Pipeline {
             }
             strings.sort_by_key(|s| s.offset);
             pb.finish_and_clear();
-            return emit_output(&strings, &self.config, &container_info, strings.len());
+            let elapsed = start_time.elapsed();
+            return emit_output(
+                &strings,
+                &self.config,
+                &container_info,
+                strings.len(),
+                elapsed,
+            );
         }
 
         // -- Classifying --
@@ -102,7 +111,14 @@ impl Pipeline {
         }
 
         // -- Output --
-        emit_output(&filtered, &self.config, &container_info, total_count)
+        let elapsed = start_time.elapsed();
+        emit_output(
+            &filtered,
+            &self.config,
+            &container_info,
+            total_count,
+            elapsed,
+        )
     }
 }
 
@@ -196,12 +212,31 @@ fn extract_strings(
 }
 
 /// Classify and demangle all strings. Returns (demangle_failures, classification_failures).
+///
+/// In debug builds, the environment variables `STRINGY_TEST_INJECT_DEMANGLE_FAILURES`
+/// and `STRINGY_TEST_INJECT_CLASSIFY_FAILURES` can inject additional failure counts
+/// for integration testing of the warning emission path.
 fn classify_strings(strings: &mut [FoundString], container_info: &ContainerInfo) -> (usize, usize) {
     let classifier = SemanticClassifier::new();
     let demangler = SymbolDemangler::new();
 
     let mut demangle_failures: usize = 0;
     let mut classification_failures: usize = 0;
+
+    // Debug-only failure injection for integration testing of warning paths.
+    #[cfg(debug_assertions)]
+    {
+        if let Ok(val) = std::env::var("STRINGY_TEST_INJECT_DEMANGLE_FAILURES")
+            && let Ok(n) = val.parse::<usize>()
+        {
+            demangle_failures += n;
+        }
+        if let Ok(val) = std::env::var("STRINGY_TEST_INJECT_CLASSIFY_FAILURES")
+            && let Ok(n) = val.parse::<usize>()
+        {
+            classification_failures += n;
+        }
+    }
 
     for s in strings.iter_mut() {
         // Demangle (wrapping in catch_unwind for safety against third-party crate panics)
@@ -264,22 +299,38 @@ fn rank_strings(strings: &mut [FoundString], container_info: &ContainerInfo, deb
     }
 }
 
+/// Format a processing-warning message when counters are non-zero.
+///
+/// Returns `Some(message)` when at least one counter is positive, `None`
+/// otherwise. The returned message always starts with "Warning:" and only
+/// includes non-zero counters.
+#[must_use]
+fn format_processing_warnings(
+    demangle_failures: usize,
+    classification_failures: usize,
+) -> Option<String> {
+    if demangle_failures == 0 && classification_failures == 0 {
+        return None;
+    }
+    let mut parts = Vec::new();
+    if demangle_failures > 0 {
+        parts.push(format!("demangle_failures: {demangle_failures}"));
+    }
+    if classification_failures > 0 {
+        parts.push(format!(
+            "classification_failures: {classification_failures}"
+        ));
+    }
+    Some(format!(
+        "Warning: Completed with partial processing issues ({})",
+        parts.join(", ")
+    ))
+}
+
 /// Emit processing warnings to stderr when counters are non-zero.
 fn emit_processing_warnings(demangle_failures: usize, classification_failures: usize) {
-    if demangle_failures > 0 || classification_failures > 0 {
-        let mut parts = Vec::new();
-        if demangle_failures > 0 {
-            parts.push(format!("demangle_failures: {demangle_failures}"));
-        }
-        if classification_failures > 0 {
-            parts.push(format!(
-                "classification_failures: {classification_failures}"
-            ));
-        }
-        eprintln!(
-            "Warning: Completed with partial processing issues ({})",
-            parts.join(", ")
-        );
+    if let Some(msg) = format_processing_warnings(demangle_failures, classification_failures) {
+        eprintln!("{msg}");
     }
 }
 
@@ -289,17 +340,24 @@ fn emit_output(
     config: &PipelineConfig,
     container_info: &ContainerInfo,
     total_count: usize,
+    elapsed: std::time::Duration,
 ) -> crate::types::Result<()> {
     let filtered_count = strings.len();
 
-    let metadata = OutputMetadata::new(
+    let mut metadata = OutputMetadata::new(
         config.binary_name.clone(),
         config.output_format,
         total_count,
         filtered_count,
     )
     .with_show_summary(config.show_summary)
-    .with_binary_format(container_info.format);
+    .with_binary_format(container_info.format)
+    .with_analysis_duration(elapsed);
+
+    if config.show_summary {
+        let top_tags = OutputMetadata::compute_top_tags(strings, 5);
+        metadata = metadata.with_top_tags(top_tags);
+    }
 
     let output = format_output(strings, &metadata)?;
     print!("{output}");
@@ -308,4 +366,38 @@ fn emit_output(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn warning_format_both_zero_returns_none() {
+        assert!(format_processing_warnings(0, 0).is_none());
+    }
+
+    #[test]
+    fn warning_format_demangle_only() {
+        let msg = format_processing_warnings(3, 0).expect("must produce warning");
+        assert!(msg.starts_with("Warning:"));
+        assert!(msg.contains("demangle_failures: 3"));
+        assert!(!msg.contains("classification_failures"));
+    }
+
+    #[test]
+    fn warning_format_classify_only() {
+        let msg = format_processing_warnings(0, 7).expect("must produce warning");
+        assert!(msg.starts_with("Warning:"));
+        assert!(msg.contains("classification_failures: 7"));
+        assert!(!msg.contains("demangle_failures"));
+    }
+
+    #[test]
+    fn warning_format_both_nonzero() {
+        let msg = format_processing_warnings(2, 5).expect("must produce warning");
+        assert!(msg.starts_with("Warning:"));
+        assert!(msg.contains("demangle_failures: 2"));
+        assert!(msg.contains("classification_failures: 5"));
+    }
 }
