@@ -92,9 +92,9 @@ Formats results for different use cases:
 
 Orchestrates the entire flow from file reading through output:
 
-- **Configuration** (`src/pipeline/config.rs`): `PipelineConfig` and related types
-- **Filtering** (`src/pipeline/filter.rs`): Post-extraction filtering by tags, encoding, and top-N
-- **Score Normalization** (`src/pipeline/normalizer.rs`): Maps internal scores to display scores
+- **Configuration** (`src/pipeline/config.rs`): `PipelineConfig`, `FilterConfig`, and `EncodingFilter`
+- **Filtering** (`src/pipeline/filter.rs`): `FilterEngine` applies post-extraction filtering by min-length, encoding, tags, and top-N
+- **Score Normalization** (`src/pipeline/normalizer.rs`): `ScoreNormalizer` maps internal scores to display scores (0-100) and populates `display_score` on each `FoundString` only when `--debug` is active
 - **Orchestration** (`src/pipeline/mod.rs`): `Pipeline::run` drives the full pipeline
 
 ## Data Flow

@@ -13,6 +13,8 @@ The primary data structure representing an extracted string with metadata.
 pub struct FoundString {
     /// The extracted string text
     pub text: String,
+    /// Pre-demangled form (if symbol was demangled)
+    pub original_text: Option<String>,
     /// The encoding used for this string
     pub encoding: Encoding,
     /// File offset where the string was found
@@ -27,8 +29,18 @@ pub struct FoundString {
     pub tags: Vec<Tag>,
     /// Relevance score for ranking
     pub score: i32,
+    /// Section weight component of score (debug only)
+    pub section_weight: Option<i32>,
+    /// Semantic boost component of score (debug only)
+    pub semantic_boost: Option<i32>,
+    /// Noise penalty component of score (debug only)
+    pub noise_penalty: Option<i32>,
+    /// Display score 0-100, populated by ScoreNormalizer (debug only)
+    pub display_score: Option<i32>,
     /// Source of the string (section data, import, etc.)
     pub source: StringSource,
+    /// UTF-16 confidence score
+    pub confidence: f32,
 }
 ```
 
@@ -70,6 +82,51 @@ pub enum Tag {
     Manifest,
     Resource,
 }
+```
+
+### EncodingFilter
+
+Filter for restricting output by string encoding, corresponding to the `--enc` CLI flag.
+
+```text
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EncodingFilter {
+    /// Match a specific encoding exactly
+    Exact(Encoding),
+    /// Match any UTF-16 variant (UTF-16LE or UTF-16BE)
+    Utf16Any,
+}
+```
+
+Used with `FilterConfig` to limit results to a specific encoding. `Utf16Any` matches both `Utf16Le` and `Utf16Be`.
+
+### FilterConfig
+
+Post-extraction filtering configuration. All fields have sensible defaults; empty tag vectors are no-ops.
+
+```text
+pub struct FilterConfig {
+    /// Minimum string length to include (default: 4)
+    pub min_length: usize,          // --min-len
+    /// Restrict to a specific encoding
+    pub encoding: Option<EncodingFilter>, // --enc
+    /// Only include strings with these tags (empty = no filter)
+    pub include_tags: Vec<Tag>,     // --only-tags
+    /// Exclude strings with these tags (empty = no filter)
+    pub exclude_tags: Vec<Tag>,     // --notags
+    /// Limit output to top N strings by score
+    pub top_n: Option<usize>,      // --top
+}
+```
+
+Builder-style construction:
+
+```text
+let config = FilterConfig::new()
+    .with_min_length(6)
+    .with_encoding(EncodingFilter::Exact(Encoding::Utf8))
+    .with_include_tags(vec![Tag::Url, Tag::Domain])
+    .with_top_n(20);
 ```
 
 ## Main API Functions
@@ -201,6 +258,54 @@ pub struct ClassificationConfig {
     /// Minimum confidence threshold
     pub min_confidence: f32,
 }
+```
+
+## Pipeline Components
+
+### ScoreNormalizer
+
+Maps internal relevance scores to a 0-100 display scale using band mapping.
+
+```text
+let normalizer = ScoreNormalizer::new();
+normalizer.normalize(&mut strings);
+// Each FoundString now has display_score populated
+```
+
+Only invoked by the pipeline when `--debug` mode is active. Negative internal scores map to `display_score = 0`. See [Ranking](./ranking.md) for the full band-mapping table.
+
+### FilterEngine
+
+Applies post-extraction filtering and sorting. Consumes the input vector and returns a filtered, sorted result.
+
+```text
+let engine = FilterEngine::new();
+let filtered = engine.apply(strings, &filter_config);
+```
+
+Filter order:
+
+1. Minimum length (`min_length`)
+2. Encoding match (`encoding`)
+3. Include tags (`include_tags` -- keep only strings with at least one matching tag)
+4. Exclude tags (`exclude_tags` -- remove strings with any matching tag)
+5. Stable sort by score (descending), then offset (ascending), then text (ascending)
+6. Top-N truncation (`top_n`)
+
+**Example: FilterConfig + FilterEngine**
+
+```text
+use stringy::{FilterConfig, FilterEngine, EncodingFilter, Encoding, Tag};
+
+let config = FilterConfig::new()
+    .with_min_length(6)
+    .with_include_tags(vec![Tag::Url, Tag::Domain])
+    .with_top_n(10);
+
+let engine = FilterEngine::new();
+let results = engine.apply(strings, &config);
+// results contains at most 10 strings, all >= 6 chars,
+// all tagged Url or Domain, sorted by score descending
 ```
 
 ## Container Parsing
