@@ -95,4 +95,4 @@ pub use output::{
 };
 
 // Re-export pipeline types
-pub use pipeline::{EncodingFilter, FilterConfig, Pipeline, PipelineConfig};
+pub use pipeline::{EncodingFilter, FilterConfig, FilterEngine, Pipeline, PipelineConfig};
