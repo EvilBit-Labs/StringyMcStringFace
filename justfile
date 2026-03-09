@@ -28,26 +28,32 @@ help:
 # Cross-platform helpers using OS annotations
 # Each helper has Windows and Unix variants
 
+[private]
 [windows]
 cd-root:
     Set-Location "{{ root }}"
 
+[private]
 [unix]
 cd-root:
     cd "{{ root }}"
 
+[private]
 [windows]
 ensure-dir dir:
     New-Item -ItemType Directory -Force -Path "{{ dir }}" | Out-Null
 
+[private]
 [unix]
 ensure-dir dir:
     /bin/mkdir -p "{{ dir }}"
 
+[private]
 [windows]
 rmrf path:
     if (Test-Path "{{ path }}") { Remove-Item "{{ path }}" -Recurse -Force }
 
+[private]
 [unix]
 rmrf path:
     /bin/rm -rf "{{ path }}"
@@ -269,25 +275,38 @@ gen-fixtures:
     set -euo pipefail
     just ensure-dir tests/fixtures
     {{ mise_exec }} zig cc -target x86_64-linux-gnu -o tests/fixtures/test_binary_elf tests/fixtures/test_binary.c
+    echo "  ELF   tests/fixtures/test_binary_elf"
     {{ mise_exec }} zig cc -target x86_64-windows-gnu -o tests/fixtures/test_binary_pe.exe tests/fixtures/test_binary.c
+    echo "  PE    tests/fixtures/test_binary_pe.exe"
     {{ mise_exec }} zig rc /fo tests/fixtures/test_binary_with_resources.res -- tests/fixtures/test_binary_with_resources.rc
     {{ mise_exec }} zig cc -target x86_64-windows-gnu -o tests/fixtures/test_binary_with_resources.exe tests/fixtures/test_binary_with_resources.c tests/fixtures/test_binary_with_resources.res
-    rm -f tests/fixtures/test_binary_with_resources.res
+    echo "  PE+RC tests/fixtures/test_binary_with_resources.exe"
+    just rmrf tests/fixtures/test_binary_with_resources.res
     {{ mise_exec }} zig cc -target x86_64-macos -o tests/fixtures/test_binary_macho tests/fixtures/test_binary.c
+    echo "  MACHO tests/fixtures/test_binary_macho"
     truncate -s 0 tests/fixtures/test_empty.bin
+    echo "  EMPTY tests/fixtures/test_empty.bin"
     printf '\xde\xad\xbe\xef\x00\x00\x00\x00NOT_A_BINARY\n' > tests/fixtures/test_unknown.bin
+    echo "  BLOB  tests/fixtures/test_unknown.bin"
 
 [windows]
 gen-fixtures:
+    $ErrorActionPreference = "Stop"
     @just ensure-dir tests/fixtures
     {{ mise_exec }} zig cc -target x86_64-linux-gnu -o tests/fixtures/test_binary_elf tests/fixtures/test_binary.c
+    Write-Host "  ELF   tests/fixtures/test_binary_elf"
     {{ mise_exec }} zig cc -target x86_64-windows-gnu -o tests/fixtures/test_binary_pe.exe tests/fixtures/test_binary.c
+    Write-Host "  PE    tests/fixtures/test_binary_pe.exe"
     {{ mise_exec }} zig rc /fo tests/fixtures/test_binary_with_resources.res -- tests/fixtures/test_binary_with_resources.rc
     {{ mise_exec }} zig cc -target x86_64-windows-gnu -o tests/fixtures/test_binary_with_resources.exe tests/fixtures/test_binary_with_resources.c tests/fixtures/test_binary_with_resources.res
-    Remove-Item -Force tests/fixtures/test_binary_with_resources.res -ErrorAction SilentlyContinue
+    Write-Host "  PE+RC tests/fixtures/test_binary_with_resources.exe"
+    just rmrf tests/fixtures/test_binary_with_resources.res
     {{ mise_exec }} zig cc -target x86_64-macos -o tests/fixtures/test_binary_macho tests/fixtures/test_binary.c
+    Write-Host "  MACHO tests/fixtures/test_binary_macho"
     New-Item -ItemType File -Force -Path "tests/fixtures/test_empty.bin" | Out-Null
+    Write-Host "  EMPTY tests/fixtures/test_empty.bin"
     [System.IO.File]::WriteAllBytes("tests/fixtures/test_unknown.bin", [byte[]]@(0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x00, 0x00, 0x00) + [System.Text.Encoding]::ASCII.GetBytes("NOT_A_BINARY`n"))
+    Write-Host "  BLOB  tests/fixtures/test_unknown.bin"
 
 # =============================================================================
 # BENCHMARKING
