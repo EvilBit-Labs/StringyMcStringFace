@@ -10,7 +10,7 @@ This directory contains pre-compiled binary test fixtures used for snapshot test
 | `test_binary_pe.exe`             | x86-64 PE with libc imports                                                            | `just gen-fixtures` (Zig cross-compilation) |
 | `test_binary_macho`              | x86-64 Mach-O with `libSystem.B.dylib` dependency                                      | `just gen-fixtures` (Zig cross-compilation) |
 | `test_binary_with_resources.exe` | x86-64 PE with VERSIONINFO and STRINGTABLE resources                                   | `just gen-fixtures` (Zig cross-compilation) |
-| `test_unknown.bin`               | 20-byte non-ELF/PE/Mach-O blob                                                         | `just gen-fixtures` (committed to git)      |
+| `test_unknown.bin`               | Non-ELF/PE/Mach-O blob with taggable URL string                                        | `just gen-fixtures` (committed to git)      |
 | `test_empty.bin`                 | Zero-byte file                                                                         | `just gen-fixtures` (committed to git)      |
 
 All compiled binary fixtures (ELF, PE, Mach-O) are gitignored and must be generated locally before running `just test`. The `test_empty.bin` and `test_unknown.bin` files are committed to git since they are platform-independent and deterministic.
