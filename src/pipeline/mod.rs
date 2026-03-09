@@ -58,7 +58,14 @@ impl Pipeline {
         let mut strings = extract_strings(&data, &container_info, &self.config)?;
 
         // -- Raw-mode early exit --
+        // Raw mode bypasses classification, ranking, and normalization.
+        // Reset dedup-assigned scores/tags and restore extraction offset order.
         if self.config.raw_mode {
+            for s in &mut strings {
+                s.score = 0;
+                s.tags = Vec::new();
+            }
+            strings.sort_by_key(|s| s.offset);
             pb.finish_and_clear();
             return emit_output(&strings, &self.config, &container_info, strings.len());
         }
@@ -72,8 +79,12 @@ impl Pipeline {
         set_stage(&pb, "Ranking...");
         rank_strings(&mut strings, &container_info, self.config.debug_mode);
 
-        // -- Score normalization --
-        ScoreNormalizer::new().normalize(&mut strings);
+        // -- Score normalization (debug mode only) --
+        // display_score is a debug-only field (skip_serializing_if = "Option::is_none").
+        // Only populate it in debug mode so non-debug JSON omits it.
+        if self.config.debug_mode {
+            ScoreNormalizer::new().normalize(&mut strings);
+        }
 
         // -- Filtering --
         let total_count = strings.len();
@@ -82,6 +93,13 @@ impl Pipeline {
         // -- Finish spinner, emit warnings --
         pb.finish_and_clear();
         emit_processing_warnings(demangle_failures, classification_failures);
+
+        // -- Informational diagnostic when filters match nothing --
+        if filtered.is_empty() && total_count > 0 {
+            eprintln!(
+                "Info: No strings matched the current filters ({total_count} extracted, 0 shown)"
+            );
+        }
 
         // -- Output --
         emit_output(&filtered, &self.config, &container_info, total_count)

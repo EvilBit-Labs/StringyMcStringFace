@@ -74,6 +74,9 @@ jobs:
           cache: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Generate test fixtures
+        run: just gen-fixtures
+
       - name: Run tests (all features)
         run: just test-ci
 
@@ -100,6 +103,9 @@ jobs:
           cache: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Generate test fixtures
+        run: just gen-fixtures
+
       - name: Run tests (all features)
         run: just test-ci
       - name: Build release
@@ -115,6 +121,9 @@ jobs:
           install: true
           cache: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate test fixtures
+        run: just gen-fixtures
 
       - name: Generate coverage
         run: just coverage

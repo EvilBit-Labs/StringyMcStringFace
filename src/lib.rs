@@ -56,17 +56,17 @@
 //!
 //! The library is organized into focused modules:
 //!
-//! - [`container`]: Binary format detection and parsing (✅ Complete)
-//! - [`extraction`]: String extraction algorithms (✅ ASCII, UTF-16LE extraction and PE resources complete)
+//! - [`container`]: Binary format detection and parsing (complete)
+//! - [`extraction`]: String extraction algorithms (complete: ASCII, UTF-16LE extraction and PE resources)
 //!   - ASCII extraction provides foundational encoding extraction as the reference implementation
 //!   - UTF-16LE extraction provides Windows PE binary string extraction with confidence scoring
-//! - [`classification`]: Semantic analysis and tagging (🚧 Types defined)
-//! - [`output`]: Result formatting (🚧 Interfaces ready)
-//! - [`types`]: Core data structures and error handling (✅ Complete)
+//! - [`classification`]: Semantic analysis and tagging (in progress)
+//! - [`output`]: Result formatting (in progress)
+//! - [`types`]: Core data structures and error handling (complete)
 //!
 //! ## PE Resource String Extraction
 //!
-//! - **PE Resource Strings**: VERSIONINFO, STRINGTABLE, and MANIFEST extraction (✅ Complete)
+//! - **PE Resource Strings**: VERSIONINFO, STRINGTABLE, and MANIFEST extraction (complete)
 
 pub mod classification;
 pub mod container;

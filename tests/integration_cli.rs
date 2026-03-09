@@ -126,6 +126,7 @@ fn cli_json_and_yara_conflict() {
         .args(["tests/fixtures/test_binary_elf", "--json", "--yara"])
         .assert()
         .failure()
+        .code(2)
         .stderr(predicate::str::contains("cannot be used with"));
 }
 
@@ -249,7 +250,8 @@ fn cli_only_tags_filter_excludes_untagged() {
             .as_array()
             .expect("tags field should be an array");
         assert!(
-            tags.iter().any(|t| t.as_str() == Some("url")),
+            tags.iter()
+                .any(|t| t.as_str().is_some_and(|s| s.eq_ignore_ascii_case("url"))),
             "every result should contain the 'url' tag, got: {tags:?}"
         );
     }
