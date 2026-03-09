@@ -1,99 +1,53 @@
 # Command Line Interface
 
-**Current Status**: Basic CLI is implemented with argument parsing. Advanced features are in development. This documentation describes both current and planned functionality.
-
 ## Basic Syntax
 
 ```bash
 stringy [OPTIONS] <FILE>
+stringy [OPTIONS] -        # read from stdin
 ```
 
-**Currently Implemented:**
-
-```bash
-stringy <FILE>          # Basic binary analysis
-stringy --help          # Show help information  
-stringy --version       # Show version
-```
-
-**In Development:**
-
-```bash
-stringy [OPTIONS] <FILE>  # Full option support
-```
-
-## Global Options
+## Options
 
 ### Input/Output
 
-| Option              | Description                            | Default  |
-| ------------------- | -------------------------------------- | -------- |
-| `<FILE>`            | Binary file to analyze                 | Required |
-| `--output <FILE>`   | Write output to file                   | stdout   |
-| `--format <FORMAT>` | Output format: `human`, `json`, `yara` | `human`  |
-| `--json`            | Shorthand for `--format json`          | -        |
-| `--yara`            | Shorthand for `--format yara`          | -        |
+| Option      | Description                                | Default |
+| ----------- | ------------------------------------------ | ------- |
+| `<FILE>`    | Binary file to analyze (use `-` for stdin) | -       |
+| `--json`    | JSONL output; conflicts with `--yara`      | -       |
+| `--yara`    | YARA rule output; conflicts with `--json`  | -       |
+| `--help`    | Show help                                  | -       |
+| `--version` | Show version                               | -       |
 
 ### Filtering
 
-| Option               | Description                 | Default       |
-| -------------------- | --------------------------- | ------------- |
-| `--min-len <N>`      | Minimum string length       | 4             |
-| `--max-len <N>`      | Maximum string length       | 1024          |
-| `--enc <ENCODINGS>`  | Comma-separated encodings   | `ascii,utf16` |
-| `--only <TAGS>`      | Only show these tags        | All tags      |
-| `--exclude <TAGS>`   | Exclude these tags          | None          |
-| `--sections <NAMES>` | Only scan these sections    | All sections  |
-| `--top <N>`          | Limit to top N results      | 100           |
-| `--all`              | Show all results (no limit) | -             |
+| Option            | Description                                                        | Default |
+| ----------------- | ------------------------------------------------------------------ | ------- |
+| `--min-len N`     | Minimum string length (must be >= 1)                               | 4       |
+| `--top N`         | Limit to top N strings by score (applied after all filters)        | -       |
+| `--enc ENCODING`  | Filter by encoding: `ascii`, `utf8`, `utf16`, `utf16le`, `utf16be` | all     |
+| `--only-tags TAG` | Include strings with any of these tags (OR); repeatable            | all     |
+| `--notags TAG`    | Exclude strings with any of these tags; repeatable                 | none    |
 
-### Analysis Options
+### Mode Flags
 
-| Option       | Description               | Default       |
-| ------------ | ------------------------- | ------------- |
-| `--no-dedup` | Don't deduplicate strings | Deduplicate   |
-| `--no-rank`  | Don't apply ranking       | Apply ranking |
-| `--debug`    | Include debug sections    | Exclude debug |
-| `--imports`  | Include import names      | Include       |
-| `--exports`  | Include export names      | Include       |
-
-## Format-Specific Options
-
-### PE (Windows) Options
-
-| Option          | Description                    |
-| --------------- | ------------------------------ |
-| `--pe-version`  | Extract version information    |
-| `--pe-manifest` | Extract manifest resources     |
-| `--pe-strings`  | Extract string table resources |
-| `--utf16-only`  | Only extract UTF-16 strings    |
-
-### ELF (Linux) Options
-
-| Option          | Description                     |
-| --------------- | ------------------------------- |
-| `--elf-notes`   | Include note sections           |
-| `--elf-dynamic` | Include dynamic section strings |
-| `--elf-debug`   | Include DWARF debug info        |
-
-### Mach-O (macOS) Options
-
-| Option        | Description                             |
-| ------------- | --------------------------------------- |
-| `--macho-lc`  | Include load command strings            |
-| `--macho-fat` | Process all architectures in fat binary |
+| Option      | Description                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `--raw`     | Extraction-only mode (no tagging, ranking, or scoring); conflicts with `--only-tags`, `--notags`, `--top`, `--debug`, `--yara` |
+| `--summary` | Append summary block (TTY table mode only); conflicts with `--json`, `--yara`                                                  |
+| `--debug`   | Include score-breakdown fields (`section_weight`, `semantic_boost`, `noise_penalty`) in JSON output; conflicts with `--raw`    |
 
 ## Encoding Options
 
-### Supported Encodings
+The `--enc` flag accepts exactly one encoding value per invocation:
 
-| Encoding  | Description            | Alias   |
-| --------- | ---------------------- | ------- |
-| `ascii`   | 7-bit ASCII            | `a`     |
-| `utf8`    | UTF-8 (includes ASCII) | `u8`    |
-| `utf16`   | UTF-16 (both endians)  | `u16`   |
-| `utf16le` | UTF-16 Little Endian   | `u16le` |
-| `utf16be` | UTF-16 Big Endian      | `u16be` |
+| Value     | Description                          |
+| --------- | ------------------------------------ |
+| `ascii`   | 7-bit ASCII only                     |
+| `utf8`    | UTF-8 (includes ASCII)               |
+| `utf16`   | UTF-16 (both little- and big-endian) |
+| `utf16le` | UTF-16 Little Endian only            |
+| `utf16be` | UTF-16 Big Endian only               |
 
 ### Examples
 
@@ -104,140 +58,78 @@ stringy --enc ascii binary
 # UTF-16 only (common for Windows)
 stringy --enc utf16 app.exe
 
-# Multiple encodings
-stringy --enc ascii,utf16le,utf8 binary
+# UTF-8 only
+stringy --enc utf8 binary
 ```
 
 ## Tag Filtering
 
-### Available Tags
-
-| Tag        | Description      | Example                   |
-| ---------- | ---------------- | ------------------------- |
-| `url`      | HTTP/HTTPS URLs  | `https://api.example.com` |
-| `domain`   | Domain names     | `example.com`             |
-| `ipv4`     | IPv4 addresses   | `192.168.1.1`             |
-| `ipv6`     | IPv6 addresses   | `2001:db8::1`             |
-| `filepath` | File paths       | `/usr/bin/app`            |
-| `regpath`  | Registry paths   | `HKEY_LOCAL_MACHINE\...`  |
-| `guid`     | GUIDs/UUIDs      | `{12345678-1234-...}`     |
-| `email`    | Email addresses  | `user@example.com`        |
-| `b64`      | Base64 data      | `SGVsbG8=`                |
-| `fmt`      | Format strings   | `Error: %s`               |
-| `import`   | Import names     | `CreateFileW`             |
-| `export`   | Export names     | `main`                    |
-| `version`  | Version strings  | `v1.2.3`                  |
-| `manifest` | Manifest data    | XML/JSON config           |
-| `resource` | Resource strings | UI text                   |
-
-### Examples
+Tags are specified with the repeatable `--only-tags` and `--notags` flags. Repeat the flag for each tag value:
 
 ```bash
 # Network indicators only
-stringy --only url,domain,ipv4,ipv6 malware.exe
+stringy --only-tags url --only-tags domain --only-tags ipv4 --only-tags ipv6 malware.exe
 
 # Exclude noisy Base64
-stringy --exclude b64 binary
+stringy --notags b64 binary
 
 # File system related
-stringy --only filepath,regpath app.exe
+stringy --only-tags filepath --only-tags regpath app.exe
 ```
 
-## Section Filtering
+### Available Tags
 
-### Common Section Names
-
-#### ELF Sections
-
-- `.rodata` - Read-only data
-- `.data.rel.ro` - Read-only after relocation
-- `.comment` - Build information
-- `.note.*` - Various notes
-
-#### PE Sections
-
-- `.rdata` - Read-only data
-- `.rsrc` - Resources
-- `.data` - Initialized data
-
-#### Mach-O Sections
-
-- `__TEXT,__cstring` - C strings
-- `__TEXT,__const` - Constants
-- `__DATA_CONST` - Read-only data
-
-### Examples
-
-```bash
-# High-value sections only
-stringy --sections .rodata,.rdata,__cstring binary
-
-# Resource sections
-stringy --sections .rsrc app.exe
-
-# Multiple sections
-stringy --sections ".rodata,.data.rel.ro" elf_binary
-```
+| Tag              | Description             | Example                          |
+| ---------------- | ----------------------- | -------------------------------- |
+| `url`            | HTTP/HTTPS URLs         | `https://api.example.com`        |
+| `domain`         | Domain names            | `example.com`                    |
+| `ipv4`           | IPv4 addresses          | `192.168.1.1`                    |
+| `ipv6`           | IPv6 addresses          | `2001:db8::1`                    |
+| `filepath`       | File paths              | `/usr/bin/app`                   |
+| `regpath`        | Registry paths          | `HKEY_LOCAL_MACHINE\...`         |
+| `guid`           | GUIDs/UUIDs             | `{12345678-1234-...}`            |
+| `email`          | Email addresses         | `user@example.com`               |
+| `b64`            | Base64 data             | `SGVsbG8=`                       |
+| `fmt`            | Format strings          | `Error: %s`                      |
+| `user-agent-ish` | User-agent-like strings | `Mozilla/5.0 ...`                |
+| `demangled`      | Demangled symbols       | `std::io::Read::read`            |
+| `import`         | Import names            | `CreateFileW`                    |
+| `export`         | Export names            | `main`                           |
+| `version`        | Version strings         | `v1.2.3`                         |
+| `manifest`       | Manifest data           | XML/JSON config                  |
+| `resource`       | Resource strings        | UI text                          |
+| `dylib-path`     | Dynamic library paths   | `/usr/lib/libfoo.dylib`          |
+| `rpath`          | Runtime search paths    | `/usr/local/lib`                 |
+| `rpath-var`      | Rpath variables         | `@loader_path/../lib`            |
+| `framework-path` | Framework paths (macOS) | `/System/Library/Frameworks/...` |
 
 ## Output Formats
 
-### Human-Readable Format
+### Table (Default, TTY)
 
-Default format for interactive use:
+When stdout is a TTY, results are shown as a table with columns:
 
-```bash
-stringy binary
+```
+String | Tags | Score | Section
 ```
 
-Output columns:
+When piped (non-TTY), output is plain text with one string per line and no headers.
 
-- **Score**: Relevance ranking (0-100)
-- **Offset**: File offset (hex)
-- **Section**: Section name
-- **Encoding**: String encoding
-- **Tags**: Semantic classifications
-- **String**: The extracted string (truncated if long)
+### JSON Lines (`--json`)
 
-### JSON Lines Format
+Each line is a JSON object with full metadata. See [Output Formats](./output-formats.md) for the schema.
 
-Machine-readable format:
+### YARA (`--yara`)
 
-```bash
-stringy --json binary
-```
+Generates a YARA rule template. See [Output Formats](./output-formats.md) for details.
 
-Each line contains a JSON object:
+## Exit Codes
 
-```json
-{
-  "text": "https://api.example.com",
-  "encoding": "utf-8",
-  "offset": 4096,
-  "rva": 4096,
-  "section": ".rdata",
-  "length": 23,
-  "tags": [
-    "url"
-  ],
-  "score": 95,
-  "source": "SectionData"
-}
-```
-
-### YARA Format
-
-Optimized for security rule creation:
-
-```bash
-stringy --yara binary
-```
-
-Output includes:
-
-- Properly escaped strings
-- Hex representations for binary data
-- Comments with metadata
-- Grouped by confidence level
+| Code | Meaning                                                                    |
+| ---- | -------------------------------------------------------------------------- |
+| 0    | Success (including unknown binary format, empty binary, no filter matches) |
+| 1    | Runtime error (file not found, tag overlap, `--summary` in non-TTY)        |
+| 2    | Argument parsing error (invalid flag, flag conflict, invalid tag name)     |
 
 ## Advanced Usage
 
@@ -245,9 +137,9 @@ Output includes:
 
 ```bash
 # Extract URLs and check them
-stringy --only url --json binary | jq -r '.text' | xargs -I {} curl -I {}
+stringy --only-tags url --json binary | jq -r '.text' | xargs -I {} curl -I {}
 
-# Find high-confidence strings
+# Find high-score strings
 stringy --json binary | jq 'select(.score > 80)'
 
 # Count strings by tag
@@ -261,66 +153,17 @@ stringy --json binary | jq -r '.tags[]' | sort | uniq -c
 find /path/to/binaries -type f -exec stringy --json {} \; > all_strings.jsonl
 
 # Compare two versions
-stringy --json old_binary > old.json
-stringy --json new_binary > new.json
-diff <(jq -r '.text' old.json | sort) <(jq -r '.text' new.json | sort)
+stringy --json old_binary > old.jsonl
+stringy --json new_binary > new.jsonl
+diff <(jq -r '.text' old.jsonl | sort) <(jq -r '.text' new.jsonl | sort)
 ```
 
-### Performance Tuning
+### Focused Analysis
 
 ```bash
 # Fast scan for high-value strings only
-stringy --top 20 --min-len 8 --only url,guid,filepath large_binary
+stringy --top 20 --min-len 8 --only-tags url --only-tags guid --only-tags filepath large_binary
 
-# Memory-efficient processing
-stringy --sections .rodata --enc ascii huge_binary
+# Extraction-only mode (no classification overhead)
+stringy --raw binary
 ```
-
-## Configuration File
-
-Future versions will support configuration files:
-
-```toml
-# ~/.config/stringy/config.toml
-[default]
-min_len = 6
-encodings = ["ascii", "utf16"]
-exclude_tags = ["b64"]
-top = 50
-
-[profiles.security]
-only_tags = ["url", "domain", "ipv4", "ipv6", "filepath"]
-min_len = 8
-
-[profiles.yara]
-format = "yara"
-min_len = 10
-exclude_tags = ["import", "export"]
-```
-
-Usage:
-
-```bash
-stringy --profile security malware.exe
-```
-
-## Exit Codes
-
-| Code | Meaning            |
-| ---- | ------------------ |
-| 0    | Success            |
-| 1    | General error      |
-| 2    | Invalid arguments  |
-| 3    | File not found     |
-| 4    | Unsupported format |
-| 5    | Permission denied  |
-
-## Environment Variables
-
-| Variable         | Description            | Default                         |
-| ---------------- | ---------------------- | ------------------------------- |
-| `STRINGY_CONFIG` | Config file path       | `~/.config/stringy/config.toml` |
-| `STRINGY_CACHE`  | Cache directory        | `~/.cache/stringy/`             |
-| `NO_COLOR`       | Disable colored output | -                               |
-
-This comprehensive CLI interface provides flexibility for both interactive analysis and automated processing workflows.
