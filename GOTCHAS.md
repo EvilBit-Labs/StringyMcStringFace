@@ -59,5 +59,5 @@ Adding a field to `OutputMetadata` requires: (1) add field to struct, (2) initia
 - Raw mode extraction order is non-deterministic across runs (HashMap iteration order in dedup/import processing). Do not write tests asserting deterministic row ordering in `--raw` output.
 - Import/export strings have `offset: 0` (no meaningful file offset). Only `SectionData` source has real offsets, and even those are NOT globally monotonic (sections processed by weight priority).
 - Homogeneous strings (e.g. `"A".repeat(250)`) are filtered as noise by the extractor. Use varied character patterns for test fixtures that must survive extraction.
-- To test stderr-printing pipeline helpers (e.g., `emit_processing_warnings`), extract formatting into a `pub` function returning `Option<String>`, re-export from `lib.rs`, and test in integration test files
+- Do NOT make pipeline helpers `pub` solely for test access -- keep them private and add `#[cfg(test)] mod tests` within the module for format-contract checks; use e2e CLI assertions (env var injection) for integration tests
 - Debug-build env vars `STRINGY_TEST_INJECT_DEMANGLE_FAILURES` and `STRINGY_TEST_INJECT_CLASSIFY_FAILURES` inject failure counts for e2e warning-path testing (only active under `#[cfg(debug_assertions)]`)
