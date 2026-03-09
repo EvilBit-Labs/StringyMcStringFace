@@ -286,7 +286,7 @@ gen-fixtures:
     echo "  MACHO tests/fixtures/test_binary_macho"
     truncate -s 0 tests/fixtures/test_empty.bin
     echo "  EMPTY tests/fixtures/test_empty.bin"
-    printf '\xde\xad\xbe\xef\x00\x00\x00\x00NOT_A_BINARY\n' > tests/fixtures/test_unknown.bin
+    printf '\xde\xad\xbe\xef\x00\x00\x00\x00NOT_A_BINARY\nhttp://example.com/test\n' > tests/fixtures/test_unknown.bin
     echo "  BLOB  tests/fixtures/test_unknown.bin"
 
 [windows]
@@ -305,7 +305,7 @@ gen-fixtures:
     Write-Host "  MACHO tests/fixtures/test_binary_macho"
     New-Item -ItemType File -Force -Path "tests/fixtures/test_empty.bin" | Out-Null
     Write-Host "  EMPTY tests/fixtures/test_empty.bin"
-    [System.IO.File]::WriteAllBytes("tests/fixtures/test_unknown.bin", [byte[]]@(0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x00, 0x00, 0x00) + [System.Text.Encoding]::ASCII.GetBytes("NOT_A_BINARY`n"))
+    [System.IO.File]::WriteAllBytes("tests/fixtures/test_unknown.bin", [byte[]]@(0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x00, 0x00, 0x00) + [System.Text.Encoding]::ASCII.GetBytes("NOT_A_BINARY`nhttp://example.com/test`n"))
     Write-Host "  BLOB  tests/fixtures/test_unknown.bin"
 
 # =============================================================================
