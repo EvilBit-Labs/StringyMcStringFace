@@ -231,6 +231,28 @@ fn cli_raw_conflicts_with_yara() {
 }
 
 #[test]
+fn cli_help_examples_use_repeated_flags_not_comma_syntax() {
+    let assert = stringy().arg("--help").assert().success();
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+
+    // The examples section must use repeated --only-tags flags, not comma-delimited values.
+    // Comma-delimited syntax (e.g. "--only-tags url,domain") is rejected at parse time.
+    assert!(
+        !stdout.contains("--only-tags url,"),
+        "help examples must not use comma-delimited tag syntax: {stdout}"
+    );
+    assert!(
+        !stdout.contains("--notags url,"),
+        "help examples must not use comma-delimited notags syntax: {stdout}"
+    );
+    // Verify the correct repeated-flag pattern is present
+    assert!(
+        stdout.contains("--only-tags url --only-tags domain"),
+        "help examples must demonstrate repeated --only-tags flags: {stdout}"
+    );
+}
+
+#[test]
 fn cli_only_tags_filter_excludes_untagged() {
     let assert = stringy()
         .args([
