@@ -252,6 +252,62 @@ test-all:
     @{{ mise_exec }} cargo nextest run --workspace --no-capture -- --ignored
 
 # =============================================================================
+# TEST FIXTURES
+# =============================================================================
+
+# Zig cross-compiles test fixtures for all targets from any host.
+# Changing the Zig version in mise.toml may alter compiled layouts,
+# which breaks insta snapshots. After bumping, run:
+#   just gen-fixtures
+#   INSTA_UPDATE=always cargo nextest run
+#   cargo insta accept          # review & commit updated snapshots
+
+# Generate all test fixtures via Zig cross-compilation
+[unix]
+gen-fixtures:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just ensure-dir tests/fixtures
+
+    echo "Building ELF fixture (x86-64)..."
+    zig cc -target x86_64-linux-gnu \
+        -o tests/fixtures/test_binary_elf \
+        tests/fixtures/test_binary.c
+
+    echo "Building PE fixture (x86-64)..."
+    zig cc -target x86_64-windows-gnu \
+        -o tests/fixtures/test_binary_pe.exe \
+        tests/fixtures/test_binary.c
+
+    echo "Building Mach-O fixture (x86-64)..."
+    zig cc -target x86_64-macos \
+        -o tests/fixtures/test_binary_macho \
+        tests/fixtures/test_binary.c
+
+    # Static fixtures (deterministic, platform-independent)
+    echo "Creating test_empty.bin..."
+    truncate -s 0 tests/fixtures/test_empty.bin
+    echo "Creating test_unknown.bin..."
+    printf '\xde\xad\xbe\xef\x00\x00\x00\x00NOT_A_BINARY\n' > tests/fixtures/test_unknown.bin
+
+    echo "Fixtures generated in tests/fixtures/"
+
+[windows]
+gen-fixtures:
+    @just ensure-dir tests/fixtures
+    Write-Host "Building ELF fixture (x86-64)..."
+    zig cc -target x86_64-linux-gnu -o tests/fixtures/test_binary_elf tests/fixtures/test_binary.c
+    Write-Host "Building PE fixture (x86-64)..."
+    zig cc -target x86_64-windows-gnu -o tests/fixtures/test_binary_pe.exe tests/fixtures/test_binary.c
+    Write-Host "Building Mach-O fixture (x86-64)..."
+    zig cc -target x86_64-macos -o tests/fixtures/test_binary_macho tests/fixtures/test_binary.c
+    Write-Host "Creating test_empty.bin..."
+    New-Item -ItemType File -Force -Path "tests/fixtures/test_empty.bin" | Out-Null
+    Write-Host "Creating test_unknown.bin..."
+    [System.IO.File]::WriteAllBytes("tests/fixtures/test_unknown.bin", [byte[]]@(0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x00, 0x00, 0x00) + [System.Text.Encoding]::ASCII.GetBytes("NOT_A_BINARY`n"))
+    Write-Host "Fixtures generated in tests/fixtures/"
+
+# =============================================================================
 # BENCHMARKING
 # =============================================================================
 
@@ -284,8 +340,8 @@ coverage:
 coverage-check:
     @{{ mise_exec }} cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info --fail-under-lines 9.7
 
-# Full local CI parity check
-ci-check: pre-commit-run fmt-check lint-rust lint-rust-min test-ci build-release audit coverage-check dist-plan
+# Full local CI parity check (gen-fixtures ensures compiled test binaries exist)
+ci-check: pre-commit-run fmt-check lint-rust lint-rust-min gen-fixtures test-ci build-release audit coverage-check dist-plan
 
 # =============================================================================
 # DEVELOPMENT AND EXECUTION
