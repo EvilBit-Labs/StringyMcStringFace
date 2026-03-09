@@ -79,6 +79,7 @@ Use `lazy_static!` or `once_cell::sync::Lazy` for compiled regexes. Always use `
 ## Development Commands
 
 ```bash
+just gen-fixtures # Generate test fixtures (ELF/PE via Docker, Mach-O on macOS)
 just check      # Pre-commit: fmt + lint + test
 just test       # Run tests with nextest
 just lint       # Full lint suite
@@ -101,6 +102,12 @@ just format     # Format all (Rust, JSON, YAML, Markdown, Justfile)
 - Use `insta` for snapshot testing
 - Binary fixtures in `tests/fixtures/`
 - Integration tests named `integration_*.rs`
+- Compiled fixtures (ELF, PE, Mach-O) are gitignored -- run `just gen-fixtures` before `just test`
+- Fixtures are cross-compiled via Zig (managed by mise) -- no Docker required
+- `test_empty.bin` and `test_unknown.bin` are committed (platform-independent)
+- Regenerate snapshots after changing `test_binary.c`: `INSTA_UPDATE=always cargo nextest run`
+- `integration_flows_1_5.rs` contains end-to-end CLI flow tests (quick analysis, filtering, top-N, JSON, YARA)
+- `assert_cmd` is non-TTY; use `format_table_with_mode(..., true)` to test TTY table output at the library level
 
 ## Imports
 

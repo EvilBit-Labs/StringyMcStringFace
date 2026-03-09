@@ -21,6 +21,8 @@ Adding a field to `OutputMetadata` requires: (1) add field to struct, (2) initia
 - `clap::value_parser!(usize).range(..)` does not exist -- use a custom `fn(s: &str) -> Result<usize, String>` value parser for range-constrained `usize` args
 - `Tag::from_str` in `value_parser` requires `use std::str::FromStr` in scope (clap resolves it as an associated fn, not a trait method)
 - CLI flag changes in `main.rs` require updating `tests/integration_cli.rs` (uses `Command` with flag names)
+- `Tag::from_str` accepts lowercase (`"url"`) but serde serializes PascalCase (`"Url"`) for variants without `#[serde(rename)]` -- tests comparing JSON output must use case-insensitive comparison or the serialized form
+- `--raw` mode skips ranking/normalization but NOT extraction-time classification (`SemanticClassifier` runs in `extraction/helpers.rs`). Scores retain base extraction weights (not 0), tags may be populated, `display_score` is absent. `assert_cmd` tests run piped (non-TTY); use `format_table_with_mode(&strings, &metadata, true)` to test TTY table rendering
 
 ## Dependencies
 
@@ -33,6 +35,17 @@ Adding a field to `OutputMetadata` requires: (1) add field to struct, (2) initia
 - Mergify merge protections evaluate from the **main branch** config, not the PR branch
 - Quality/MSRV jobs use `dtolnay/rust-toolchain` -- do NOT use `just` recipes here (they use `mise exec --` which conflicts)
 
+## Test Fixtures
+
+- Compiled binary fixtures (ELF, PE, Mach-O) are gitignored -- `just gen-fixtures` must run before tests
+- `test_binary.c` changes require rebuilding all fixtures and regenerating insta snapshots
+- All fixtures are cross-compiled via `zig cc` (managed by mise) -- no Docker or platform-specific compilers needed
+- Changing the Zig version in `mise.toml` may alter compiled layouts, breaking insta snapshots
+- CI runs `just gen-fixtures` before test steps automatically
+
 ## Pipeline
 
 - Unknown/unparseable formats (plain text, etc.) do NOT error -- the pipeline falls back to unstructured raw byte scanning and succeeds. Tests should NOT expect failure when feeding non-binary files like `Cargo.toml`.
+- Raw mode extraction order is non-deterministic across runs (HashMap iteration order in dedup/import processing). Do not write tests asserting deterministic row ordering in `--raw` output.
+- Import/export strings have `offset: 0` (no meaningful file offset). Only `SectionData` source has real offsets, and even those are NOT globally monotonic (sections processed by weight priority).
+- Homogeneous strings (e.g. `"A".repeat(250)`) are filtered as noise by the extractor. Use varied character patterns for test fixtures that must survive extraction.
