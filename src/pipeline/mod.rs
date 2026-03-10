@@ -68,6 +68,7 @@ impl Pipeline {
         if self.config.raw_mode {
             for s in &mut strings {
                 s.score = 0;
+                s.display_score = Some(0);
                 s.tags = Vec::new();
             }
             strings.sort_by_key(|s| s.offset);
@@ -91,12 +92,10 @@ impl Pipeline {
         set_stage(&pb, "Ranking...");
         rank_strings(&mut strings, &container_info, self.config.debug_mode);
 
-        // -- Score normalization (debug mode only) --
-        // display_score is a debug-only field (skip_serializing_if = "Option::is_none").
-        // Only populate it in debug mode so non-debug JSON omits it.
-        if self.config.debug_mode {
-            ScoreNormalizer::new().normalize(&mut strings);
-        }
+        // -- Score normalization --
+        // Map raw internal scores to a bounded 0-100 display range for all
+        // non-raw executions so that output always shows normalized values.
+        ScoreNormalizer::new().normalize(&mut strings);
 
         // -- Filtering --
         let total_count = strings.len();

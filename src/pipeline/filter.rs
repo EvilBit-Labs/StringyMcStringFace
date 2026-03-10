@@ -30,8 +30,8 @@ impl FilterEngine {
     pub fn apply(&self, strings: Vec<FoundString>, config: &FilterConfig) -> Vec<FoundString> {
         let mut result: Vec<FoundString> = strings
             .into_iter()
-            // 1. min-len
-            .filter(|s| s.text.len() >= config.min_length)
+            // 1. min-len (only applied when set)
+            .filter(|s| config.min_length.is_none_or(|min| s.text.len() >= min))
             // 2. encoding
             .filter(|s| match &config.encoding {
                 None => true,
@@ -203,9 +203,39 @@ mod tests {
         let strings = vec![
             make_string("hello world", 10, 0),
             make_string("test", 5, 20),
+            make_string("ab", 3, 30), // short string passes with no min_length
         ];
         let config = FilterConfig::new();
+        assert!(
+            config.min_length.is_none(),
+            "default min_length must be None"
+        );
         let result = FilterEngine::new().apply(strings, &config);
-        assert_eq!(result.len(), 2);
+        assert_eq!(result.len(), 3);
+    }
+
+    #[test]
+    fn test_none_min_length_passes_all_lengths() {
+        let strings = vec![
+            make_string("a", 10, 0),
+            make_string("ab", 10, 10),
+            make_string("abcdef", 10, 20),
+        ];
+        let config = FilterConfig::new(); // min_length is None
+        let result = FilterEngine::new().apply(strings, &config);
+        assert_eq!(result.len(), 3, "None min_length must pass all strings");
+    }
+
+    #[test]
+    fn test_some_min_length_filters_short_strings() {
+        let strings = vec![
+            make_string("a", 10, 0),
+            make_string("ab", 10, 10),
+            make_string("abcdef", 10, 20),
+        ];
+        let config = FilterConfig::new().with_min_length(3);
+        let result = FilterEngine::new().apply(strings, &config);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].text, "abcdef");
     }
 }

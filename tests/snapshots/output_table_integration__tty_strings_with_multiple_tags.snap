@@ -4,5 +4,5 @@ expression: result
 ---
 String                                                       | Tags   |  Score | Section
 -------------------------------------------------------------|--------|--------|--------
-http://evil.com/download.exe                                 | url    |    200 | .rdata 
-user@example.com                                             | domain |     90 | .data
+http://evil.com/download.exe                                 | url    |      0 | .rdata 
+user@example.com                                             | domain |      0 | .data

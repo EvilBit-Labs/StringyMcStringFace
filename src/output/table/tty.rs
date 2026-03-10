@@ -92,10 +92,7 @@ pub(super) fn format_table_tty(
             pad_string(&truncated_text, STRING_COLUMN_WIDTH, Alignment::Left),
             pad_string(&tags_display, tags_width, Alignment::Left),
             pad_string(
-                &found_string
-                    .display_score
-                    .unwrap_or(found_string.score)
-                    .to_string(),
+                &found_string.display_score.unwrap_or(0).to_string(),
                 SCORE_COLUMN_WIDTH,
                 Alignment::Right
             ),
@@ -226,10 +223,10 @@ mod tests {
 
     #[test]
     fn string_with_score_displayed() {
-        let found = make_test_string("test").with_score(150);
+        let found = make_test_string("test").with_display_score(75);
 
         let result = format_table_with_mode(&[found], &make_metadata(), true).unwrap();
-        assert!(result.contains("150"));
+        assert!(result.contains("75"));
     }
 
     #[test]

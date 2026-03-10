@@ -4,4 +4,4 @@ expression: result
 ---
 String                                                       | Tags |  Score | Section
 -------------------------------------------------------------|------|--------|--------
-multi-tagged                                                 | url  |    100 | .data
+multi-tagged                                                 | url  |      0 | .data

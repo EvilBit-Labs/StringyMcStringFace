@@ -152,7 +152,10 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
     extraction_config.validate()?;
 
     // -- Filter config --
-    let mut filter_config = FilterConfig::new().with_min_length(min_length);
+    let mut filter_config = FilterConfig::new();
+    if cli.min_len.is_some() {
+        filter_config = filter_config.with_min_length(min_length);
+    }
     if let Some(enc) = cli.enc {
         filter_config = filter_config.with_encoding(cli_encoding_to_filter(enc));
     }

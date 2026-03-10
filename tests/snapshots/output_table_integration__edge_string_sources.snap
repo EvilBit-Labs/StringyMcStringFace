@@ -4,6 +4,6 @@ expression: result
 ---
 String                                                       | Tags     |  Score | Section
 -------------------------------------------------------------|----------|--------|--------
-import_func                                                  | import   |     80 |        
-export_func                                                  | export   |     80 |        
-resource string                                              | resource |     60 |
+import_func                                                  | import   |      0 |        
+export_func                                                  | export   |      0 |        
+resource string                                              | resource |      0 |

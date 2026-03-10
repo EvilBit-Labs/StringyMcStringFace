@@ -2,6 +2,6 @@
 source: tests/integration_flows_1_5.rs
 expression: stdout
 ---
-{"text":"https://github.com/EvilBit-Labs/Stringy","encoding":"Ascii","offset":5008,"rva":16782224,"section":".rodata","length":39,"tags":["Url"],"score":1050,"source":"SectionData","confidence":1.0}
-{"text":"/proc/self/exe","encoding":"Ascii","offset":3747,"rva":16780963,"section":".rodata","length":14,"tags":["filepath"],"score":1022,"source":"SectionData","confidence":0.865}
-{"text":"/usr/lib/debug","encoding":"Ascii","offset":4213,"rva":16781429,"section":".rodata","length":14,"tags":["filepath"],"score":1022,"source":"SectionData","confidence":0.865}
+{"text":"https://github.com/EvilBit-Labs/Stringy","encoding":"Ascii","offset":5008,"rva":16782224,"section":".rodata","length":39,"tags":["Url"],"score":1050,"display_score":100,"source":"SectionData","confidence":1.0}
+{"text":"/proc/self/exe","encoding":"Ascii","offset":3747,"rva":16780963,"section":".rodata","length":14,"tags":["filepath"],"score":1022,"display_score":100,"source":"SectionData","confidence":0.865}
+{"text":"/usr/lib/debug","encoding":"Ascii","offset":4213,"rva":16781429,"section":".rodata","length":14,"tags":["filepath"],"score":1022,"display_score":100,"source":"SectionData","confidence":0.865}

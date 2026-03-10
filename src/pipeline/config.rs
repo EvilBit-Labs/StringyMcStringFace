@@ -23,8 +23,8 @@ pub enum EncodingFilter {
 #[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct FilterConfig {
-    /// Minimum string length in bytes (default: 4).
-    pub min_length: usize,
+    /// Minimum string length in bytes (default: None, no minimum).
+    pub min_length: Option<usize>,
     /// Restrict to a specific encoding (default: None, all encodings).
     pub encoding: Option<EncodingFilter>,
     /// Only include strings with at least one of these tags (from `--only-tags`).
@@ -40,7 +40,7 @@ impl FilterConfig {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            min_length: 4,
+            min_length: None,
             encoding: None,
             include_tags: Vec::new(),
             exclude_tags: Vec::new(),
@@ -51,7 +51,7 @@ impl FilterConfig {
     /// Set the minimum string length.
     #[must_use]
     pub fn with_min_length(mut self, min_length: usize) -> Self {
-        self.min_length = min_length;
+        self.min_length = Some(min_length);
         self
     }
 

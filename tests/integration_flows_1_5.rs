@@ -13,9 +13,10 @@ fn stringy() -> Command {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn flow1_debug_json_has_display_score_in_range() {
+fn flow1_json_has_display_score_in_range() {
+    // display_score is always present in non-raw mode (not debug-only).
     let assert = stringy()
-        .args(["tests/fixtures/test_binary_elf", "--json", "--debug"])
+        .args(["tests/fixtures/test_binary_elf", "--json"])
         .assert()
         .success();
 
@@ -27,7 +28,7 @@ fn flow1_debug_json_has_display_score_in_range() {
         let v: Value = serde_json::from_str(line).expect("valid JSON");
         let score = v["display_score"]
             .as_i64()
-            .expect("display_score should be present in debug mode");
+            .expect("display_score should be present in normal mode");
         assert!(
             (0..=100).contains(&score),
             "display_score {score} out of [0, 100]"
@@ -35,7 +36,7 @@ fn flow1_debug_json_has_display_score_in_range() {
     }
 }
 
-/// Shared assertions for raw JSON mode: score==0, empty tags, no display_score,
+/// Shared assertions for raw JSON mode: score==0, empty tags, display_score==0,
 /// and monotonically non-decreasing offsets (extraction order preserved).
 fn assert_raw_json_contract(stdout: &str) {
     let parsed: Vec<Value> = stdout
@@ -48,10 +49,12 @@ fn assert_raw_json_contract(stdout: &str) {
     let mut prev_offset: Option<u64> = None;
 
     for v in &parsed {
-        // Raw mode must not have display_score (no ranking/normalization)
-        assert!(
-            v["display_score"].is_null(),
-            "raw mode should not have display_score"
+        // Raw mode sets display_score to 0 (normalized minimum)
+        assert_eq!(
+            v["display_score"].as_i64(),
+            Some(0i64),
+            "raw display_score must be 0, got: {:?}",
+            v["display_score"]
         );
         assert!(v["text"].as_str().is_some(), "each result must have text");
 
@@ -145,6 +148,7 @@ fn flow1_tty_table_headers_snapshot() {
         )
         .with_tags(vec![Tag::Url])
         .with_score(1050)
+        .with_display_score(100)
         .with_section(".rodata".to_string()),
         FoundString::new(
             "Project: %s".to_string(),
@@ -155,6 +159,7 @@ fn flow1_tty_table_headers_snapshot() {
         )
         .with_tags(vec![Tag::FormatString])
         .with_score(1002)
+        .with_display_score(100)
         .with_section(".rodata".to_string()),
         FoundString::new(
             "Helper called".to_string(),
@@ -164,6 +169,7 @@ fn flow1_tty_table_headers_snapshot() {
             StringSource::SectionData,
         )
         .with_score(993)
+        .with_display_score(100)
         .with_section(".rodata".to_string()),
     ];
     let metadata = OutputMetadata::new(

@@ -212,14 +212,10 @@ fn no_debug_flag_omits_score_breakdown_fields() {
         .success();
 
     let stdout = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
-    // All four debug-only fields must be absent without --debug:
-    // section_weight, semantic_boost, noise_penalty, and display_score.
-    let debug_only_fields = [
-        "section_weight",
-        "semantic_boost",
-        "noise_penalty",
-        "display_score",
-    ];
+    // Three debug-only fields must be absent without --debug:
+    // section_weight, semantic_boost, and noise_penalty.
+    // display_score is always present (score normalization runs for all non-raw).
+    let debug_only_fields = ["section_weight", "semantic_boost", "noise_penalty"];
 
     for line in stdout.lines().filter(|l| !l.is_empty()) {
         let v: Value = serde_json::from_str(line).expect("valid JSON");
@@ -230,5 +226,10 @@ fn no_debug_flag_omits_score_breakdown_fields() {
                 "non-debug mode must NOT include '{field}' key"
             );
         }
+        // display_score is always present in non-raw mode
+        assert!(
+            obj.contains_key("display_score"),
+            "display_score must be present in normal mode"
+        );
     }
 }
