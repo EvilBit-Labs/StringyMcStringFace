@@ -18,12 +18,15 @@ use std::time::Instant;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 
 use crate::classification::{RankingEngine, SemanticClassifier, SymbolDemangler};
-use crate::container::{create_parser, detect_format};
+use crate::container::elf::ElfParser;
+use crate::container::macho::MachoParser;
+use crate::container::pe::PeParser;
 use crate::extraction::{BasicExtractor, StringExtractor};
 use crate::output::{OutputMetadata, format_output};
 use crate::types::{
     BinaryFormat, ContainerInfo, FoundString, SectionInfo, SectionType, StringContext, StringyError,
 };
+use goblin::Object;
 
 /// Top-level pipeline orchestrator.
 #[derive(Debug)]
@@ -163,19 +166,33 @@ fn set_stage(pb: &ProgressBar, msg: &str) {
     pb.set_message(msg.to_string());
 }
 
-/// Detect format and parse container, falling back to a synthetic
-/// `ContainerInfo` for unknown or unparseable data.
+/// Parse container with a single `Object::parse()` call, avoiding the
+/// double-parse that occurred when `detect_format()` and `parser.parse()`
+/// each parsed independently.
 fn parse_container(data: &[u8]) -> ContainerInfo {
-    let binary_format = detect_format(data);
+    let parsed = match Object::parse(data) {
+        Ok(obj) => obj,
+        Err(_) => {
+            eprintln!(
+                "Info: Source identified as unknown data; proceeding with unstructured byte scan"
+            );
+            return build_unknown_container(data);
+        }
+    };
 
-    if binary_format == BinaryFormat::Unknown {
-        eprintln!(
-            "Info: Source identified as unknown data; proceeding with unstructured byte scan"
-        );
-        return build_unknown_container(data);
-    }
+    let result = match parsed {
+        Object::Elf(elf) => ElfParser::new().parse_from(&elf),
+        Object::PE(pe) => PeParser::new().parse_from(&pe, data),
+        Object::Mach(mach) => MachoParser::new().parse_from(&mach, data),
+        _ => {
+            eprintln!(
+                "Info: Source identified as unknown data; proceeding with unstructured byte scan"
+            );
+            return build_unknown_container(data);
+        }
+    };
 
-    match create_parser(binary_format).and_then(|parser| parser.parse(data)) {
+    match result {
         Ok(info) => info,
         Err(_) => {
             eprintln!(
@@ -261,9 +278,9 @@ fn classify_strings(strings: &mut [FoundString], container_info: &ContainerInfo)
             None => context,
         };
 
-        let text_for_classify = s.text.clone();
+        let text_ref = s.text.as_str();
         let classify_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            classifier.classify(&text_for_classify, &context)
+            classifier.classify(text_ref, &context)
         }));
 
         match classify_result {

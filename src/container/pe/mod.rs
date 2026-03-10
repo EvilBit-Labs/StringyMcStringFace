@@ -292,7 +292,13 @@ impl ContainerParser for PeParser {
             Object::PE(pe) => pe,
             _ => return Err(StringyError::ParseError("Not a PE file".to_string())),
         };
+        self.parse_from(&pe, data)
+    }
+}
 
+impl PeParser {
+    /// Parse from an already-parsed goblin PE object (avoids double-parse).
+    pub fn parse_from(&self, pe: &PE, data: &[u8]) -> Result<ContainerInfo> {
         let mut sections = Vec::new();
 
         // Process each section
@@ -327,8 +333,8 @@ impl ContainerParser for PeParser {
             );
         }
 
-        let imports = self.extract_imports(&pe);
-        let exports = self.extract_exports(&pe);
+        let imports = self.extract_imports(pe);
+        let exports = self.extract_exports(pe);
 
         // Use pelite for resource extraction while goblin handles sections/imports/exports
         let resources = {

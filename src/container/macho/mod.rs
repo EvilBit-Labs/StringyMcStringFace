@@ -284,10 +284,16 @@ impl ContainerParser for MachoParser {
     /// - Section parsing encounters errors
     fn parse(&self, data: &[u8]) -> Result<ContainerInfo> {
         let mach = self.parse_mach_object(data)?;
+        self.parse_from(&mach, data)
+    }
+}
 
+impl MachoParser {
+    /// Parse from an already-parsed goblin Mach object (avoids double-parse).
+    pub fn parse_from(&self, mach: &Mach, data: &[u8]) -> Result<ContainerInfo> {
         match mach {
-            Mach::Binary(macho) => self.parse_single_macho(&macho),
-            Mach::Fat(fat) => self.parse_fat_binary(&fat, data),
+            Mach::Binary(macho) => self.parse_single_macho(macho),
+            Mach::Fat(fat) => self.parse_fat_binary(fat, data),
         }
     }
 }

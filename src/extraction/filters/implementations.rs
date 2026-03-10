@@ -6,7 +6,7 @@
 
 use crate::types::SectionType;
 
-use super::{FilterContext, NoiseFilter};
+use super::{CharStats, FilterContext, NoiseFilter};
 
 /// Character distribution filter
 ///
@@ -64,6 +64,43 @@ impl NoiseFilter for CharDistributionFilter {
             1.0 // High confidence
         } else {
             0.7 // Moderate confidence
+        }
+    }
+}
+
+impl CharDistributionFilter {
+    /// Calculate confidence using pre-computed char stats (avoids redundant allocation).
+    pub(crate) fn confidence_with_stats(&self, _text: &str, stats: &CharStats) -> f32 {
+        if stats.chars.is_empty() {
+            return 0.0;
+        }
+
+        let total = stats.chars.len() as f32;
+
+        // Check for excessive punctuation
+        let punctuation_ratio = stats.punctuation_count as f32 / total;
+        if punctuation_ratio > 0.8 {
+            return 0.2;
+        }
+
+        // Check for excessive repetition of same character
+        let max_char_count = stats.char_counts.values().max().copied().unwrap_or(0) as f32;
+        let max_char_ratio = max_char_count / total;
+        if max_char_ratio > 0.9 {
+            return 0.1;
+        }
+
+        // Check for excessive non-alphanumeric
+        let non_alphanumeric_ratio = 1.0 - (stats.alphanumeric_count as f32 / total);
+        if non_alphanumeric_ratio > 0.7 {
+            return 0.3;
+        }
+
+        // Reasonable distribution
+        if punctuation_ratio < 0.3 && max_char_ratio < 0.5 && non_alphanumeric_ratio < 0.4 {
+            1.0
+        } else {
+            0.7
         }
     }
 }
@@ -209,6 +246,47 @@ impl NoiseFilter for LinguisticFilter {
     }
 }
 
+impl LinguisticFilter {
+    /// Calculate confidence using pre-computed char stats (avoids redundant allocation).
+    pub(crate) fn confidence_with_stats(&self, text: &str, stats: &CharStats) -> f32 {
+        if stats.chars.is_empty() {
+            return 0.0;
+        }
+
+        let letter_count = stats.vowel_count + stats.consonant_count;
+        if letter_count == 0 {
+            return 0.6;
+        }
+
+        let vowel_ratio = stats.vowel_count as f32 / letter_count as f32;
+
+        if vowel_ratio < self.min_vowel_ratio {
+            return 0.5;
+        }
+        if vowel_ratio > self.max_vowel_ratio {
+            return 0.3;
+        }
+
+        // Check for common English bigrams
+        let common_bigrams = ["th", "he", "in", "er", "an", "re", "on", "at", "en", "nd"];
+        let text_lower = text.to_ascii_lowercase();
+        let mut bigram_count = 0;
+        for bigram in &common_bigrams {
+            if text_lower.contains(bigram) {
+                bigram_count += 1;
+            }
+        }
+
+        if (0.2..=0.8).contains(&vowel_ratio) && bigram_count > 0 {
+            1.0
+        } else if (0.1..=0.9).contains(&vowel_ratio) {
+            0.7
+        } else {
+            0.4
+        }
+    }
+}
+
 /// Length-based filter
 ///
 /// Penalizes excessively long strings (likely table data) and very short
@@ -332,6 +410,61 @@ impl NoiseFilter for RepetitionFilter {
         }
 
         // No significant repetition
+        1.0
+    }
+}
+
+impl RepetitionFilter {
+    /// Calculate confidence using pre-computed char stats (avoids redundant allocation).
+    pub(crate) fn confidence_with_stats(&self, _text: &str, stats: &CharStats) -> f32 {
+        if stats.chars.is_empty() {
+            return 0.0;
+        }
+
+        let total = stats.chars.len() as f32;
+
+        // Check for repeated characters using pre-computed counts
+        let max_char_count = stats.char_counts.values().max().copied().unwrap_or(0) as f32;
+        let max_char_ratio = max_char_count / total;
+
+        if max_char_ratio > self.max_repetition_ratio {
+            return 0.1;
+        }
+
+        // Check for repeated substrings
+        let max_pattern_len = (total as usize / 3).min(16).min(stats.chars.len());
+
+        if total >= 6.0 && max_pattern_len > 0 {
+            let min_pattern_len_for_3_reps = ((total as usize) as f32 / 3.0).ceil() as usize;
+            if min_pattern_len_for_3_reps > max_pattern_len {
+                return 1.0;
+            }
+
+            for pattern_len in 1..=max_pattern_len {
+                if pattern_len * 3 > stats.chars.len() {
+                    break;
+                }
+
+                let pattern_slice = &stats.chars[0..pattern_len];
+                let mut count = 1;
+                let mut pos = pattern_len;
+
+                while pos + pattern_len <= stats.chars.len() && count < 3 {
+                    let candidate_slice = &stats.chars[pos..pos + pattern_len];
+                    if pattern_slice == candidate_slice {
+                        count += 1;
+                        pos += pattern_len;
+                    } else {
+                        break;
+                    }
+                }
+
+                if count >= 3 {
+                    return 0.2;
+                }
+            }
+        }
+
         1.0
     }
 }

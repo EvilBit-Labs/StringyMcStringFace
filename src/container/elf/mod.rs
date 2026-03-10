@@ -315,7 +315,13 @@ impl ContainerParser for ElfParser {
             Object::Elf(elf) => elf,
             _ => return Err(StringyError::ParseError("Not an ELF file".to_string())),
         };
+        self.parse_from(&elf)
+    }
+}
 
+impl ElfParser {
+    /// Parse from an already-parsed goblin Elf object (avoids double-parse).
+    pub fn parse_from(&self, elf: &goblin::elf::Elf) -> Result<ContainerInfo> {
         let mut sections = Vec::new();
 
         // Process each section
@@ -353,9 +359,9 @@ impl ContainerParser for ElfParser {
             );
         }
 
-        let libraries = self.extract_needed_libraries(&elf);
-        let imports = self.extract_imports(&elf, &libraries);
-        let exports = self.extract_exports(&elf);
+        let libraries = self.extract_needed_libraries(elf);
+        let imports = self.extract_imports(elf, &libraries);
+        let exports = self.extract_exports(elf);
 
         Ok(ContainerInfo::new(
             BinaryFormat::Elf,
