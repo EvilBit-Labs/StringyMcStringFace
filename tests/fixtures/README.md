@@ -121,9 +121,9 @@ For testing with real-world binaries, consider these Apache-2.0/MIT licensed opt
 
 1. **Rust CLI tools** (MIT/Apache-2.0): Many Rust projects compile to Windows PE with version info:
 
-   - `ripgrep` (MIT/Unlicense): https://github.com/BurntSushi/ripgrep/releases
-   - `fd` (MIT/Apache-2.0): https://github.com/sharkdp/fd/releases
-   - `bat` (MIT/Apache-2.0): https://github.com/sharkdp/bat/releases
+   - `ripgrep` (MIT/Unlicense): <https://github.com/BurntSushi/ripgrep/releases>
+   - `fd` (MIT/Apache-2.0): <https://github.com/sharkdp/fd/releases>
+   - `bat` (MIT/Apache-2.0): <https://github.com/sharkdp/bat/releases>
 
 2. **Other open source tools**:
 
