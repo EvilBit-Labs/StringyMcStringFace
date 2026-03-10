@@ -4,23 +4,18 @@ use super::*;
 
 /// Creates a test FoundString with all optional fields set to None
 fn create_test_found_string() -> FoundString {
-    FoundString {
-        text: "test_string".to_string(),
-        original_text: None,
-        encoding: Encoding::Ascii,
-        offset: 0x1000,
-        rva: Some(0x2000),
-        section: Some(".rodata".to_string()),
-        length: 11,
-        tags: vec![Tag::Url],
-        score: 100,
-        section_weight: None,
-        semantic_boost: None,
-        noise_penalty: None,
-        display_score: None,
-        source: StringSource::SectionData,
-        confidence: 0.85,
-    }
+    FoundString::new(
+        "test_string".to_string(),
+        Encoding::Ascii,
+        0x1000,
+        11,
+        StringSource::SectionData,
+    )
+    .with_rva(0x2000)
+    .with_section(".rodata".to_string())
+    .with_tags(vec![Tag::Url])
+    .with_score(100)
+    .with_confidence(0.85)
 }
 
 #[test]

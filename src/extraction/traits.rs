@@ -280,16 +280,14 @@ pub trait StringExtractor {
 ///     let config = ExtractionConfig::default();
 ///
 ///     // Create a simple container info for testing
-///     let section = SectionInfo {
-///         name: ".rodata".to_string(),
-///         offset: 0,
-///         size: 100,
-///         rva: Some(0x1000),
-///         section_type: SectionType::StringData,
-///         is_executable: false,
-///         is_writable: false,
-///         weight: 1.0,
-///     };
+///     let section = SectionInfo::new(
+///         ".rodata".to_string(),
+///         0,
+///         100,
+///         SectionType::StringData,
+///         1.0,
+///     )
+///     .with_rva(0x1000);
 ///
 ///     let container_info = ContainerInfo::new(
 ///         BinaryFormat::Elf,

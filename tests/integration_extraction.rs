@@ -17,16 +17,14 @@ fn test_basic_extractor_ascii_strings() {
 
     // Create test data with embedded ASCII strings
     let data = b"prefix\0Hello\0World\0Test123\0suffix";
-    let section = stringy::types::SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 7, // Start after "prefix\0"
-        size: 20,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".rodata".to_string(),
+        7,
+        20,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x1000);
 
     let strings = extractor
         .extract_from_section(data, &section, &config)
@@ -47,16 +45,14 @@ fn test_basic_extractor_utf8_strings() {
 
     // Create test data with UTF-8 strings
     let data = "prefix\0Hello 世界\0Test 测试\0suffix".as_bytes();
-    let section = stringy::types::SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 7,
-        size: 30,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".rodata".to_string(),
+        7,
+        30,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x1000);
 
     let strings = extractor
         .extract_from_section(data, &section, &config)
@@ -88,16 +84,14 @@ fn test_basic_extractor_min_length_filtering() {
     };
 
     let data = b"Hi\0Test\0AB\0LongString\0OK";
-    let section = stringy::types::SectionInfo {
-        name: ".data".to_string(),
-        offset: 0,
-        size: data.len() as u64,
-        rva: None,
-        section_type: SectionType::WritableData,
-        is_executable: false,
-        is_writable: true,
-        weight: 0.5,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".data".to_string(),
+        0,
+        data.len() as u64,
+        SectionType::WritableData,
+        0.5,
+    )
+    .with_writable(true);
 
     let strings = extractor
         .extract_from_section(data, &section, &config)
@@ -120,16 +114,14 @@ fn test_basic_extractor_max_length_filtering() {
     // Create a very long string
     let long_string = "A".repeat(5000);
     let data = format!("Short\0{}\0EndTest", long_string).into_bytes();
-    let section = stringy::types::SectionInfo {
-        name: ".data".to_string(),
-        offset: 0,
-        size: data.len() as u64,
-        rva: None,
-        section_type: SectionType::WritableData,
-        is_executable: false,
-        is_writable: true,
-        weight: 0.5,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".data".to_string(),
+        0,
+        data.len() as u64,
+        SectionType::WritableData,
+        0.5,
+    )
+    .with_writable(true);
 
     let strings = extractor
         .extract_from_section(&data, &section, &config)
@@ -299,16 +291,8 @@ fn test_basic_extractor_empty_data() {
     let extractor = BasicExtractor::new();
     let config = ExtractionConfig::default();
 
-    let section = stringy::types::SectionInfo {
-        name: ".empty".to_string(),
-        offset: 0,
-        size: 0,
-        rva: None,
-        section_type: SectionType::Other,
-        is_executable: false,
-        is_writable: false,
-        weight: 0.0,
-    };
+    let section =
+        stringy::types::SectionInfo::new(".empty".to_string(), 0, 0, SectionType::Other, 0.0);
 
     let data = b"";
     let strings = extractor
@@ -326,16 +310,14 @@ fn test_basic_extractor_boundary_conditions() {
 
     // Test string at start of section
     let data1 = b"Start\0middle\0end";
-    let section1 = stringy::types::SectionInfo {
-        name: ".test1".to_string(),
-        offset: 0,
-        size: data1.len() as u64,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section1 = stringy::types::SectionInfo::new(
+        ".test1".to_string(),
+        0,
+        data1.len() as u64,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x1000);
     let strings1 = extractor
         .extract_from_section(data1, &section1, &config)
         .unwrap();
@@ -343,16 +325,14 @@ fn test_basic_extractor_boundary_conditions() {
 
     // Test string at end of section
     let data2 = b"prefix\0middle\0EndTest";
-    let section2 = stringy::types::SectionInfo {
-        name: ".test2".to_string(),
-        offset: 0,
-        size: data2.len() as u64,
-        rva: Some(0x2000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section2 = stringy::types::SectionInfo::new(
+        ".test2".to_string(),
+        0,
+        data2.len() as u64,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x2000);
     let strings2 = extractor
         .extract_from_section(data2, &section2, &config)
         .unwrap();
@@ -360,16 +340,14 @@ fn test_basic_extractor_boundary_conditions() {
 
     // Test string spanning entire section
     let data3 = b"FullSectionString";
-    let section3 = stringy::types::SectionInfo {
-        name: ".test3".to_string(),
-        offset: 0,
-        size: data3.len() as u64,
-        rva: Some(0x3000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section3 = stringy::types::SectionInfo::new(
+        ".test3".to_string(),
+        0,
+        data3.len() as u64,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x3000);
     let strings3 = extractor
         .extract_from_section(data3, &section3, &config)
         .unwrap();
@@ -407,16 +385,13 @@ fn test_basic_extractor_encoding_filtering() {
         ..Default::default()
     };
 
-    let section = stringy::types::SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 0,
-        size: 30,
-        rva: None,
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".rodata".to_string(),
+        0,
+        30,
+        SectionType::StringData,
+        1.0,
+    );
 
     let data = "Hello\0世界\0Test".as_bytes();
     let strings = extractor
@@ -521,16 +496,14 @@ fn test_utf16le_extraction_with_basic_extractor() {
     data.extend_from_slice(&hello);
     data.extend_from_slice(&world);
 
-    let section = stringy::types::SectionInfo {
-        name: ".rdata".to_string(),
-        offset: 100,
-        size: (hello.len() + world.len()) as u64,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".rdata".to_string(),
+        100,
+        (hello.len() + world.len()) as u64,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x1000);
 
     let container_info = stringy::ContainerInfo::new(
         stringy::BinaryFormat::Pe,
@@ -574,16 +547,14 @@ fn test_utf16le_encoding_filtering() {
     ];
     data.extend_from_slice(&hello);
 
-    let section = stringy::types::SectionInfo {
-        name: ".rdata".to_string(),
-        offset: 50,
-        size: hello.len() as u64,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".rdata".to_string(),
+        50,
+        hello.len() as u64,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x1000);
 
     let container_info = stringy::ContainerInfo::new(
         stringy::BinaryFormat::Pe,
@@ -642,16 +613,14 @@ fn test_utf16le_with_noise_filtering() {
     ]; // "AAAAA\0"
     data.extend_from_slice(&noisy);
 
-    let section = stringy::types::SectionInfo {
-        name: ".rdata".to_string(),
-        offset: 50,
-        size: (hello.len() + noisy.len()) as u64,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".rdata".to_string(),
+        50,
+        (hello.len() + noisy.len()) as u64,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x1000);
 
     let container_info = stringy::ContainerInfo::new(
         stringy::BinaryFormat::Pe,
@@ -694,16 +663,14 @@ fn test_utf16le_min_wide_length_config() {
     data.extend_from_slice(&hi);
     data.extend_from_slice(&test);
 
-    let section = stringy::types::SectionInfo {
-        name: ".rdata".to_string(),
-        offset: 50,
-        size: (hi.len() + test.len()) as u64,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".rdata".to_string(),
+        50,
+        (hi.len() + test.len()) as u64,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x1000);
 
     let container_info = stringy::ContainerInfo::new(
         stringy::BinaryFormat::Pe,
@@ -740,16 +707,14 @@ fn test_utf16le_confidence_threshold() {
     ];
     data.extend_from_slice(&hello);
 
-    let section = stringy::types::SectionInfo {
-        name: ".rdata".to_string(),
-        offset: 50,
-        size: hello.len() as u64,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".rdata".to_string(),
+        50,
+        hello.len() as u64,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x1000);
 
     let container_info = stringy::ContainerInfo::new(
         stringy::BinaryFormat::Pe,
@@ -805,16 +770,14 @@ fn test_basic_extractor_utf16be_strings() {
     ];
     data.extend_from_slice(&hello);
 
-    let section = stringy::types::SectionInfo {
-        name: ".rdata".to_string(),
-        offset: 50,
-        size: hello.len() as u64,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".rdata".to_string(),
+        50,
+        hello.len() as u64,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x1000);
 
     let container_info = stringy::ContainerInfo::new(
         stringy::BinaryFormat::Pe,
@@ -867,16 +830,14 @@ fn test_basic_extractor_utf16_auto_detection() {
     ];
     data.extend_from_slice(&world_be);
 
-    let section = stringy::types::SectionInfo {
-        name: ".rdata".to_string(),
-        offset: 50,
-        size: (hello_le.len() + 20 + world_be.len()) as u64,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".rdata".to_string(),
+        50,
+        (hello_le.len() + 20 + world_be.len()) as u64,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x1000);
 
     let container_info = stringy::ContainerInfo::new(
         stringy::BinaryFormat::Pe,
@@ -930,16 +891,14 @@ fn test_basic_extractor_utf16_encoding_filtering() {
     ];
     data.extend_from_slice(&world_be);
 
-    let section = stringy::types::SectionInfo {
-        name: ".rdata".to_string(),
-        offset: 50,
-        size: (hello_le.len() + 20 + world_be.len()) as u64,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".rdata".to_string(),
+        50,
+        (hello_le.len() + 20 + world_be.len()) as u64,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x1000);
 
     let container_info = stringy::ContainerInfo::new(
         stringy::BinaryFormat::Pe,
@@ -1007,16 +966,14 @@ fn test_basic_extractor_utf16_confidence_filtering() {
     let false_positive = vec![0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00];
     data.extend_from_slice(&false_positive);
 
-    let section = stringy::types::SectionInfo {
-        name: ".rdata".to_string(),
-        offset: 50,
-        size: (hello.len() + false_positive.len()) as u64,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".rdata".to_string(),
+        50,
+        (hello.len() + false_positive.len()) as u64,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x1000);
 
     let container_info = stringy::ContainerInfo::new(
         stringy::BinaryFormat::Pe,
@@ -1070,16 +1027,14 @@ fn test_basic_extractor_mixed_encodings() {
     ];
     data.extend_from_slice(&world_be);
 
-    let section = stringy::types::SectionInfo {
-        name: ".rdata".to_string(),
-        offset: 0,
-        size: data.len() as u64,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = stringy::types::SectionInfo::new(
+        ".rdata".to_string(),
+        0,
+        data.len() as u64,
+        SectionType::StringData,
+        1.0,
+    )
+    .with_rva(0x1000);
 
     let container_info = stringy::ContainerInfo::new(
         stringy::BinaryFormat::Pe,

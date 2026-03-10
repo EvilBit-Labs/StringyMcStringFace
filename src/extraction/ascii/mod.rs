@@ -16,16 +16,14 @@
 //! let strings = extract_ascii_strings(data, &config);
 //!
 //! // Section-aware extraction
-//! let section = SectionInfo {
-//!     name: ".rodata".to_string(),
-//!     offset: 0,
-//!     size: 20,
-//!     rva: Some(0x1000),
-//!     section_type: SectionType::StringData,
-//!     is_executable: false,
-//!     is_writable: false,
-//!     weight: 1.0,
-//! };
+//! let section = SectionInfo::new(
+//!     ".rodata".to_string(),
+//!     0,
+//!     20,
+//!     SectionType::StringData,
+//!     1.0,
+//! )
+//! .with_rva(0x1000);
 //! let strings = extract_from_section(&section, data, &config, None, false, 0.5);
 //! ```
 

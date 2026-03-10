@@ -222,16 +222,14 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
 /// use stringy::extraction::config::NoiseFilterConfig;
 /// use stringy::types::{SectionInfo, SectionType};
 ///
-/// let section = SectionInfo {
-///     name: ".rodata".to_string(),
-///     offset: 10,
-///     size: 20,
-///     rva: Some(0x1000),
-///     section_type: SectionType::StringData,
-///     is_executable: false,
-///     is_writable: false,
-///     weight: 1.0,
-/// };
+/// let section = SectionInfo::new(
+///     ".rodata".to_string(),
+///     10,
+///     20,
+///     SectionType::StringData,
+///     1.0,
+/// )
+/// .with_rva(0x1000);
 ///
 /// let data = b"prefix\0Hello World\0suffix";
 /// let config = AsciiExtractionConfig::default();

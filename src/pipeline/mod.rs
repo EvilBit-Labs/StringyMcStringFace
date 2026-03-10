@@ -188,16 +188,13 @@ fn parse_container(data: &[u8]) -> ContainerInfo {
 
 /// Build a synthetic `ContainerInfo` for unknown/unparseable data.
 fn build_unknown_container(data: &[u8]) -> ContainerInfo {
-    let section = SectionInfo {
-        name: "raw-bytes".to_string(),
-        offset: 0,
-        size: data.len() as u64,
-        section_type: SectionType::Other,
-        weight: 1.0,
-        is_executable: false,
-        is_writable: false,
-        rva: None,
-    };
+    let section = SectionInfo::new(
+        "raw-bytes".to_string(),
+        0,
+        data.len() as u64,
+        SectionType::Other,
+        1.0,
+    );
     ContainerInfo::new(BinaryFormat::Unknown, vec![section], vec![], vec![], None)
 }
 

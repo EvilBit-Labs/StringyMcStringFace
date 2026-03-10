@@ -214,27 +214,13 @@ fn test_snapshot_extraction() {
 #[test]
 fn test_section_context_awareness() {
     // Test that section context affects filtering
-    let high_weight_section = SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 0,
-        size: 20,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let high_weight_section =
+        SectionInfo::new(".rodata".to_string(), 0, 20, SectionType::StringData, 1.0)
+            .with_rva(0x1000);
 
-    let low_weight_section = SectionInfo {
-        name: ".text".to_string(),
-        offset: 0,
-        size: 20,
-        rva: Some(0x2000),
-        section_type: SectionType::Code,
-        is_executable: true,
-        is_writable: false,
-        weight: 0.1,
-    };
+    let low_weight_section = SectionInfo::new(".text".to_string(), 0, 20, SectionType::Code, 0.1)
+        .with_rva(0x2000)
+        .with_executable(true);
 
     let data = b"Hello World\0Test";
     let config = AsciiExtractionConfig::default();
@@ -262,16 +248,8 @@ fn test_section_context_awareness() {
 #[test]
 fn test_full_extraction_path_with_filtering() {
     // Test the full extraction path with filtering enabled using BasicExtractor
-    let section = SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 0,
-        size: 50,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = SectionInfo::new(".rodata".to_string(), 0, 50, SectionType::StringData, 1.0)
+        .with_rva(0x1000);
 
     // Mix of legitimate strings and noise
     let data = b"Hello World\0AAAA\0Error: file not found\0!!!@@@###\0Test123";
@@ -341,16 +319,8 @@ fn test_full_extraction_path_with_filtering() {
 #[test]
 fn test_extraction_with_filtering_disabled() {
     // Test that filtering can be disabled
-    let section = SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 0,
-        size: 30,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = SectionInfo::new(".rodata".to_string(), 0, 30, SectionType::StringData, 1.0)
+        .with_rva(0x1000);
 
     let data = b"Hello World\0AAAA\0Test123";
 
@@ -384,16 +354,8 @@ fn test_extraction_with_filtering_disabled() {
 #[test]
 fn test_extract_from_section_with_filtering() {
     // Test extract_from_section with filtering enabled
-    let section = SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 0,
-        size: 40,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = SectionInfo::new(".rodata".to_string(), 0, 40, SectionType::StringData, 1.0)
+        .with_rva(0x1000);
 
     let data = b"Hello World\0AAAA\0Test123";
     let config = AsciiExtractionConfig::default();
