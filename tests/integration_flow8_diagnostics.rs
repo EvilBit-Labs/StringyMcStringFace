@@ -68,7 +68,9 @@ fn flow8_unknown_binary_info_stderr_exit_0() {
         .assert()
         .success()
         .stderr(predicate::str::contains("Info:"))
-        .stderr(predicate::str::contains("unknown"));
+        .stderr(predicate::str::contains(
+            "proceeding with unstructured byte scan",
+        ));
 }
 
 #[test]

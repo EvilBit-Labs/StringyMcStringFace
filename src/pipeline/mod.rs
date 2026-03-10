@@ -166,18 +166,17 @@ fn set_stage(pb: &ProgressBar, msg: &str) {
     pb.set_message(msg.to_string());
 }
 
-/// Informational message emitted when the pipeline falls back to raw byte scanning.
-const UNKNOWN_DATA_MSG: &str =
-    "Info: Source identified as unknown data; proceeding with unstructured byte scan";
-
 /// Parse container with a single `Object::parse()` call, avoiding the
 /// double-parse that occurred when `detect_format()` and `parser.parse()`
 /// each parsed independently.
 fn parse_container(data: &[u8]) -> ContainerInfo {
     let parsed = match Object::parse(data) {
         Ok(obj) => obj,
-        Err(_) => {
-            eprintln!("{UNKNOWN_DATA_MSG}");
+        Err(e) => {
+            eprintln!(
+                "Info: Source identified as unknown data ({e}); \
+                 proceeding with unstructured byte scan"
+            );
             return build_unknown_container(data);
         }
     };
@@ -187,15 +186,21 @@ fn parse_container(data: &[u8]) -> ContainerInfo {
         Object::PE(pe) => PeParser::new().parse_from(&pe, data),
         Object::Mach(mach) => MachoParser::new().parse_from(&mach, data),
         _ => {
-            eprintln!("{UNKNOWN_DATA_MSG}");
+            eprintln!(
+                "Info: Unsupported container format; \
+                 proceeding with unstructured byte scan"
+            );
             return build_unknown_container(data);
         }
     };
 
     match result {
         Ok(info) => info,
-        Err(_) => {
-            eprintln!("{UNKNOWN_DATA_MSG}");
+        Err(e) => {
+            eprintln!(
+                "Info: Container parse failed ({e}); \
+                 proceeding with unstructured byte scan"
+            );
             build_unknown_container(data)
         }
     }

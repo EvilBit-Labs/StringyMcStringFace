@@ -13,7 +13,9 @@ fn unknown_format_falls_back_to_raw_scan() {
         .arg("Cargo.toml")
         .assert()
         .success()
-        .stderr(predicate::str::contains("unknown data"));
+        .stderr(predicate::str::contains(
+            "proceeding with unstructured byte scan",
+        ));
 }
 
 #[test]
