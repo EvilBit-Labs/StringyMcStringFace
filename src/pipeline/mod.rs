@@ -454,4 +454,34 @@ mod tests {
             "error must be IoError, got: {err:?}"
         );
     }
+
+    #[test]
+    #[cfg(unix)]
+    fn load_file_permission_denied_returns_io_error() {
+        use std::io::Write;
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut tmp = tempfile::NamedTempFile::new().expect("create temp file");
+        tmp.write_all(b"secret content").expect("write bytes");
+        tmp.flush().expect("flush");
+
+        let path = tmp.path().to_path_buf();
+
+        // Remove all permissions to trigger a permission-denied error.
+        let no_perms = std::fs::Permissions::from_mode(0o000);
+        std::fs::set_permissions(&path, no_perms).expect("set permissions");
+
+        let result = load_file(&path);
+
+        // Restore permissions before assertions so cleanup always succeeds.
+        let restored = std::fs::Permissions::from_mode(0o644);
+        std::fs::set_permissions(&path, restored).expect("restore permissions");
+
+        assert!(result.is_err(), "permission-denied must return an error");
+        let err = result.unwrap_err();
+        assert!(
+            matches!(err, StringyError::IoError(_)),
+            "error must be IoError, got: {err:?}"
+        );
+    }
 }
