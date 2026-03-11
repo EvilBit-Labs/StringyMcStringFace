@@ -31,7 +31,7 @@ cargo --version
 # Update Rust
 rustup update
 
-# Check version (should be 1.70+)
+# Check version (should be 1.91+)
 rustc --version
 ```
 
@@ -90,38 +90,7 @@ file binary_file
 hexdump -C binary_file | head
 ```
 
-**Solutions**:
-
-- Ensure the file is actually a binary (ELF, PE, or Mach-O)
-- Check if the file is corrupted or truncated
-- Try with a known good binary first
-
-### "Memory mapping error"
-
-**Problem**: Cannot memory-map large files.
-
-**Diagnosis**:
-
-```bash
-# Check available memory
-free -h  # Linux
-vm_stat  # macOS
-
-# Check file size
-ls -lh large_file.exe
-```
-
-**Solutions**:
-
-```bash
-# Disable memory mapping
-stringy --no-mmap large_file.exe
-
-# Increase virtual memory (if possible)
-ulimit -v unlimited
-
-# Process on a system with more RAM
-```
+**Note**: Unknown or unparseable formats (plain text, etc.) do not error. Stringy falls back to unstructured raw byte scanning and succeeds. This message only appears if something else goes wrong during parsing.
 
 ### "Permission denied" when reading files
 
@@ -140,82 +109,6 @@ chmod +r binary_file
 sudo stringy system_binary
 ```
 
-## Performance Issues
-
-### Very Slow Processing
-
-**Problem**: Stringy takes too long to process files.
-
-**Diagnosis**:
-
-```bash
-# Enable timing to identify bottlenecks
-stringy --timing slow_file.exe
-
-# Check system resources
-top  # or htop
-```
-
-**Solutions**:
-
-#### Large Files
-
-```bash
-# Focus on high-value sections
-stringy --sections .rodata,.rdata large_file.exe
-
-# Increase minimum length
-stringy --min-len 8 large_file.exe
-
-# Limit results
-stringy --top 50 large_file.exe
-```
-
-#### Many Small Strings
-
-```bash
-# Increase minimum length
-stringy --min-len 6 file.exe
-
-# Disable expensive classification
-stringy --no-classify file.exe
-
-# Use ASCII only
-stringy --enc ascii file.exe
-```
-
-#### Complex Patterns
-
-```bash
-# Disable specific pattern types
-stringy --exclude b64,fmt file.exe
-
-# Use simpler patterns only
-stringy --only url,domain,filepath file.exe
-```
-
-### High Memory Usage
-
-**Problem**: Stringy uses too much memory.
-
-**Solutions**:
-
-```bash
-# Limit string length
-stringy --max-len 200 file.exe
-
-# Limit results
-stringy --top 100 file.exe
-
-# Use memory mapping
-stringy --force-mmap file.exe
-
-# Process sections individually
-for section in .rodata .rdata; do
-    stringy --sections $section file.exe
-done
-```
-
 ## Output Issues
 
 ### No Strings Found
@@ -228,14 +121,14 @@ done
 # Check with traditional strings command
 strings binary_file | head -20
 
-# Try different encodings
-stringy --enc ascii,utf8,utf16le,utf16be binary_file
+# Try different encodings (one at a time)
+stringy --enc ascii binary_file
+stringy --enc utf8 binary_file
+stringy --enc utf16le binary_file
+stringy --enc utf16be binary_file
 
 # Lower minimum length
 stringy --min-len 1 binary_file
-
-# Include all sections
-stringy --all-sections binary_file
 ```
 
 **Common causes**:
@@ -258,10 +151,10 @@ stringy --enc ascii binary_file
 # Increase minimum length to filter noise
 stringy --min-len 6 binary_file
 
-# Use JSON output to avoid terminal issues
-stringy --json binary_file | jq '.[] | .text'
+# Use JSON output which properly escapes invalid sequences
+stringy --json binary_file | jq '.text'
 
-# Filter by confidence
+# Filter by score
 stringy --json binary_file | jq 'select(.score > 70)'
 ```
 
@@ -275,69 +168,36 @@ stringy --json binary_file | jq 'select(.score > 70)'
 # Check if strings exist with traditional tools
 strings binary_file | grep "expected_string"
 
-# Try all encodings
-stringy --enc ascii,utf8,utf16le,utf16be binary_file | grep "expected"
-
-# Include debug sections
-stringy --debug binary_file | grep "expected"
+# Try each encoding
+stringy --enc ascii binary_file | grep "expected"
+stringy --enc utf8 binary_file | grep "expected"
+stringy --enc utf16le binary_file | grep "expected"
 
 # Lower score threshold
 stringy --json binary_file | jq 'select(.score > 0)' | grep "expected"
 ```
 
-## Format-Specific Issues
-
-### PE Files (Windows)
-
-#### Missing Version Information
-
-```bash
-# Explicitly enable PE resources
-stringy --pe-version --pe-manifest app.exe
-
-# Check if resources exist
-stringy --sections .rsrc app.exe
-```
-
-#### UTF-16 Issues
-
-```bash
-# Force UTF-16 extraction
-stringy --enc utf16le app.exe
-
-# Use UTF-16 only mode
-stringy --utf16-only app.exe
-```
-
-### ELF Files (Linux)
-
-#### Missing Symbol Names
-
-```bash
-# Include symbol tables
-stringy --symbols elf_binary
-
-# Include debug information
-stringy --debug elf_binary
-
-# Check specific sections
-stringy --sections .dynstr,.strtab elf_binary
-```
-
-### Mach-O Files (macOS)
-
-#### Fat Binary Issues
-
-```bash
-# Process all architectures
-stringy --macho-fat app
-
-# Check file structure first
-file app
-lipo -info app  # if available
-```
-
 ## Error Messages
+
+### "--summary requires a TTY"
+
+**Problem**: `--summary` flag used when stdout is piped or redirected.
+
+**Solution**: `--summary` only works when stdout is a terminal. Remove `--summary` when piping output:
+
+```bash
+# This will error (exit 1):
+stringy --summary binary | grep foo
+
+# This works:
+stringy --summary binary
+```
+
+### Tag overlap error
+
+**Problem**: Same tag appears in both `--only-tags` and `--no-tags`.
+
+**Solution**: Remove the duplicate tag from one of the two flags. This is a runtime validation error (exit 1).
 
 ### "Invalid UTF-8 sequence"
 
@@ -362,59 +222,75 @@ stringy --json binary_file
 ```bash
 # Get version information
 stringy --version
-
-# Run with debug output
-RUST_LOG=debug stringy binary_file 2> debug.log
 ```
 
-### "Section not found"
+### File Not Found
 
-**Problem**: Specified section doesn't exist in the binary.
+**Problem**: The specified file does not exist.
 
-**Diagnosis**:
+**Exit code**: 1
+
+**Solution**: Check the file path and ensure the file exists:
 
 ```bash
-# List available sections
-stringy --list-sections binary_file
-
-# Use correct section names
-stringy --sections .text,.data binary_file  # ELF
-stringy --sections .rdata,.rsrc binary.exe  # PE
+ls -l /path/to/binary
 ```
+
+## Performance Issues
+
+### Very Slow Processing
+
+**Problem**: Stringy takes too long to process files.
+
+**Solutions**:
+
+```bash
+# Increase minimum length to reduce extraction volume
+stringy --min-len 8 large_file.exe
+
+# Limit results
+stringy --top 50 large_file.exe
+
+# Use ASCII only
+stringy --enc ascii large_file.exe
+
+# Use raw mode (skip classification)
+stringy --raw large_file.exe
+```
+
+### High Memory Usage
+
+**Problem**: Stringy uses too much memory.
+
+**Solutions**:
+
+```bash
+# Limit results
+stringy --top 100 file.exe
+
+# Increase minimum length
+stringy --min-len 8 file.exe
+
+# Use raw mode to skip classification
+stringy --raw file.exe
+```
+
+## Exit Code Reference
+
+| Code | Meaning                                                                    |
+| ---- | -------------------------------------------------------------------------- |
+| 0    | Success (including unknown binary format, empty binary, no filter matches) |
+| 1    | Runtime error (file not found, tag overlap, `--summary` in non-TTY)        |
+| 2    | Argument parsing error (invalid flag, flag conflict, invalid tag name)     |
 
 ## Debugging Tips
-
-### Enable Debug Logging
-
-```bash
-# Set log level
-export RUST_LOG=stringy=debug
-stringy binary_file
-
-# Or for all components
-export RUST_LOG=debug
-stringy binary_file
-```
-
-### Verbose Output
-
-```bash
-# Show detailed processing information
-stringy --verbose binary_file
-
-# Show timing for each stage
-stringy --timing binary_file
-
-# Combine with JSON for machine processing
-stringy --json --verbose binary_file > debug_output.json
-```
 
 ### Compare with Traditional Tools
 
 ```bash
 # Compare with standard strings
 strings binary_file > traditional.txt
-stringy --json binary_file | jq -r '.[] | .text' > stringy.txt
+stringy --json binary_file | jq -r '.text' > stringy.txt
 diff traditional.txt stringy.txt
 ```
 
@@ -423,8 +299,7 @@ diff traditional.txt stringy.txt
 ```bash
 # Test with system binaries
 stringy /bin/ls        # Linux
-stringy /bin/cat       # Linux  
-stringy C:\Windows\System32\notepad.exe  # Windows
+stringy /bin/cat       # Linux
 stringy /usr/bin/grep  # macOS
 ```
 
@@ -447,50 +322,12 @@ stringy /usr/bin/grep  # macOS
    ls -l binary_file
    ```
 
-3. **Complete error output**:
+3. **Exact command line used**
 
-   ```bash
-   RUST_LOG=debug stringy binary_file 2>&1 | tee error.log
-   ```
-
-4. **Minimal reproduction case**:
-
-   - Smallest file that reproduces the issue
-   - Exact command line used
-   - Expected vs actual behavior
+4. **Expected vs actual behavior**
 
 ### Where to Get Help
 
-1. **Documentation**: Check this guide and the [API documentation](./api.md)
+1. **Documentation**: Check this guide and the project documentation
 2. **GitHub Issues**: Search existing issues or create a new one
 3. **Discussions**: Use GitHub Discussions for questions and ideas
-4. **Community**: Join discussions in the project community
-
-### Creating Good Bug Reports
-
-```markdown
-## Bug Description
-Brief description of the issue.
-
-## Environment
-- OS: Linux/Windows/macOS version
-- Stringy version: x.y.z
-- Rust version: x.y.z
-
-## Steps to Reproduce
-1. Run command: `stringy --options file.exe`
-2. Observe error: [error message]
-
-## Expected Behavior
-What should happen.
-
-## Actual Behavior
-What actually happens.
-
-## Additional Context
-- File type: PE/ELF/Mach-O
-- File size: XXX MB
-- Any relevant logs or output
-```
-
-This troubleshooting guide should help resolve most common issues. For persistent problems, don't hesitate to reach out to the community or maintainers.

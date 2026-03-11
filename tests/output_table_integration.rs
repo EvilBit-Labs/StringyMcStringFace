@@ -183,9 +183,11 @@ fn test_tty_high_scores() {
         make_string("critical IOC")
             .with_tags(vec![Tag::Url, Tag::IPv4])
             .with_score(9999)
+            .with_display_score(100)
             .with_section(".rdata".to_string()),
         make_string("negative score")
             .with_score(-50)
+            .with_display_score(0)
             .with_section(".text".to_string()),
     ];
     let result = format_table_with_mode(&strings, &make_metadata(2), true).unwrap();

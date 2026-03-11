@@ -18,12 +18,22 @@ pub(super) fn format_table_plain(strings: &[FoundString]) -> Result<String> {
 
 /// Sanitize plain text output so each string renders as a single line.
 ///
-/// Replaces CRLF, LF, and CR with escaped sequences to preserve content
-/// while keeping output line-based.
+/// Replaces control characters with visible escape sequences to preserve
+/// content while keeping output line-based and pipe-safe.
 fn sanitize_plain_text(text: &str) -> String {
-    text.replace("\r\n", "\\r\\n")
-        .replace('\n', "\\n")
-        .replace('\r', "\\r")
+    let mut result = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            '\n' => result.push_str("\\n"),
+            '\r' => result.push_str("\\r"),
+            '\t' => result.push_str("\\t"),
+            '\x00'..='\x1f' | '\x7f' => {
+                result.push_str(&format!("\\x{:02x}", c as u8));
+            }
+            _ => result.push(c),
+        }
+    }
+    result
 }
 
 #[cfg(test)]
@@ -69,7 +79,7 @@ mod tests {
         // Each string should be on its own line in output
         let lines: Vec<&str> = result.lines().collect();
         assert_eq!(lines.len(), 2);
-        assert!(lines[0].contains("tab\there"));
+        assert!(lines[0].contains("tab\\there"));
         assert!(lines[1].contains("pipe|here"));
     }
 

@@ -3,16 +3,16 @@
 //! This module provides IPv4 and IPv6 address detection functionality.
 
 use crate::types::Tag;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
+use std::sync::LazyLock;
 
 /// Regular expression for matching IPv4 addresses
 ///
 /// Pattern matches IPv4 addresses with proper octet validation (0-255).
 /// Matches the entire string (used after port stripping).
-pub(crate) static IPV4_REGEX: Lazy<Regex> = Lazy::new(|| {
+pub(crate) static IPV4_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
         .expect("Invalid IPv4 regex")
 });
@@ -22,13 +22,13 @@ pub(crate) static IPV4_REGEX: Lazy<Regex> = Lazy::new(|| {
 /// This is a permissive pre-filter that only allows hex digits, colons,
 /// and dots (for IPv4-mapped suffixes). Canonical validation is still
 /// performed by std::net::Ipv6Addr::from_str.
-pub(crate) static IPV6_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)^[0-9a-f:.]+$").expect("Invalid IPv6 regex"));
+pub(crate) static IPV6_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)^[0-9a-f:.]+$").expect("Invalid IPv6 regex"));
 
 /// Regular expression for detecting and stripping port suffixes
 ///
 /// Matches :port where port is in the valid range 0-65535.
-pub(crate) static PORT_SUFFIX_REGEX: Lazy<Regex> = Lazy::new(|| {
+pub(crate) static PORT_SUFFIX_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r":(?:[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$",
     )
@@ -38,8 +38,8 @@ pub(crate) static PORT_SUFFIX_REGEX: Lazy<Regex> = Lazy::new(|| {
 /// Regular expression for handling bracketed IPv6 addresses
 ///
 /// Matches [IPv6] format used in URLs like [::1]:8080.
-pub(crate) static IPV6_BRACKETS_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^\[([^\]]+)\]$").expect("Invalid IPv6 brackets regex"));
+pub(crate) static IPV6_BRACKETS_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\[([^\]]+)\]$").expect("Invalid IPv6 brackets regex"));
 
 /// Strips the port suffix from an IP address string if present
 ///

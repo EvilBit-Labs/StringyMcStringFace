@@ -124,45 +124,6 @@ pub fn is_printable_utf16le_char(low: u8, high: u8) -> bool {
     is_printable
 }
 
-/// Validate UTF-16 sequence (surrogate pairs and code points)
-///
-/// Checks if a sequence of UTF-16 code units forms valid UTF-16 sequences.
-///
-/// # Arguments
-///
-/// * `chars` - Slice of UTF-16 code units
-///
-/// # Returns
-///
-/// `true` if the sequence is valid UTF-16
-// Kept for use by future validation and test code
-#[allow(dead_code)]
-pub(crate) fn is_valid_utf16_sequence(chars: &[u16]) -> bool {
-    let mut i = 0;
-    while i < chars.len() {
-        let code_unit = chars[i];
-
-        // Check for high surrogate
-        if (0xD800..=0xDBFF).contains(&code_unit) {
-            // Need low surrogate next
-            if i + 1 >= chars.len() {
-                return false; // Lone high surrogate
-            }
-            let low = chars[i + 1];
-            if !(0xDC00..=0xDFFF).contains(&low) {
-                return false; // Invalid low surrogate
-            }
-            i += 2; // Consume both surrogates
-        } else if (0xDC00..=0xDFFF).contains(&code_unit) {
-            // Lone low surrogate
-            return false;
-        } else {
-            i += 1; // Regular code unit
-        }
-    }
-    true
-}
-
 /// Check valid Unicode range for code points
 ///
 /// Validates code points are in valid Unicode ranges, penalizes private use areas

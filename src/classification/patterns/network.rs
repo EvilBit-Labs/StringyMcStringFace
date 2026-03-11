@@ -3,29 +3,29 @@
 //! This module provides URL and domain name detection functionality.
 
 use crate::types::Tag;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashSet;
+use std::sync::LazyLock;
 
 /// Regular expression for matching HTTP/HTTPS URLs
 ///
 /// Pattern matches URLs starting with http:// or https:// and excludes
 /// problematic characters that could cause false positives.
-pub(crate) static URL_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"https?://[^\s<>"{}|\\\^\[\]\`]+"#).expect("Invalid URL regex"));
+pub(crate) static URL_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"https?://[^\s<>"{}|\\\^\[\]\`]+"#).expect("Invalid URL regex"));
 
 /// Regular expression for matching domain names
 ///
 /// Pattern matches domain names with proper DNS format compliance (RFC 1035).
 /// It ensures domains start and end with alphanumeric characters, allows hyphens
 /// in the middle, and requires at least a 2-character TLD.
-pub(crate) static DOMAIN_REGEX: Lazy<Regex> = Lazy::new(|| {
+pub(crate) static DOMAIN_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b")
         .expect("Invalid domain regex")
 });
 
 /// List of common TLDs for validation
-static COMMON_TLDS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+static COMMON_TLDS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     HashSet::from([
         "com", "org", "net", "edu", "gov", "mil", "int", "io", "co", "uk", "de", "fr", "jp", "cn",
         "ru", "br", "in", "au", "ca", "es", "it", "nl", "pl", "se", "ch", "at", "be", "dk", "fi",

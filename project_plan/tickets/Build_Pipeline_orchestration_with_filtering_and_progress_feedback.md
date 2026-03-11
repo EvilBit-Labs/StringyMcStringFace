@@ -11,7 +11,7 @@ Create the Pipeline struct that orchestrates the entire analysis workflow, inclu
 - Create Pipeline struct in file:src/main.rs with PipelineConfig
 - Implement 14-step workflow:
   01. Progress indicator setup (indicatif)
-  02. Memory-mapped file reading with fallback to regular read
+  02. Memory-mapped file reading via mmap-guard
   03. Format detection and container parsing (fail fast)
   04. String extraction (fail fast on critical errors)
   05. Semantic classification (graceful degradation)
@@ -25,7 +25,7 @@ Create the Pipeline struct that orchestrates the entire analysis workflow, inclu
   - Critical stages: fail fast with clear errors
   - Optional stages: graceful degradation with warnings
 - Integrate indicatif for progress feedback (Parsing... Extracting... Classifying... Ranking...)
-- Add memory mapping with fallback logic
+- Add memory mapping via mmap-guard
 - Add comprehensive integration tests
 - Keep main.rs under 500 lines
 
@@ -42,7 +42,7 @@ Create the Pipeline struct that orchestrates the entire analysis workflow, inclu
 - [ ] FilterConfig for CLI filter parameters
 - [ ] 14-step workflow implemented with proper error handling
 - [ ] Stage-specific error recovery (fail fast vs graceful degradation)
-- [ ] Memory mapping with automatic fallback to regular file reading
+- [ ] `mmap-guard` used; empty files return empty buffer; I/O errors propagate as `StringyError::IoError`
 - [ ] Progress feedback using indicatif (messages to stderr)
 - [ ] Filtering logic using iterator adapters
 - [ ] Integration tests covering success and failure scenarios

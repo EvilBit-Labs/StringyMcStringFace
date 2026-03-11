@@ -3,10 +3,15 @@
 //! This module provides shared utilities for formatting strings, tags, and
 //! text alignment used by both TTY and plain output modes.
 
+use std::sync::LazyLock;
+
 use crate::classification::RankingConfig;
 use crate::types::Tag;
 
 use super::TAGS_COLUMN_WIDTH;
+
+/// Shared default ranking config to avoid per-call allocation.
+static DEFAULT_RANKING_CONFIG: LazyLock<RankingConfig> = LazyLock::new(RankingConfig::default);
 
 /// Text alignment for padding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,16 +46,16 @@ pub fn format_tags(tags: &[Tag]) -> String {
         return String::new();
     }
 
-    let config = RankingConfig::default();
+    let config = &*DEFAULT_RANKING_CONFIG;
     let max_boost = tags
         .iter()
-        .map(|tag| tag_boost_value(tag, &config))
+        .map(|tag| tag_boost_value(tag, config))
         .max()
         .unwrap_or(0);
 
     let tag_strings: Vec<String> = tags
         .iter()
-        .filter(|tag| tag_boost_value(tag, &config) == max_boost)
+        .filter(|tag| tag_boost_value(tag, config) == max_boost)
         .map(tag_to_display_string)
         .collect();
 

@@ -7,7 +7,7 @@ use crate::types::{
 #[test]
 fn test_extraction_config_default() {
     let config = ExtractionConfig::default();
-    assert_eq!(config.min_length, 4);
+    assert_eq!(config.min_length, 1);
     assert_eq!(config.max_length, 4096);
     assert_eq!(config.enabled_encodings.len(), 2);
     assert!(config.enabled_encodings.contains(&Encoding::Ascii));
@@ -23,16 +23,8 @@ fn test_basic_extractor_extract_from_section() {
     let extractor = BasicExtractor::new();
     let config = ExtractionConfig::default();
 
-    let section = SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 0,
-        size: 20,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = SectionInfo::new(".rodata".to_string(), 0, 20, SectionType::StringData, 1.0)
+        .with_rva(0x1000);
 
     let data = b"Hello World\0Test";
     let strings = extractor
@@ -53,21 +45,10 @@ fn test_basic_extractor_extract_from_section() {
 #[test]
 fn test_basic_extractor_max_length_filtering() {
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        max_length: 10,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_max_length(10);
 
-    let section = SectionInfo {
-        name: ".data".to_string(),
-        offset: 0,
-        size: 30,
-        rva: None,
-        section_type: SectionType::WritableData,
-        is_executable: false,
-        is_writable: true,
-        weight: 0.5,
-    };
+    let section = SectionInfo::new(".data".to_string(), 0, 30, SectionType::WritableData, 0.5)
+        .with_writable(true);
 
     let data = b"Short\0VeryLongStringHere";
     let strings = extractor
@@ -84,16 +65,15 @@ fn test_basic_extractor_section_bounds() {
     let extractor = BasicExtractor::new();
     let config = ExtractionConfig::default();
 
-    let section = SectionInfo {
-        name: ".text".to_string(),
-        offset: 7, // Start after "prefix\0"
-        size: 12,  // "Hello World" is 11 bytes + null terminator
-        rva: Some(0x2000),
-        section_type: SectionType::Code,
-        is_executable: true,
-        is_writable: false,
-        weight: 0.1,
-    };
+    let section = SectionInfo::new(
+        ".text".to_string(),
+        7,  // Start after "prefix\0"
+        12, // "Hello World" is 11 bytes + null terminator
+        SectionType::Code,
+        0.1,
+    )
+    .with_rva(0x2000)
+    .with_executable(true);
 
     let data = b"prefix\0Hello World\0suffix";
     let strings = extractor
@@ -115,16 +95,7 @@ fn test_basic_extractor_empty_section() {
     let extractor = BasicExtractor::new();
     let config = ExtractionConfig::default();
 
-    let section = SectionInfo {
-        name: ".empty".to_string(),
-        offset: 0,
-        size: 0,
-        rva: None,
-        section_type: SectionType::Other,
-        is_executable: false,
-        is_writable: false,
-        weight: 0.0,
-    };
+    let section = SectionInfo::new(".empty".to_string(), 0, 0, SectionType::Other, 0.0);
 
     let data = b"";
     let strings = extractor
@@ -139,16 +110,7 @@ fn test_basic_extractor_section_out_of_bounds() {
     let extractor = BasicExtractor::new();
     let config = ExtractionConfig::default();
 
-    let section = SectionInfo {
-        name: ".invalid".to_string(),
-        offset: 1000,
-        size: 100,
-        rva: None,
-        section_type: SectionType::Other,
-        is_executable: false,
-        is_writable: false,
-        weight: 0.0,
-    };
+    let section = SectionInfo::new(".invalid".to_string(), 1000, 100, SectionType::Other, 0.0);
 
     let data = b"small data";
     let strings = extractor
@@ -163,16 +125,7 @@ fn test_basic_extractor_utf8_encoding() {
     let extractor = BasicExtractor::new();
     let config = ExtractionConfig::default();
 
-    let section = SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 0,
-        size: 20,
-        rva: None,
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = SectionInfo::new(".rodata".to_string(), 0, 20, SectionType::StringData, 1.0);
 
     let data = "Hello \u{4e16}\u{754c}".as_bytes();
     let strings = extractor
@@ -200,21 +153,9 @@ fn test_basic_extractor_utf8_encoding() {
 fn test_basic_extractor_encoding_filtering() {
     let extractor = BasicExtractor::new();
     // Only allow ASCII, exclude UTF-8
-    let config = ExtractionConfig {
-        enabled_encodings: vec![Encoding::Ascii],
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_enabled_encodings(vec![Encoding::Ascii]);
 
-    let section = SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 0,
-        size: 30,
-        rva: None,
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = SectionInfo::new(".rodata".to_string(), 0, 30, SectionType::StringData, 1.0);
 
     let data = "Hello\0\u{4e16}\u{754c}\0Test".as_bytes();
     let strings = extractor
@@ -238,21 +179,9 @@ fn test_basic_extractor_encoding_filtering() {
 fn test_basic_extractor_ascii_disabled() {
     let extractor = BasicExtractor::new();
     // Exclude ASCII, only allow UTF-8
-    let config = ExtractionConfig {
-        enabled_encodings: vec![Encoding::Utf8],
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_enabled_encodings(vec![Encoding::Utf8]);
 
-    let section = SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 0,
-        size: 30,
-        rva: None,
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = SectionInfo::new(".rodata".to_string(), 0, 30, SectionType::StringData, 1.0);
 
     let data = b"Hello\0World\0Test";
     let strings = extractor
@@ -284,21 +213,10 @@ fn test_basic_extractor_ascii_disabled() {
 #[test]
 fn test_basic_extractor_include_symbols() {
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        include_symbols: true,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_include_symbols(true);
 
-    let section = SectionInfo {
-        name: ".text".to_string(),
-        offset: 0,
-        size: 10,
-        rva: None,
-        section_type: SectionType::Code,
-        is_executable: true,
-        is_writable: false,
-        weight: 0.1,
-    };
+    let section =
+        SectionInfo::new(".text".to_string(), 0, 10, SectionType::Code, 0.1).with_executable(true);
 
     let container_info = ContainerInfo::new(
         BinaryFormat::Elf,
@@ -373,21 +291,10 @@ fn test_basic_extractor_include_symbols() {
 #[test]
 fn test_basic_extractor_exclude_symbols() {
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        include_symbols: false,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_include_symbols(false);
 
-    let section = SectionInfo {
-        name: ".text".to_string(),
-        offset: 0,
-        size: 10,
-        rva: None,
-        section_type: SectionType::Code,
-        is_executable: true,
-        is_writable: false,
-        weight: 0.1,
-    };
+    let section =
+        SectionInfo::new(".text".to_string(), 0, 10, SectionType::Code, 0.1).with_executable(true);
 
     let container_info = ContainerInfo::new(
         BinaryFormat::Elf,
@@ -417,44 +324,17 @@ fn test_basic_extractor_exclude_symbols() {
 #[test]
 fn test_basic_extractor_section_filtering() {
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        scan_code_sections: false,
-        include_debug: false,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default()
+        .with_scan_code_sections(false)
+        .with_include_debug(false);
 
-    let code_section = SectionInfo {
-        name: ".text".to_string(),
-        offset: 0,
-        size: 9,
-        rva: None,
-        section_type: SectionType::Code,
-        is_executable: true,
-        is_writable: false,
-        weight: 0.1,
-    };
+    let code_section =
+        SectionInfo::new(".text".to_string(), 0, 9, SectionType::Code, 0.1).with_executable(true);
 
-    let debug_section = SectionInfo {
-        name: ".debug_info".to_string(),
-        offset: 9,
-        size: 10,
-        rva: None,
-        section_type: SectionType::Debug,
-        is_executable: false,
-        is_writable: false,
-        weight: 0.0,
-    };
+    let debug_section = SectionInfo::new(".debug_info".to_string(), 9, 10, SectionType::Debug, 0.0);
 
-    let data_section = SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 19,
-        size: 11,
-        rva: None,
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let data_section =
+        SectionInfo::new(".rodata".to_string(), 19, 11, SectionType::StringData, 1.0);
 
     let data = b"CodeData\0DebugData\0RoDataTest";
     let container_info = ContainerInfo::new(
