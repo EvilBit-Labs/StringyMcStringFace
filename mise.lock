@@ -4,13 +4,101 @@
 version = "1.7.11"
 backend = "aqua:rhysd/actionlint"
 
+[tools.actionlint."platforms.linux-x64"]
+checksum = "sha256:900919a84f2229bac68ca9cd4103ea297abc35e9689ebb842c6e34a3d1b01b0a"
+url = "https://github.com/rhysd/actionlint/releases/download/v1.7.11/actionlint_1.7.11_linux_amd64.tar.gz"
+
+[tools.actionlint."platforms.macos-arm64"]
+checksum = "sha256:a21ba7366d8329e7223faee0ed69eb13da27fe8acabb356bb7eb0b7f1e1cb6d8"
+url = "https://github.com/rhysd/actionlint/releases/download/v1.7.11/actionlint_1.7.11_darwin_arm64.tar.gz"
+
+[tools.actionlint."platforms.macos-x64"]
+checksum = "sha256:17ffc17fed8f0258ef6ad4aed932d3272464c7ef7d64e1cb0d65aa97c9752107"
+url = "https://github.com/rhysd/actionlint/releases/download/v1.7.11/actionlint_1.7.11_darwin_amd64.tar.gz"
+
+[tools.actionlint."platforms.windows-x64"]
+checksum = "sha256:5414b7124a91f4b5abee62e5c9d84802237734f8d15b9b7032732a32c3ebffa3"
+url = "https://github.com/rhysd/actionlint/releases/download/v1.7.11/actionlint_1.7.11_windows_amd64.zip"
+
+[[tools.bun]]
+version = "1.3.10"
+backend = "core:bun"
+
+[tools.bun."platforms.linux-x64"]
+checksum = "sha256:f57bc0187e39623de716ba3a389fda5486b2d7be7131a980ba54dc7b733d2e08"
+url = "https://github.com/oven-sh/bun/releases/download/bun-v1.3.10/bun-linux-x64.zip"
+
+[tools.bun."platforms.linux-x64-baseline"]
+checksum = "sha256:41201a8c5ee74a9dcbb1ce25a1104f1f929838b57a845aa78d98379b0ce7cde2"
+url = "https://github.com/oven-sh/bun/releases/download/bun-v1.3.10/bun-linux-x64-baseline.zip"
+
+[tools.bun."platforms.linux-x64-musl"]
+checksum = "sha256:48a6c32277d343db0148ce066336472ffd380358a4d26bb1329714742492d824"
+url = "https://github.com/oven-sh/bun/releases/download/bun-v1.3.10/bun-linux-x64-musl.zip"
+
+[tools.bun."platforms.linux-x64-musl-baseline"]
+checksum = "sha256:a7bc4cdea1ef255a83adbf39c7aafcd30e09f2b8f74deec4b10ee318bc024d1f"
+url = "https://github.com/oven-sh/bun/releases/download/bun-v1.3.10/bun-linux-x64-musl-baseline.zip"
+
+[tools.bun."platforms.macos-arm64"]
+checksum = "sha256:82034e87c9d9b4398ea619aee2eed5d2a68c8157e9a6ae2d1052d84d533ccd8d"
+url = "https://github.com/oven-sh/bun/releases/download/bun-v1.3.10/bun-darwin-aarch64.zip"
+
+[tools.bun."platforms.macos-x64"]
+checksum = "sha256:c1d90bf6140f20e572c473065dc6b37a4b036349b5e9e4133779cc642ad94323"
+url = "https://github.com/oven-sh/bun/releases/download/bun-v1.3.10/bun-darwin-x64.zip"
+
+[tools.bun."platforms.macos-x64-baseline"]
+checksum = "sha256:f9686c4e4e760db4cde77a0f1fad05e552648b9c9cbfa4f7fc9a7ec26b9f3267"
+url = "https://github.com/oven-sh/bun/releases/download/bun-v1.3.10/bun-darwin-x64-baseline.zip"
+
+[tools.bun."platforms.windows-x64"]
+checksum = "sha256:7a77b3e245e2e26965c93089a4a1332e8a326d3364c89fae1d1fd99cdd3cd73d"
+url = "https://github.com/oven-sh/bun/releases/download/bun-v1.3.10/bun-windows-x64.zip"
+
+[tools.bun."platforms.windows-x64-baseline"]
+checksum = "sha256:715709c69b176e20994533d3292bd0b7c32de9c0c5575b916746ec6b2aa38346"
+url = "https://github.com/oven-sh/bun/releases/download/bun-v1.3.10/bun-windows-x64-baseline.zip"
+
 [[tools.cargo-binstall]]
 version = "1.17.7"
 backend = "aqua:cargo-bins/cargo-binstall"
 
+[tools.cargo-binstall."platforms.linux-x64"]
+checksum = "sha256:29b5ecfb6e03c2511a617c77d312b06df0c54717644fbfda3d465ec8240532f0"
+url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.17.7/cargo-binstall-x86_64-unknown-linux-musl.tgz"
+
+[tools.cargo-binstall."platforms.macos-arm64"]
+checksum = "sha256:1ad3c0c56fa3970634cce5009ed0ce61b943515f9115f8e480fd0e41d8d89085"
+url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.17.7/cargo-binstall-aarch64-apple-darwin.zip"
+
+[tools.cargo-binstall."platforms.macos-x64"]
+checksum = "sha256:aa7174fb938e668dea4b4c3d22fe6cefed97642cc3a7a419ba96d63d63fd729b"
+url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.17.7/cargo-binstall-x86_64-apple-darwin.zip"
+
+[tools.cargo-binstall."platforms.windows-x64"]
+checksum = "sha256:c5cb2444ee04480502a8ac73d96abd9f97af8300ec04ea1c1f2a9e959c02e4d6"
+url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.17.7/cargo-binstall-x86_64-pc-windows-msvc.zip"
+
 [[tools.cargo-insta]]
 version = "1.46.3"
 backend = "aqua:mitsuhiko/insta"
+
+[tools.cargo-insta."platforms.linux-x64"]
+checksum = "sha256:c738c47f8d7e834a0277dddb9410a1f7369d37818738fc6a380f22904a83f6e4"
+url = "https://github.com/mitsuhiko/insta/releases/download/1.46.3/cargo-insta-x86_64-unknown-linux-musl.tar.xz"
+
+[tools.cargo-insta."platforms.macos-arm64"]
+checksum = "sha256:1e620252db7964d876da6b4956872ad84d099ee281753ac7c850ae24413947df"
+url = "https://github.com/mitsuhiko/insta/releases/download/1.46.3/cargo-insta-aarch64-apple-darwin.tar.xz"
+
+[tools.cargo-insta."platforms.macos-x64"]
+checksum = "sha256:d55ff42a08ad0fc6deed64bb9ab700c069da9c6da40947d9b658cc33fda3dcda"
+url = "https://github.com/mitsuhiko/insta/releases/download/1.46.3/cargo-insta-x86_64-apple-darwin.tar.xz"
+
+[tools.cargo-insta."platforms.windows-x64"]
+checksum = "sha256:fa0cd6810e393392cf347decacd8a710de9ac95b6747a753f037c46b649209aa"
+url = "https://github.com/mitsuhiko/insta/releases/download/1.46.3/cargo-insta-x86_64-pc-windows-msvc.zip"
 
 [[tools."cargo:cargo-audit"]]
 version = "0.22.1"
@@ -36,6 +124,10 @@ backend = "cargo:cargo-dist"
 version = "0.8.4"
 backend = "cargo:cargo-llvm-cov"
 
+[[tools."cargo:cargo-machete"]]
+version = "0.9.1"
+backend = "cargo:cargo-machete"
+
 [[tools."cargo:cargo-nextest"]]
 version = "0.9.130"
 backend = "cargo:cargo-nextest"
@@ -48,9 +140,9 @@ backend = "cargo:cargo-outdated"
 version = "1.1.1"
 backend = "cargo:cargo-release"
 
-[[tools."cargo:cargo-zigbuild"]]
-version = "0.22.1"
-backend = "cargo:cargo-zigbuild"
+[[tools."cargo:git-cliff"]]
+version = "2.12.0"
+backend = "cargo:git-cliff"
 
 [[tools."cargo:mdbook"]]
 version = "0.5.2"
@@ -63,10 +155,6 @@ backend = "cargo:mdbook-admonish"
 [[tools."cargo:mdbook-i18n-helpers"]]
 version = "0.4.0"
 backend = "cargo:mdbook-i18n-helpers"
-
-[[tools."cargo:mdbook-image-size"]]
-version = "0.2.1"
-backend = "cargo:mdbook-image-size"
 
 [[tools."cargo:mdbook-linkcheck"]]
 version = "0.7.7"
@@ -88,41 +176,113 @@ backend = "cargo:mdbook-tabs"
 version = "0.15.3"
 backend = "cargo:mdbook-toc"
 
-[[tools."cargo:mdbook-yml-header"]]
-version = "0.1.5"
-backend = "cargo:mdbook-yml-header"
-
-[[tools.claude]]
-version = "2.1.42"
-backend = "aqua:anthropics/claude-code"
+[[tools."cargo:release-plz"]]
+version = "0.3.156"
+backend = "cargo:release-plz"
 
 [[tools.cyclonedx]]
 version = "0.30.0"
 backend = "aqua:CycloneDX/cyclonedx-cli"
 
+[tools.cyclonedx."platforms.linux-x64"]
+checksum = "sha256:f89876326620f5fc78a9b27cc1af57d6ed13d019aab87490e1246a44a910babb"
+url = "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.30.0/cyclonedx-linux-x64"
+
+[tools.cyclonedx."platforms.macos-arm64"]
+checksum = "sha256:dabbaf07e543e7996f708147475e2daa69ddf8a8683c5b06febc7d3f074e5e24"
+url = "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.30.0/cyclonedx-osx-arm64"
+
+[tools.cyclonedx."platforms.macos-x64"]
+checksum = "sha256:1603264fd2968b8d617e48aa7e9cf17bee1d25a8ffe717aec37caf1605a21961"
+url = "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.30.0/cyclonedx-osx-x64"
+
+[tools.cyclonedx."platforms.windows-x64"]
+checksum = "sha256:1f563ba9644d2f2966fc8029fd701ca4af4f388d44c017c1d60559a1ecc9114f"
+url = "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.30.0/cyclonedx-win-x64.exe"
+
 [[tools.git-cliff]]
 version = "2.12.0"
 backend = "aqua:orhun/git-cliff"
+
+[tools.git-cliff."platforms.linux-x64"]
+checksum = "sha256:c89a7bc55f3c51f391938aa3fa560125109695c1930d927879daea68dd786420"
+url = "https://github.com/orhun/git-cliff/releases/download/v2.12.0/git-cliff-2.12.0-x86_64-unknown-linux-musl.tar.gz"
+
+[tools.git-cliff."platforms.macos-arm64"]
+checksum = "sha256:2ae72a0061bee98d0e375f2ea8e0f4b23b4915ac2e37fa45a705066de49b43a0"
+url = "https://github.com/orhun/git-cliff/releases/download/v2.12.0/git-cliff-2.12.0-aarch64-apple-darwin.tar.gz"
+
+[tools.git-cliff."platforms.macos-x64"]
+checksum = "sha256:fd4bce35ea8a6f3af6ac4891073781ca24c654c36c83c865bc30bab332c05a14"
+url = "https://github.com/orhun/git-cliff/releases/download/v2.12.0/git-cliff-2.12.0-x86_64-apple-darwin.tar.gz"
+
+[tools.git-cliff."platforms.windows-x64"]
+checksum = "sha256:f2b8c692d9488c3313d7786e2099976151c10fd8f76580b12d045bb9683a8379"
+url = "https://github.com/orhun/git-cliff/releases/download/v2.12.0/git-cliff-2.12.0-x86_64-pc-windows-msvc.zip"
 
 [[tools.goreleaser]]
 version = "2.14.3"
 backend = "aqua:goreleaser/goreleaser"
 
+[tools.goreleaser."platforms.linux-x64"]
+checksum = "sha256:dc7faeeeb6da8bdfda788626263a4ae725892a8c7504b975c3234127d4a44579"
+url = "https://github.com/goreleaser/goreleaser/releases/download/v2.14.3/goreleaser_Linux_x86_64.tar.gz"
+provenance = "cosign"
+
+[tools.goreleaser."platforms.macos-arm64"]
+checksum = "sha256:3507798489e107a78aff36b169de48148a335ac26eb3161608d905f3f3a957bd"
+url = "https://github.com/goreleaser/goreleaser/releases/download/v2.14.3/goreleaser_Darwin_all.tar.gz"
+provenance = "cosign"
+
+[tools.goreleaser."platforms.macos-x64"]
+checksum = "sha256:3507798489e107a78aff36b169de48148a335ac26eb3161608d905f3f3a957bd"
+url = "https://github.com/goreleaser/goreleaser/releases/download/v2.14.3/goreleaser_Darwin_all.tar.gz"
+provenance = "cosign"
+
+[tools.goreleaser."platforms.windows-x64"]
+checksum = "sha256:3deea8ff471aa258a2d99f3e5302971d7028647ae8ddaf103257a8113e485a31"
+url = "https://github.com/goreleaser/goreleaser/releases/download/v2.14.3/goreleaser_Windows_x86_64.zip"
+provenance = "cosign"
+
 [[tools.just]]
 version = "1.46.0"
 backend = "aqua:casey/just"
+
+[tools.just."platforms.linux-x64"]
+checksum = "sha256:79966e6e353f535ee7d1c6221641bcc8e3381c55b0d0a6dc6e54b34f9db36eaa"
+url = "https://github.com/casey/just/releases/download/1.46.0/just-1.46.0-x86_64-unknown-linux-musl.tar.gz"
+
+[tools.just."platforms.macos-arm64"]
+checksum = "sha256:438eaf6468a115aa7db93e501cc7e3272f453f6b7083be3863adfab546b23358"
+url = "https://github.com/casey/just/releases/download/1.46.0/just-1.46.0-aarch64-apple-darwin.tar.gz"
+
+[tools.just."platforms.macos-x64"]
+checksum = "sha256:ec54dd60ac876261b7318f1852ef9c0319fede1e5a73c14f56d908a8edf595b8"
+url = "https://github.com/casey/just/releases/download/1.46.0/just-1.46.0-x86_64-apple-darwin.tar.gz"
+
+[tools.just."platforms.windows-x64"]
+checksum = "sha256:f0acf3f8ccbcf360b481baae9cae4c921774c89d5d932012481d3e0bda78ab39"
+url = "https://github.com/casey/just/releases/download/1.46.0/just-1.46.0-x86_64-pc-windows-msvc.zip"
 
 [[tools.lychee]]
 version = "0.23.0"
 backend = "aqua:lycheeverse/lychee"
 
+[tools.lychee."platforms.linux-x64"]
+checksum = "sha256:5538440d2c69a45a0a09983271e5dee0c2fe7137d8035d25b2632e10a66a090a"
+url = "https://github.com/lycheeverse/lychee/releases/download/lychee-v0.23.0/lychee-x86_64-unknown-linux-musl.tar.gz"
+
+[tools.lychee."platforms.macos-arm64"]
+checksum = "sha256:4c8034900e11083b68ac6f6582c377ff1f704e268991999e09d717973e493e7f"
+url = "https://github.com/lycheeverse/lychee/releases/download/lychee-v0.23.0/lychee-arm64-macos.dmg"
+
+[tools.lychee."platforms.windows-x64"]
+checksum = "sha256:0fda7ff0a60c0250939fc25361c2d4e6e7853c31c996733fdd5a1dd760bcb824"
+url = "https://github.com/lycheeverse/lychee/releases/download/lychee-v0.23.0/lychee-x86_64-windows.exe"
+
 [[tools.markdownlint-cli2]]
 version = "0.21.0"
 backend = "npm:markdownlint-cli2"
-
-[[tools.node]]
-version = "25.8.0"
-backend = "core:node"
 
 [[tools."pipx:mdformat"]]
 version = "0.7.21"
@@ -131,9 +291,25 @@ backend = "pipx:mdformat"
 [tools."pipx:mdformat".options]
 uvx_args = "--with mdformat-gfm --with mdformat-frontmatter --with mdformat-footnote --with mdformat-simple-breaks --with mdformat-gfm-alerts --with mdformat-toc --with mdformat-wikilink --with mdformat-tables"
 
+[[tools."pipx:pre-commit"]]
+version = "4.5.1"
+backend = "pipx:pre-commit"
+
 [[tools.pre-commit]]
 version = "4.5.1"
 backend = "aqua:pre-commit/pre-commit"
+
+[tools.pre-commit."platforms.linux-x64"]
+checksum = "sha256:19d00ba35cbf9c04dc3736cd8bb641e8633f3eddd4cedde71809574ae68a2cd1"
+url = "https://github.com/pre-commit/pre-commit/releases/download/v4.5.1/pre-commit-4.5.1.pyz"
+
+[tools.pre-commit."platforms.macos-arm64"]
+checksum = "sha256:19d00ba35cbf9c04dc3736cd8bb641e8633f3eddd4cedde71809574ae68a2cd1"
+url = "https://github.com/pre-commit/pre-commit/releases/download/v4.5.1/pre-commit-4.5.1.pyz"
+
+[tools.pre-commit."platforms.macos-x64"]
+checksum = "sha256:19d00ba35cbf9c04dc3736cd8bb641e8633f3eddd4cedde71809574ae68a2cd1"
+url = "https://github.com/pre-commit/pre-commit/releases/download/v4.5.1/pre-commit-4.5.1.pyz"
 
 [[tools.prettier]]
 version = "3.8.1"
@@ -143,10 +319,86 @@ backend = "npm:prettier"
 version = "3.14.3"
 backend = "core:python"
 
+[tools.python."platforms.linux-x64"]
+checksum = "sha256:0023aa5e9930a70585e1b639055f4928f76080b2e1dcc2458453b595155a50ee"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260310/cpython-3.14.3+20260310-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
+
+[tools.python."platforms.macos-arm64"]
+checksum = "sha256:1a98bbe7e63547d2f764bc9119f6d604dfb333f21afab5f4885dc362b4f3a921"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260310/cpython-3.14.3+20260310-aarch64-apple-darwin-install_only_stripped.tar.gz"
+
+[tools.python."platforms.macos-x64"]
+checksum = "sha256:a974fefb14c2b724ca87830240d36fc865780391ec9e1e2db28a1d5f58f5fae2"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260310/cpython-3.14.3+20260310-x86_64-apple-darwin-install_only_stripped.tar.gz"
+
+[tools.python."platforms.windows-x64"]
+checksum = "sha256:8458fdf45b9b47685a7dea76d72a4b8cf946091fe48cac43d3564f7f318e8c0f"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260310/cpython-3.14.3+20260310-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
+
 [[tools.rust]]
-version = "1.93.0"
+version = "1.94.0"
 backend = "core:rust"
+
+[[tools.scorecard]]
+version = "5.4.0"
+backend = "aqua:ossf/scorecard"
+
+[tools.scorecard."platforms.linux-x64"]
+checksum = "sha256:e5183aeaa5aa548fbb7318a6deb3e1038be0ef9aca24e655422ae88dfbe67502"
+url = "https://github.com/ossf/scorecard/releases/download/v5.4.0/scorecard_5.4.0_linux_amd64.tar.gz"
+provenance = "slsa"
+
+[tools.scorecard."platforms.macos-arm64"]
+checksum = "sha256:2c672695a27d35537dd4054f690f31fa1d6a72b0957598f45181296487f537f4"
+url = "https://github.com/ossf/scorecard/releases/download/v5.4.0/scorecard_5.4.0_darwin_arm64.tar.gz"
+provenance = "slsa"
+
+[tools.scorecard."platforms.macos-x64"]
+checksum = "sha256:2abfec13b8eecc9b730e3782c9b3a9544d31ae861ce21ea7fe6a369d887d7c89"
+url = "https://github.com/ossf/scorecard/releases/download/v5.4.0/scorecard_5.4.0_darwin_amd64.tar.gz"
+provenance = "slsa"
+
+[tools.scorecard."platforms.windows-x64"]
+checksum = "sha256:f7d0ece0dde703e4baa5f96e9b6ed33e6e786138c90db8de2c4943f24015b9ff"
+url = "https://github.com/ossf/scorecard/releases/download/v5.4.0/scorecard_5.4.0_windows_amd64.tar.gz"
+provenance = "slsa"
+
+[[tools.shellcheck]]
+version = "0.11.0"
+backend = "aqua:koalaman/shellcheck"
+
+[tools.shellcheck."platforms.linux-x64"]
+checksum = "sha256:8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198"
+url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz"
+
+[tools.shellcheck."platforms.macos-arm64"]
+checksum = "sha256:56affdd8de5527894dca6dc3d7e0a99a873b0f004d7aabc30ae407d3f48b0a79"
+url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.aarch64.tar.xz"
+
+[tools.shellcheck."platforms.macos-x64"]
+checksum = "sha256:3c89db4edcab7cf1c27bff178882e0f6f27f7afdf54e859fa041fca10febe4c6"
+url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.x86_64.tar.xz"
+
+[tools.shellcheck."platforms.windows-x64"]
+checksum = "sha256:8a4e35ab0b331c85d73567b12f2a444df187f483e5079ceffa6bda1faa2e740e"
+url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.zip"
 
 [[tools.zig]]
 version = "0.15.2"
 backend = "core:zig"
+
+[tools.zig."platforms.linux-x64"]
+checksum = "sha256:02aa270f183da276e5b5920b1dac44a63f1a49e55050ebde3aecc9eb82f93239"
+url = "https://ziglang.org/download/0.15.2/zig-x86_64-linux-0.15.2.tar.xz"
+
+[tools.zig."platforms.macos-arm64"]
+checksum = "sha256:3cc2bab367e185cdfb27501c4b30b1b0653c28d9f73df8dc91488e66ece5fa6b"
+url = "https://ziglang.org/download/0.15.2/zig-aarch64-macos-0.15.2.tar.xz"
+
+[tools.zig."platforms.macos-x64"]
+checksum = "sha256:375b6909fc1495d16fc2c7db9538f707456bfc3373b14ee83fdd3e22b3d43f7f"
+url = "https://ziglang.org/download/0.15.2/zig-x86_64-macos-0.15.2.tar.xz"
+
+[tools.zig."platforms.windows-x64"]
+checksum = "sha256:3a0ed1e8799a2f8ce2a6e6290a9ff22e6906f8227865911fb7ddedc3cc14cb0c"
+url = "https://ziglang.org/download/0.15.2/zig-x86_64-windows-0.15.2.zip"
