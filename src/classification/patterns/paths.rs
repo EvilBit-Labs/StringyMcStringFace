@@ -3,30 +3,31 @@
 //! This module provides POSIX, Windows, UNC, and registry path detection.
 
 use crate::types::Tag;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashSet;
+use std::sync::LazyLock;
 
 /// Regular expression for matching POSIX file paths
-pub(crate) static POSIX_PATH_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^/[^\x00\n\r]*").expect("Invalid POSIX path regex"));
+pub(crate) static POSIX_PATH_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^/[^\x00\n\r]*").expect("Invalid POSIX path regex"));
 
 /// Regular expression for matching Windows file paths
-pub(crate) static WINDOWS_PATH_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^[A-Za-z]:\\[^\x00\n\r]*").expect("Invalid Windows path regex"));
+pub(crate) static WINDOWS_PATH_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[A-Za-z]:\\[^\x00\n\r]*").expect("Invalid Windows path regex"));
 
 /// Regular expression for matching UNC network paths
-pub(crate) static UNC_PATH_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^\\\\[a-zA-Z0-9.-]+\\[^\x00\n\r]*").expect("Invalid UNC path regex"));
+pub(crate) static UNC_PATH_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^\\\\[a-zA-Z0-9.-]+\\[^\x00\n\r]*").expect("Invalid UNC path regex")
+});
 
 /// Regular expression for matching abbreviated registry paths
-pub(crate) static REGISTRY_ABBREV_REGEX: Lazy<Regex> = Lazy::new(|| {
+pub(crate) static REGISTRY_ABBREV_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)^HK(LM|CU|CR|U|CC)\\[^\x00\n\r]*")
         .expect("Invalid registry abbreviation regex")
 });
 
 /// Common suspicious POSIX path prefixes for persistence detection
-static SUSPICIOUS_POSIX_PATHS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+static SUSPICIOUS_POSIX_PATHS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     HashSet::from([
         "/etc/cron.d/",
         "/etc/init.d/",
@@ -42,7 +43,7 @@ static SUSPICIOUS_POSIX_PATHS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
 });
 
 /// Common suspicious Windows path prefixes for persistence detection
-static SUSPICIOUS_WINDOWS_PATHS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+static SUSPICIOUS_WINDOWS_PATHS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     HashSet::from([
         "C:\\Windows\\System32\\",
         "C:\\Windows\\Temp\\",
@@ -53,7 +54,7 @@ static SUSPICIOUS_WINDOWS_PATHS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
 });
 
 /// Known valid POSIX path prefixes
-static KNOWN_POSIX_PREFIXES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+static KNOWN_POSIX_PREFIXES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     HashSet::from([
         "/usr/", "/etc/", "/var/", "/home/", "/opt/", "/bin/", "/sbin/", "/lib/", "/dev/",
         "/proc/", "/sys/", "/tmp/",
@@ -61,7 +62,7 @@ static KNOWN_POSIX_PREFIXES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
 });
 
 /// Known valid Windows path prefixes
-static KNOWN_WINDOWS_PREFIXES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+static KNOWN_WINDOWS_PREFIXES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     HashSet::from([
         "C:\\Windows\\",
         "C:\\Program Files\\",
@@ -72,7 +73,7 @@ static KNOWN_WINDOWS_PREFIXES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
 });
 
 /// Valid Windows registry root keys
-static VALID_REGISTRY_ROOTS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+static VALID_REGISTRY_ROOTS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     HashSet::from([
         "HKEY_LOCAL_MACHINE",
         "HKEY_CURRENT_USER",
@@ -83,7 +84,7 @@ static VALID_REGISTRY_ROOTS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
 });
 
 /// Suspicious Windows registry paths for persistence detection
-static SUSPICIOUS_REGISTRY_PATHS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+static SUSPICIOUS_REGISTRY_PATHS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     HashSet::from([
         "\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
         "\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce",

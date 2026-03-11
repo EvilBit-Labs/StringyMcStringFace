@@ -34,9 +34,10 @@ use super::utf16::ByteOrder;
 /// config.noise_filtering_enabled = true;
 /// config.min_confidence_threshold = 0.6;
 /// ```
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct ExtractionConfig {
-    /// Minimum string length in bytes (default: 4)
+    /// Minimum string length in bytes (default: 1)
     pub min_length: usize,
     /// Maximum string length in bytes (default: 4096)
     pub max_length: usize,
@@ -48,9 +49,9 @@ pub struct ExtractionConfig {
     pub section_priority: Vec<SectionType>,
     /// Whether to include import/export names (default: true)
     pub include_symbols: bool,
-    /// Minimum length for ASCII strings (default: 4, same as min_length)
+    /// Minimum length for ASCII strings (default: 1, same as min_length)
     pub min_ascii_length: usize,
-    /// Minimum length for UTF-16 strings (default: 3, for future use)
+    /// Minimum length for UTF-16 strings (default: 1, for future use)
     pub min_wide_length: usize,
     /// Which encodings to extract (default: ASCII, UTF-8)
     pub enabled_encodings: Vec<Encoding>,
@@ -84,7 +85,7 @@ pub struct ExtractionConfig {
 impl Default for ExtractionConfig {
     fn default() -> Self {
         Self {
-            min_length: 4,
+            min_length: 1,
             max_length: 4096,
             scan_code_sections: true,
             include_debug: false,
@@ -94,8 +95,8 @@ impl Default for ExtractionConfig {
                 SectionType::Resources,
             ],
             include_symbols: true,
-            min_ascii_length: 4,
-            min_wide_length: 3,
+            min_ascii_length: 1,
+            min_wide_length: 1,
             enabled_encodings: vec![Encoding::Ascii, Encoding::Utf8],
             noise_filtering_enabled: true,
             min_confidence_threshold: 0.5,
@@ -109,6 +110,78 @@ impl Default for ExtractionConfig {
 }
 
 impl ExtractionConfig {
+    /// Sets the minimum string length in bytes (applies to all extraction modes).
+    #[must_use]
+    pub fn with_min_length(mut self, min_length: usize) -> Self {
+        self.min_length = min_length;
+        self.min_ascii_length = min_length;
+        self.min_wide_length = min_length;
+        self
+    }
+
+    /// Sets the maximum string length in bytes.
+    #[must_use]
+    pub fn with_max_length(mut self, max_length: usize) -> Self {
+        self.max_length = max_length;
+        self
+    }
+
+    /// Sets whether to scan executable code sections.
+    #[must_use]
+    pub fn with_scan_code_sections(mut self, scan: bool) -> Self {
+        self.scan_code_sections = scan;
+        self
+    }
+
+    /// Sets whether to include debug sections.
+    #[must_use]
+    pub fn with_include_debug(mut self, include: bool) -> Self {
+        self.include_debug = include;
+        self
+    }
+
+    /// Sets whether to include import/export symbol names.
+    #[must_use]
+    pub fn with_include_symbols(mut self, include: bool) -> Self {
+        self.include_symbols = include;
+        self
+    }
+
+    /// Sets the enabled encodings for extraction.
+    #[must_use]
+    pub fn with_enabled_encodings(mut self, encodings: Vec<Encoding>) -> Self {
+        self.enabled_encodings = encodings;
+        self
+    }
+
+    /// Sets whether noise filtering is enabled.
+    #[must_use]
+    pub fn with_noise_filtering(mut self, enabled: bool) -> Self {
+        self.noise_filtering_enabled = enabled;
+        self
+    }
+
+    /// Sets the minimum confidence threshold.
+    #[must_use]
+    pub fn with_min_confidence_threshold(mut self, threshold: f32) -> Self {
+        self.min_confidence_threshold = threshold;
+        self
+    }
+
+    /// Sets whether deduplication is enabled.
+    #[must_use]
+    pub fn with_deduplication(mut self, enabled: bool) -> Self {
+        self.enable_deduplication = enabled;
+        self
+    }
+
+    /// Sets the UTF-16 byte order.
+    #[must_use]
+    pub fn with_utf16_byte_order(mut self, byte_order: ByteOrder) -> Self {
+        self.utf16_byte_order = byte_order;
+        self
+    }
+
     /// Validate the configuration
     ///
     /// Returns an error if any thresholds are invalid.
@@ -280,16 +353,14 @@ pub trait StringExtractor {
 ///     let config = ExtractionConfig::default();
 ///
 ///     // Create a simple container info for testing
-///     let section = SectionInfo {
-///         name: ".rodata".to_string(),
-///         offset: 0,
-///         size: 100,
-///         rva: Some(0x1000),
-///         section_type: SectionType::StringData,
-///         is_executable: false,
-///         is_writable: false,
-///         weight: 1.0,
-///     };
+///     let section = SectionInfo::new(
+///         ".rodata".to_string(),
+///         0,
+///         100,
+///         SectionType::StringData,
+///         1.0,
+///     )
+///     .with_rva(0x1000);
 ///
 ///     let container_info = ContainerInfo::new(
 ///         BinaryFormat::Elf,

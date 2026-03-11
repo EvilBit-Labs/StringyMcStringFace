@@ -88,50 +88,51 @@ cargo run -- --help
 
 ## Usage
 
-**Current Status**: The CLI interface is under development. Currently available:
-
 ```bash
-stringy target_binary
-```
-
-### Current CLI Interface
-
-Basic functionality is implemented with the full interface in development:
-
-```bash
-# Current: Basic analysis
+# Basic analysis with ranked output
 stringy target_binary
 
-# In Development: Advanced features
-stringy --only url,filepath target_binary
-stringy --min-len 8 --enc ascii,utf16 target_binary
-stringy --top 50 --json target_binary
+# Filter by semantic tags
+stringy --only-tags url target_binary
+stringy --only-tags url --only-tags filepath target_binary
 
-# Planned: Format-specific features
-stringy --pe-version --pe-manifest target.exe
-stringy --utf16-only target.exe
+# Exclude noisy tags
+stringy --no-tags format_string target_binary
 
-# Planned: Pipeline integration
-stringy --json target_binary | jq '.[] | select(.tags[] | contains("url"))'
-stringy --yara candidates.txt target_binary
+# Control extraction
+stringy --min-len 8 target_binary
+stringy --enc ascii target_binary
+stringy --top 50 target_binary
+
+# Output formats
+stringy --json target_binary
+stringy --yara target_binary
+stringy --json target_binary | jq '.[] | select(.tags[] | contains("Url"))'
+
+# Raw extraction (no classification/ranking)
+stringy --raw target_binary
+
+# Debug and summary modes
+stringy --debug target_binary
+stringy --summary target_binary
 ```
 
 ---
 
 ## Example Output
 
-**Human-readable mode:**
+**Human-readable mode (TTY):**
 
 ```
-Score  Offset    Section    Tags           String
------  ------    -------    ----           ------
-  95   0x1000    .rdata     url,https      https://api.example.com/v1/
-  87   0x2000    .rdata     guid           {12345678-1234-1234-1234-123456789abc}
-  82   0x3000    __cstring  filepath       /usr/local/bin/stringy
-  78   0x4000    .rdata     fmt            Error: %s at line %d
+String                                   | Tags       | Score | Section
+-----------------------------------------|------------|-------|--------
+https://api.example.com/v1/              | url        |    95 | .rdata
+{12345678-1234-1234-1234-123456789abc}   | guid       |    87 | .rdata
+/usr/local/bin/stringy                   | filepath   |    82 | __cstring
+Error: %s at line %d                     | fmt        |    78 | .rdata
 ```
 
-**JSON mode:**
+**JSON mode (JSONL):**
 
 ```json
 {
@@ -142,10 +143,12 @@ Score  Offset    Section    Tags           String
   "encoding": "utf-8",
   "length": 28,
   "tags": [
-    "url"
+    "Url"
   ],
   "score": 95,
-  "source": "SectionData"
+  "display_score": 95,
+  "source": "SectionData",
+  "confidence": 0.98
 }
 ```
 
@@ -161,49 +164,19 @@ Score  Offset    Section    Tags           String
 
 ---
 
-## Development Status
+## Features
 
-This project is in active development. Current implementation status:
-
-- ✅ **Core Infrastructure**: Complete project structure, comprehensive data types, robust error handling
-- ✅ **Format Detection**: ELF, PE, Mach-O binary format detection via `goblin`
-- ✅ **Container Parsers**: Full section classification with weight-based prioritization
-- ✅ **Import/Export Extraction**: Symbol extraction from all supported formats
-- ✅ **Section Analysis**: Smart classification of string-rich sections
-- ✅ **PE Resource Enumeration**: VERSIONINFO, STRINGTABLE, and MANIFEST resource detection (Phase 1 complete)
-- 🚧 **String Extraction**: ASCII/UTF-8 and UTF-16 extraction engines (framework ready)
-- 🚧 **Semantic Classification**: IPv4/IPv6 detection implemented; URL, domain, path, GUID pattern matching in progress (types defined)
-- 🚧 **Ranking System**: Section-aware scoring algorithm (framework in place)
-- 🚧 **Output Formats**: JSONL, human-readable, and YARA-friendly output (types ready)
-- 🚧 **CLI Interface**: Basic argument parsing implemented, main pipeline in progress
-
-### Current Capabilities
-
-The foundation is robust with fully implemented binary format parsers that can:
-
-- **Format Detection**: Automatically detect ELF, PE, and Mach-O formats using `goblin`
-- **Section Classification**: Intelligently classify sections by string likelihood with weighted scoring:
-  - ELF: `.rodata` (10.0), `.comment` (9.0), `.data.rel.ro` (7.0)
-  - PE: `.rdata` (10.0), `.rsrc` (9.0), read-only `.data` (7.0)
-  - Mach-O: `__TEXT,__cstring` (10.0), `__TEXT,__const` (9.0), `__DATA_CONST` (7.0)
-- **Symbol Processing**: Extract and classify import/export names from symbol tables
-- **PE Resource Extraction (Phase 1 complete)**:
-  - VERSIONINFO resource detection
-  - STRINGTABLE resource detection
-  - MANIFEST resource detection
-  - Metadata extraction (type, language, size)
-- **Cross-Platform Support**: Handle platform-specific section characteristics and naming
-- **Comprehensive Metadata**: Track section offsets, sizes, RVAs, and permissions
-
-### Architecture Highlights
-
-- **Trait-Based Design**: `ContainerParser` trait enables easy format extension
-- **Type Safety**: Comprehensive error handling with `StringyError` enum
-- **Performance Ready**: Section weighting system prioritizes high-value areas
-- **Extensible Classification**: `Tag` enum supports semantic string categorization
-- **Multiple Sources**: Handles strings from section data, imports, exports, and resources
-
-See the [implementation plan](.kiro/specs/stringy-binary-analyzer/tasks.md) for detailed progress tracking.
+- **Format Detection**: ELF, PE, and Mach-O via `goblin` with single-parse optimization
+- **Container Parsing**: Section classification with weight-based prioritization (1.0-10.0 scale)
+- **String Extraction**: ASCII, UTF-8, and UTF-16 (LE/BE/Auto) with noise filtering
+- **Semantic Classification**: URLs, IPs, domains, file paths, GUIDs, format strings, registry keys, and more
+- **Symbol Demangling**: C++, Rust, and other mangled symbol name recovery
+- **Ranking**: Section-aware scoring with band-mapped 0-100 normalization
+- **Deduplication**: Canonical string grouping with configurable similarity threshold
+- **Output Formats**: TTY table, plain text, JSONL, YARA rules
+- **PE Resources**: VERSIONINFO, STRINGTABLE, and MANIFEST extraction
+- **Import/Export Analysis**: Symbol extraction from all supported binary formats
+- **Pipeline Architecture**: Configurable orchestrator with filtering, encoding selection, and top-N support
 
 ---
 

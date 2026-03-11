@@ -304,12 +304,12 @@ The PE parser uses a weight-based system to prioritize sections for string extra
 
 The current PE parser implementation provides comprehensive resource string extraction:
 
-- ✅ **VERSIONINFO**: Complete extraction of all StringFileInfo fields
-- ✅ **STRINGTABLE**: Full parsing of RT_STRING blocks with language support
-- ✅ **MANIFEST**: Encoding detection and XML extraction
-- ⚠️ **Dialog Resources**: RT_DIALOG parsing not yet implemented (future enhancement)
-- ⚠️ **Menu Resources**: RT_MENU parsing not yet implemented (future enhancement)
-- ⚠️ **Icon Strings**: RT_ICON metadata extraction not yet implemented
+- **VERSIONINFO**: Complete extraction of all StringFileInfo fields
+- **STRINGTABLE**: Full parsing of RT_STRING blocks with language support
+- **MANIFEST**: Encoding detection and XML extraction
+- **Dialog Resources**: RT_DIALOG parsing not yet implemented (future enhancement)
+- **Menu Resources**: RT_MENU parsing not yet implemented (future enhancement)
+- **Icon Strings**: RT_ICON metadata extraction not yet implemented
 
 **Future Enhancements:**
 

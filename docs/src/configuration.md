@@ -1,5 +1,8 @@
 # Configuration
 
+> [!NOTE]
+> The configuration file system described below is planned but **not yet implemented**. Stringy currently uses CLI flags exclusively for configuration. See the [CLI Reference](cli.md) for available options.
+
 Stringy provides extensive configuration options to customize string extraction, classification, and output formatting. Configuration can be provided through command-line arguments, configuration files, or programmatically via the API.
 
 ## Configuration File

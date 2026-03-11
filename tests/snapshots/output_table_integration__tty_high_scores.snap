@@ -4,5 +4,5 @@ expression: result
 ---
 String                                                       | Tags |  Score | Section
 -------------------------------------------------------------|------|--------|--------
-critical IOC                                                 | url  |   9999 | .rdata 
-negative score                                               |      |    -50 | .text
+critical IOC                                                 | url  |    100 | .rdata 
+negative score                                               |      |      0 | .text

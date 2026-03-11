@@ -3,14 +3,14 @@
 //! This module provides GUID, email, Base64, format string, and user agent detection.
 
 use crate::types::Tag;
-use once_cell::sync::Lazy;
 use regex::Regex;
+use std::sync::LazyLock;
 
 /// Regular expression for matching GUIDs/UUIDs
 ///
 /// Pattern matches standard GUID format: {XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}
 /// Also matches without braces and in lowercase.
-pub(crate) static GUID_REGEX: Lazy<Regex> = Lazy::new(|| {
+pub(crate) static GUID_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)^\{?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}?$")
         .expect("Invalid GUID regex")
 });
@@ -25,14 +25,14 @@ pub(crate) static GUID_REGEX: Lazy<Regex> = Lazy::new(|| {
 /// cases (for example, certain plus or escape forms and full RFC 5322
 /// syntax), or internationalized domain names. The tradeoff is fewer false
 /// positives at the cost of not being fully RFC-compliant.
-pub(crate) static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
+pub(crate) static EMAIL_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").expect("Invalid email regex")
 });
 
 /// Regular expression for matching printf-style format strings
 ///
 /// Pattern detects format specifiers like %s, %d, %x, %f, etc.
-pub(crate) static FORMAT_STRING_REGEX: Lazy<Regex> = Lazy::new(|| {
+pub(crate) static FORMAT_STRING_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"%[-+0 #]*(\d+|\*)?(\.(\d+|\*))?(hh?|ll?|[Lzjt])?[diouxXeEfFgGaAcspn%]")
         .expect("Invalid format string regex")
 });
@@ -40,7 +40,7 @@ pub(crate) static FORMAT_STRING_REGEX: Lazy<Regex> = Lazy::new(|| {
 /// Regular expression for matching common user agent patterns
 ///
 /// Pattern matches common browser/bot user agent strings.
-pub(crate) static USER_AGENT_REGEX: Lazy<Regex> = Lazy::new(|| {
+pub(crate) static USER_AGENT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)^Mozilla/\d|^curl/|^Wget/|^python-requests|^libwww-perl|^Java/|^Apache-HttpClient|^okhttp/|^PostmanRuntime/")
         .expect("Invalid user agent regex")
 });

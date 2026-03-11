@@ -4,59 +4,61 @@ This directory contains pre-compiled binary test fixtures used for snapshot test
 
 ## Fixtures
 
-- `test_binary_elf` - x86-64 ELF binary
-- `test_binary_macho` - ARM64 Mach-O binary with standard load commands:
-  - LC_LOAD_DYLIB for system library dependencies (e.g., libSystem.B.dylib)
-  - May include LC_RPATH commands
-  - May include framework dependencies
-- `test_binary_pe.exe` - x86-64 PE binary
-- `test_binary_with_resources.exe` - x86-64 PE binary with VERSIONINFO and STRINGTABLE resources
+| Fixture                          | Description                                                                            | How to build                                |
+| -------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `test_binary_elf`                | x86-64 ELF with `main`, `exported_function`, `helper_function`, and a URL in `.rodata` | `just gen-fixtures` (Zig cross-compilation) |
+| `test_binary_pe.exe`             | x86-64 PE with libc imports                                                            | `just gen-fixtures` (Zig cross-compilation) |
+| `test_binary_macho`              | x86-64 Mach-O with `libSystem.B.dylib` dependency                                      | `just gen-fixtures` (Zig cross-compilation) |
+| `test_binary_with_resources.exe` | x86-64 PE with VERSIONINFO and STRINGTABLE resources                                   | `just gen-fixtures` (Zig cross-compilation) |
+| `test_unknown.bin`               | Non-ELF/PE/Mach-O blob with taggable URL string                                        | `just gen-fixtures` (committed to git)      |
+| `test_empty.bin`                 | Zero-byte file                                                                         | `just gen-fixtures` (committed to git)      |
+
+All compiled binary fixtures (ELF, PE, Mach-O) are gitignored and must be generated locally before running `just test`. The `test_empty.bin` and `test_unknown.bin` files are committed to git since they are platform-independent and deterministic.
 
 ## Source
 
-All fixtures are compiled from `test_binary.c`, a simple C program with:
+All compiled fixtures are built from `test_binary.c`, a simple C program with:
 
 - Exported functions: `exported_function`, `helper_function`
 - Imports from libc: `printf`, `malloc`, `free`
+- A URL string in `.rodata` (`https://github.com/EvilBit-Labs/Stringy`)
 - A `main` function
 
 ## Rebuilding Fixtures
 
-If you need to rebuild the fixtures:
+The preferred way to rebuild all fixtures is:
+
+```bash
+just gen-fixtures
+```
+
+This uses Zig (managed by mise) to cross-compile all targets from any host platform. No Docker or platform-specific compilers are needed. If you need to rebuild individual fixtures manually:
 
 ### ELF (x86-64)
 
 ```bash
-docker run --rm -v "$(pwd):/work" -w /work --platform linux/amd64 gcc:latest gcc -o test_binary_elf test_binary.c
+mise exec -- zig cc -target x86_64-linux-gnu -o tests/fixtures/test_binary_elf tests/fixtures/test_binary.c
 ```
-
-### Mach-O (ARM64)
-
-```bash
-clang -o test_binary_macho test_binary.c
-```
-
-The resulting binary will have standard system library dependencies. To add rpaths for testing, use:
-
-```bash
-clang -o test_binary_macho test_binary.c -Wl,-rpath,@executable_path/../Frameworks
-```
-
-To link frameworks for testing, use:
-
-```bash
-clang -o test_binary_macho test_binary.c -framework Foundation
-```
-
-Note: The current fixture is sufficient for basic testing, but enhanced fixtures with rpaths and frameworks can be added later if needed.
 
 ### PE (x86-64)
 
 ```bash
-docker run --rm -v "$(pwd):/work" -w /work mcr.microsoft.com/devcontainers/cpp:latest bash -c "apt-get update -qq && apt-get install -y -qq mingw-w64 && x86_64-w64-mingw32-gcc -o test_binary_pe.exe test_binary.c"
+mise exec -- zig cc -target x86_64-windows-gnu -o tests/fixtures/test_binary_pe.exe tests/fixtures/test_binary.c
 ```
 
-Note: The current mingw-w64 build doesn't include resources, which is expected for Phase 1 testing.
+### PE with Resources (x86-64)
+
+```bash
+mise exec -- zig rc /fo tests/fixtures/test_binary_with_resources.res -- tests/fixtures/test_binary_with_resources.rc
+mise exec -- zig cc -target x86_64-windows-gnu -o tests/fixtures/test_binary_with_resources.exe tests/fixtures/test_binary_with_resources.c tests/fixtures/test_binary_with_resources.res
+rm -f tests/fixtures/test_binary_with_resources.res
+```
+
+### Mach-O (x86-64)
+
+```bash
+mise exec -- zig cc -target x86_64-macos -o tests/fixtures/test_binary_macho tests/fixtures/test_binary.c
+```
 
 ### Mach-O Load Commands
 
@@ -91,16 +93,7 @@ The `test_binary_with_resources.exe` fixture provides a controlled test case wit
 
 ### Building a Test Binary with Resources
 
-The `test_binary_with_resources.exe` fixture is pre-built and included in the repository. To rebuild it:
-
-```bash
-# Using mingw-w64 with windres (resource compiler)
-cd tests/fixtures
-docker run --rm -v "$(pwd):/work" -w /work mcr.microsoft.com/devcontainers/cpp:latest bash -c \
-  "apt-get update -qq && apt-get install -y -qq mingw-w64 >/dev/null 2>&1 && \
-   x86_64-w64-mingw32-windres --input-format=rc --output-format=coff -o test_binary_with_resources.res test_binary_with_resources.rc && \
-   x86_64-w64-mingw32-gcc -o test_binary_with_resources.exe test_binary_with_resources.c test_binary_with_resources.res"
-```
+The `test_binary_with_resources.exe` fixture is built by `just gen-fixtures` using Zig's resource compiler (`zig rc`) and linker. See the "PE with Resources" section above for manual build commands.
 
 This creates a PE binary with:
 
@@ -128,9 +121,9 @@ For testing with real-world binaries, consider these Apache-2.0/MIT licensed opt
 
 1. **Rust CLI tools** (MIT/Apache-2.0): Many Rust projects compile to Windows PE with version info:
 
-   - `ripgrep` (MIT/Unlicense): https://github.com/BurntSushi/ripgrep/releases
-   - `fd` (MIT/Apache-2.0): https://github.com/sharkdp/fd/releases
-   - `bat` (MIT/Apache-2.0): https://github.com/sharkdp/bat/releases
+   - `ripgrep` (MIT/Unlicense): <https://github.com/BurntSushi/ripgrep/releases>
+   - `fd` (MIT/Apache-2.0): <https://github.com/sharkdp/fd/releases>
+   - `bat` (MIT/Apache-2.0): <https://github.com/sharkdp/bat/releases>
 
 2. **Other open source tools**:
 
@@ -139,8 +132,27 @@ For testing with real-world binaries, consider these Apache-2.0/MIT licensed opt
 
 **Note**: Always verify the license of any binary before including it in the repository.
 
+## Bumping the Zig Version
+
+The Zig version is pinned in `mise.toml`. Changing it may alter compiled binary layouts, which breaks `insta` snapshot assertions (e.g. `integration_flows_1_5__flow1_top3_json.snap`).
+
+To intentionally upgrade:
+
+1. Update the Zig version in `mise.toml`.
+
+2. Rebuild fixtures and regenerate snapshots:
+
+   ```bash
+   just gen-fixtures
+   INSTA_UPDATE=always cargo nextest run
+   cargo insta accept
+   ```
+
+3. Review the updated snapshots, commit `mise.toml` and the changed `.snap` files together.
+
 ## Notes
 
-- These fixtures are checked into git to ensure consistent test results
-- The fixtures should not be modified unless the test requirements change
-- If you modify `test_binary.c`, rebuild all fixtures and update snapshots
+- Compiled binary fixtures (ELF, PE, Mach-O) are gitignored and must be regenerated after any change to `test_binary.c`
+- All fixtures are cross-compiled via Zig (managed by mise) -- no Docker or platform-specific compilers needed
+- `test_empty.bin` and `test_unknown.bin` are committed to git (platform-independent)
+- If you modify `test_binary.c`, rebuild all fixtures with `just gen-fixtures` and update snapshots

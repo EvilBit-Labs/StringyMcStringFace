@@ -360,8 +360,13 @@ fn test_pe_symbol_extraction_snapshot() {
             ));
         }
 
-        // Snapshot the output
-        assert_snapshot!("pe_symbol_extraction", output);
+        // Snapshot the output -- redact hex addresses since Zig produces
+        // different import table layouts on each host platform.
+        let mut settings = insta::Settings::clone_current();
+        settings.add_filter(r"Address: 0x[0-9a-f]+", "Address: 0x[ADDR]");
+        settings.bind(|| {
+            assert_snapshot!("pe_symbol_extraction", output);
+        });
     } else {
         panic!("PE fixture is not a valid PE file");
     }

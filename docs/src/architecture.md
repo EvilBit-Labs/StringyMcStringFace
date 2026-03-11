@@ -5,12 +5,12 @@ Stringy is built as a modular Rust library with a clear separation of concerns. 
 ## High-Level Architecture
 
 ```text
-Binary File → Format Detection → Container Parsing → String Extraction → Deduplication → Classification → Ranking → Output
+Binary File -> Format Detection -> Container Parsing -> String Extraction -> Deduplication -> Classification -> Ranking -> Output
 ```
 
 ## Core Components
 
-### 1. Container Module (`src/container/`) ✅ **Implemented**
+### 1. Container Module (`src/container/`)
 
 Handles binary format detection and parsing using the `goblin` crate with comprehensive section analysis.
 
@@ -21,232 +21,108 @@ Handles binary format detection and parsing using the `goblin` crate with compre
 
 #### Supported Formats
 
-| Format | Parser        | Key Sections (Weight)                                    | Import/Export Support   |
-| ------ | ------------- | -------------------------------------------------------- | ----------------------- |
-| ELF    | `ElfParser`   | `.rodata` (10.0), `.comment` (9.0), `.data.rel.ro` (7.0) | ✅ Dynamic & Static     |
-| PE     | `PeParser`    | `.rdata` (10.0), `.rsrc` (9.0), read-only `.data` (7.0)  | ✅ Import/Export Tables |
-| Mach-O | `MachoParser` | `__TEXT,__cstring` (10.0), `__TEXT,__const` (9.0)        | ✅ Symbol Tables        |
+| Format | Parser        | Key Sections (Weight)                                    | Import/Export Support |
+| ------ | ------------- | -------------------------------------------------------- | --------------------- |
+| ELF    | `ElfParser`   | `.rodata` (10.0), `.comment` (9.0), `.data.rel.ro` (7.0) | Dynamic and static    |
+| PE     | `PeParser`    | `.rdata` (10.0), `.rsrc` (9.0), read-only `.data` (7.0)  | Import/export tables  |
+| Mach-O | `MachoParser` | `__TEXT,__cstring` (10.0), `__TEXT,__const` (9.0)        | Symbol tables         |
 
 #### Section Weight System
 
-The parsers implement intelligent section prioritization:
+Container parsers assign weights (1.0-10.0) to sections based on how likely they are to contain meaningful strings. Higher weights indicate higher-value sections. For example, `.rodata` (read-only data) receives a weight of 10.0, while `.text` (executable code) receives 1.0.
 
-```text
-// Example: ELF section weights
-".rodata" | ".rodata.str1.*" => 10.0  // Highest priority
-".comment" | ".note.*"       => 9.0   // Build info, very likely strings
-".data.rel.ro"              => 7.0   // Read-only data
-".data"                     => 5.0   // Writable data
-".text"                     => 1.0   // Code sections (low priority)
-```
-
-### 2. Extraction Module (`src/extraction/`) ✅ **Core Complete**
+### 2. Extraction Module (`src/extraction/`)
 
 Implements encoding-aware string extraction algorithms with configurable parameters.
 
 - **ASCII/UTF-8**: Scans for printable character sequences with noise filtering
 - **UTF-16**: Detects little-endian and big-endian wide strings with confidence scoring
+- **PE Resources**: Extracts version info, manifests, and string table resources from PE binaries
+- **Mach-O Load Commands**: Extracts strings from Mach-O load commands (dylib paths, rpaths)
 - **Deduplication**: Groups strings by (text, encoding) keys, preserves all occurrence metadata, merges tags using set union, and calculates combined scores with occurrence-based bonuses
+- **Noise Filters**: Applies configurable filters to reduce false positives
 - **Section-Aware**: Uses container parser weights to prioritize extraction areas
 
 #### Deduplication System
 
-The deduplication module (`src/extraction/dedup.rs`) provides comprehensive string deduplication:
+The deduplication module (`src/extraction/dedup/`) provides comprehensive string deduplication:
 
 - **Grouping Strategy**: Strings are grouped by `(text, encoding)` tuple, ensuring UTF-8 and UTF-16 versions are kept separate
-- **Occurrence Preservation**: All occurrence metadata (offset, RVA, section, source, tags, score, confidence) is preserved in `StringOccurrence` structures
+- **Occurrence Preservation**: All occurrence metadata (offset, RVA, section, source, tags, score, confidence) is preserved
 - **Tag Merging**: Tags from all occurrences are merged using `HashSet` for uniqueness, then converted to a sorted `Vec<Tag>`
-- **Combined Scoring**: Calculates combined scores using:
-  - Base score: Maximum `original_score` across all occurrences
-  - Occurrence bonus: `5 * (occurrences.len() - 1)` points for multiple occurrences
-  - Cross-section bonus: `10` points if string appears in sections with different names
-  - Multi-source bonus: `15` points if string appears from different `StringSource` variants
-  - Confidence boost: `(max_confidence * 10.0) as i32` where `max_confidence` is the highest confidence value
+- **Combined Scoring**: Calculates combined scores using a base score (maximum across occurrences) plus bonuses for multiple occurrences, cross-section appearances, and multi-source appearances
 
-### 3. Classification Module (`src/classification/`) 🚧 **Types Defined**
+### 3. Classification Module (`src/classification/`)
 
 Applies semantic analysis to extracted strings with comprehensive tagging system.
 
-- **Pattern Matching**: Uses regex to identify URLs, IPs, paths, GUIDs, etc.
+- **Pattern Matching**: Uses regex to identify URLs, IPs, domains, paths, GUIDs, emails, format strings, base64, user-agent strings, and version strings
 - **Symbol Processing**: Demangles Rust symbols and processes imports/exports
 - **Context Analysis**: Considers section context and source type for classification
-- **Extensible Tags**: Supports 15+ semantic categories from network indicators to code artifacts
 
 #### Supported Classification Tags
 
-| Category    | Tags                              | Examples                                        |
-| ----------- | --------------------------------- | ----------------------------------------------- |
-| Network     | `url`, `domain`, `ipv4`, `ipv6`   | `https://api.com`, `example.com`, `192.168.1.1` |
-| Filesystem  | `filepath`, `regpath`             | `/usr/bin/app`, `HKEY_LOCAL_MACHINE\...`        |
-| Identifiers | `guid`, `email`, `user-agent`     | `{12345678-...}`, `user@domain.com`             |
-| Code        | `fmt`, `b64`, `import`, `export`  | `Error: %s`, `SGVsbG8=`, `CreateFileW`          |
-| Resources   | `version`, `manifest`, `resource` | `v1.2.3`, XML config, UI strings                |
+| Category    | Tags                                                                        | Examples                                        |
+| ----------- | --------------------------------------------------------------------------- | ----------------------------------------------- |
+| Network     | `url`, `domain`, `ipv4`, `ipv6`                                             | `https://api.com`, `example.com`, `192.168.1.1` |
+| Filesystem  | `filepath`, `regpath`, `dylib-path`, `rpath`, `rpath-var`, `framework-path` | `/usr/bin/app`, `HKEY_LOCAL_MACHINE\...`        |
+| Identifiers | `guid`, `email`, `user-agent-ish`                                           | `{12345678-...}`, `user@domain.com`             |
+| Code        | `fmt`, `b64`, `import`, `export`, `demangled`                               | `Error: %s`, `SGVsbG8=`, `CreateFileW`          |
+| Resources   | `version`, `manifest`, `resource`                                           | `v1.2.3`, XML config, UI strings                |
 
-### 4. Ranking Module (`src/classification/ranking.rs`) 🚧 **Algorithm Designed**
+### 4. Ranking Module (`src/classification/ranking.rs`)
 
-Implements the scoring algorithm to prioritize relevant strings using multiple factors.
+Implements the scoring algorithm to prioritize relevant strings using multiple factors:
 
-```text
-Score = SectionWeight + EncodingConfidence + SemanticBoost - NoisePenalty
-```
+- **Section Weight**: Based on the section's classification (higher weights for string-oriented sections like `.rodata`)
+- **Semantic Boost**: Bonus points for strings with recognized semantic tags (URLs, GUIDs, paths, etc.)
+- **Noise Penalty**: Penalty for characteristics indicating noise (low confidence, repetitive patterns, high entropy)
 
-**Scoring Components:**
+The internal score is then mapped to a display score (0-100) using a band-mapping system. See [Output Formats](./output-formats.md) for the display-score band table.
 
-- **Section Weight**: 1.0-10.0 based on section classification
-- **Encoding Confidence**: Higher for clean UTF-8/ASCII vs. noisy UTF-16
-- **Semantic Boost**: +20-50 points for URLs, GUIDs, imports/exports
-- **Noise Penalty**: -10 to -30 for high entropy, excessive length, repeated patterns
+### 5. Output Module (`src/output/`)
 
-### 5. Output Module (`src/output/`) 🚧 **Interfaces Defined**
+Formats results for different use cases:
 
-Formats results for different use cases with consistent data structures.
+- **Table** (`src/output/table/`): TTY-aware output with color-coded scores, or plain text when piped. Columns: String, Tags, Score, Section.
+- **JSON** (`src/output/json.rs`): JSONL format with complete structured data including all metadata fields
+- **YARA** (`src/output/yara/`): Properly escaped strings with appropriate modifiers and long-string skipping
 
-- **Human-readable**: Sorted tables with score, offset, section, tags, and truncated strings
-- **JSONL**: Complete structured data including all metadata fields
-- **YARA**: Properly escaped strings with hex alternatives and confidence grouping
+### 6. Pipeline Module (`src/pipeline/`)
+
+Orchestrates the entire flow from file reading through output:
+
+- **Configuration** (`src/pipeline/config.rs`): `PipelineConfig`, `FilterConfig`, and `EncodingFilter`
+- **Filtering** (`src/pipeline/filter.rs`): `FilterEngine` applies post-extraction filtering by min-length, encoding, tags, and top-N
+- **Score Normalization** (`src/pipeline/normalizer.rs`): `ScoreNormalizer` maps internal scores to display scores (0-100) and populates `display_score` on each `FoundString` unconditionally in all non-raw executions
+- **Orchestration** (`src/pipeline/mod.rs`): `Pipeline::run` drives the full pipeline
 
 ## Data Flow
 
-### 1. Binary Analysis Phase ✅ **Implemented**
+### 1. Binary Analysis Phase
 
-```text
-// Format detection using goblin
-let format = detect_format(&data);  // Returns BinaryFormat enum
-let parser = create_parser(format)?; // Creates appropriate parser
+The pipeline reads the file, detects the binary format via `goblin`, and dispatches to the appropriate container parser (ELF, PE, or Mach-O). The parser returns a `ContainerInfo` struct containing sections with weights, imports, and exports. Unknown or unparseable formats fall back to unstructured raw byte scanning.
 
-// Container parsing with full metadata extraction
-let container_info = parser.parse(&data)?;
-// Returns: sections with weights, imports, exports, format info
-```
+### 2. String Extraction Phase
 
-**Current Implementation:**
+Strings are extracted from each section using encoding-specific extractors (ASCII, UTF-8, UTF-16LE, UTF-16BE). Import and export symbol names are included as high-value strings. PE resources (version info, manifests, string tables) and Mach-O load command strings are also extracted. Results are then deduplicated by grouping on `(text, encoding)`.
 
-- Automatic format detection via `goblin::Object::parse()`
-- Trait-based parser creation with `Box<dyn ContainerParser>`
-- Comprehensive section analysis with classification and weighting
-- Complete import/export symbol extraction
+### 3. Classification Phase
 
-### 2. String Extraction Phase 🚧 **Framework Ready**
+Each string is passed through pattern matchers that assign semantic tags based on content. Rust mangled symbols are demangled. The ranking algorithm then computes a score for each string combining section weight, semantic boost, and noise penalty.
 
-```text
-// Extract strings from prioritized sections (by weight)
-let mut all_strings = Vec::new();
-for section in container_info.sections.iter().filter(|s| s.weight > 5.0) {
-    let strings = extract_strings(&data, &section, &config)?;
-    all_strings.extend(strings);
-}
+### 4. Output Phase
 
-// Include import/export names as high-value strings
-all_strings.extend(extract_symbol_strings(&container_info));
+Strings are sorted by score (descending), filtered according to user options (tags, encoding, top-N), and formatted for the selected output mode (table, JSON, or YARA).
 
-// Deduplicate while preserving all metadata
-let unique_strings = deduplicate(all_strings);
-// Returns Vec<CanonicalString> with:
-// - Grouped by (text, encoding) key
-// - All occurrences preserved in occurrences field
-// - Merged tags from all occurrences
-// - Combined scores with occurrence-based bonuses
-// - Sorted by combined_score descending
-```
+## Data Structures
 
-### 3. Classification Phase 🚧 **Types Ready**
-
-```text
-// Apply semantic classification with context awareness
-for string in &mut unique_strings {
-    let context = StringContext {
-        section_type: string.section_type,
-        source: string.source,
-        encoding: string.encoding,
-    };
-
-    string.tags = classify_string(&string.text, &context);
-    string.score = calculate_score(&string, &context);
-}
-```
-
-### 4. Output Phase 🚧 **Interfaces Defined**
-
-```text
-// Sort by relevance score (descending)
-unique_strings.sort_by_key(|s| std::cmp::Reverse(s.score));
-
-// Apply user filters and limits
-let filtered = apply_filters(&unique_strings, &config);
-
-// Format according to requested output type
-let output = match config.format {
-    OutputFormat::Human => format_human_readable(&filtered),
-    OutputFormat::Json => format_jsonl(&filtered),
-    OutputFormat::Yara => format_yara_rules(&filtered),
-};
-```
-
-## Current Implementation Details
-
-### Container Parser Architecture
-
-The container parsing system is fully implemented with a trait-based design:
+Core types are defined in `src/types/mod.rs`:
 
 ```rust
-pub trait ContainerParser {
-    fn detect(data: &[u8]) -> bool
-    where
-        Self: Sized;
-    fn parse(&self, data: &[u8]) -> Result<ContainerInfo>;
-}
-```
-
-**Format Detection Pipeline:**
-
-1. `detect_format()` uses `goblin::Object::parse()` to identify format
-2. `create_parser()` returns appropriate `Box<dyn ContainerParser>`
-3. Parser extracts sections, imports, exports with full metadata
-
-### Section Classification System
-
-Each parser implements intelligent section classification:
-
-```text
-// ELF Example
-fn classify_section(section: &SectionHeader, name: &str) -> SectionType {
-    if section.sh_flags & SHF_EXECINSTR != 0 {
-        return SectionType::Code;
-    }
-
-    match name {
-        ".rodata" | ".rodata.str1.*" => SectionType::StringData,
-        ".comment" | ".note.*" => SectionType::StringData,
-        ".data.rel.ro" => SectionType::ReadOnlyData,
-        // ... more classifications
-    }
-}
-```
-
-**Weight Calculation:**
-
-- String data sections: 8.0-10.0 (highest priority)
-- Read-only data: 7.0
-- Resources: 8.0-9.0
-- Writable data: 5.0
-- Code: 1.0 (lowest priority)
-
-### Symbol Extraction
-
-All parsers extract import/export information:
-
-- **ELF**: Dynamic symbol table (`dynsyms`) and static symbols (`syms`)
-- **PE**: Import/export tables with library names and ordinals
-- **Mach-O**: Symbol tables with undefined/defined symbol filtering
-
-### Data Structures
-
-Core types are fully defined and serializable:
-
-```rust
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FoundString {
     pub text: String,
+    pub original_text: Option<String>, // pre-demangled form
     pub encoding: Encoding,
     pub offset: u64,
     pub rva: Option<u64>,
@@ -254,25 +130,22 @@ pub struct FoundString {
     pub length: u32,
     pub tags: Vec<Tag>,
     pub score: i32,
+    pub section_weight: Option<i32>, // debug only
+    pub semantic_boost: Option<i32>, // debug only
+    pub noise_penalty: Option<i32>,  // debug only
+    pub display_score: Option<i32>,  // populated in all non-raw executions
     pub source: StringSource,
+    pub confidence: f32,
 }
 ```
 
-**Tag System**: 15+ semantic categories ready for classification **Error Handling**: Comprehensive `StringyError` enum with context **Cross-Platform**: Handles platform-specific binary characteristics
-
 ## Key Design Decisions
-
-### Memory Efficiency
-
-- Uses memory mapping (`memmap2`) for large files
-- Lazy evaluation for optional features
-- Efficient regex compilation and caching
 
 ### Error Handling
 
-- Comprehensive error types with context
+- Comprehensive error types with context via `thiserror`
 - Graceful degradation for partially corrupted binaries
-- Clear error messages for debugging
+- Unknown formats fall back to raw byte scanning rather than erroring
 
 ### Extensibility
 
@@ -283,52 +156,71 @@ pub struct FoundString {
 ### Performance
 
 - Section-aware extraction reduces scan time
-- Regex caching for repeated pattern matching
-- Parallel processing where beneficial
+- Regex caching via `once_cell::sync::Lazy` for repeated pattern matching
+- Weight-based prioritization avoids scanning low-value sections
 
 ## Module Dependencies
 
 ```text
 main.rs
-├── lib.rs (public API)
-├── types.rs (core data structures)
-├── container/
-│   ├── mod.rs (format detection)
-│   ├── elf.rs (ELF parser)
-│   ├── pe.rs (PE parser)
-│   └── macho.rs (Mach-O parser)
-├── extraction/
-│   ├── mod.rs (extraction traits)
-│   ├── ascii.rs (ASCII/UTF-8)
-│   ├── utf16.rs (UTF-16LE/BE)
-│   └── dedup.rs (deduplication)
-├── classification/
-│   ├── mod.rs (classification framework)
-│   ├── semantic.rs (pattern matching)
-│   ├── symbols.rs (symbol processing)
-│   └── ranking.rs (scoring algorithm)
-└── output/
-    ├── mod.rs (output traits)
-    ├── json.rs (JSONL format)
-    ├── human.rs (table format)
-    └── yara.rs (YARA format)
++-- lib.rs (public API, re-exports)
++-- types/
+|   +-- mod.rs (core data structures: Tag, FoundString, Encoding, etc.)
+|   +-- error.rs (StringyError, Result)
+|   +-- constructors.rs (constructor implementations)
+|   +-- found_string.rs (FoundString builder methods)
+|   +-- tests.rs
++-- container/
+|   +-- mod.rs (format detection, ContainerParser trait)
+|   +-- elf/
+|   |   +-- mod.rs (ELF parser)
+|   |   +-- tests.rs
+|   +-- pe/
+|   |   +-- mod.rs (PE parser)
+|   |   +-- tests.rs
+|   +-- macho/
+|   |   +-- mod.rs (Mach-O parser)
+|   |   +-- tests.rs
++-- extraction/
+|   +-- mod.rs (extraction orchestration)
+|   +-- ascii/ (ASCII/UTF-8 extraction)
+|   +-- utf16/ (UTF-16LE/BE extraction with confidence scoring)
+|   +-- dedup/ (deduplication with scoring)
+|   +-- filters/ (noise filter implementations)
+|   +-- pe_resources/ (PE version info, manifests, string tables)
+|   +-- macho_load_commands.rs (Mach-O load command strings)
++-- classification/
+|   +-- mod.rs (classification framework)
+|   +-- patterns/ (regex-based pattern matching)
+|   +-- symbols.rs (symbol processing and demangling)
+|   +-- ranking.rs (scoring algorithm)
++-- output/
+|   +-- mod.rs (OutputFormat, OutputMetadata, formatting dispatch)
+|   +-- json.rs (JSONL format)
+|   +-- table/ (TTY and plain text table formatting)
+|   +-- yara/ (YARA rule generation with escaping)
++-- pipeline/
+    +-- mod.rs (Pipeline::run orchestration)
+    +-- config.rs (PipelineConfig, FilterConfig, EncodingFilter)
+    +-- filter.rs (post-extraction filtering)
+    +-- normalizer.rs (score band mapping)
 ```
 
 ## External Dependencies
 
 ### Core Dependencies
 
-- `goblin`: Multi-format binary parsing
-- `serde` + `serde_json`: Serialization
-- `thiserror`: Error handling
-- `clap`: CLI argument parsing
-
-### Optional Dependencies
-
-- `regex`: Pattern matching for classification
-- `rustc-demangle`: Rust symbol demangling
-- `memmap2`: Memory-mapped file I/O
-- `pelite`: Enhanced PE resource extraction
+- `goblin` - Multi-format binary parsing (ELF, PE, Mach-O)
+- `pelite` - PE resource extraction (version info, manifests, string tables)
+- `serde` + `serde_json` - Serialization
+- `thiserror` - Error handling
+- `clap` - CLI argument parsing
+- `regex` - Pattern matching for classification
+- `rustc-demangle` - Rust symbol demangling
+- `indicatif` - Progress bars and spinners for CLI output
+- `tempfile` - Temporary file creation for stdin-to-Pipeline bridging
+- `once_cell` - Lazy-initialized static regex patterns
+- `patharg` - Input argument handling (file path or stdin)
 
 ## Testing Strategy
 
@@ -340,14 +232,11 @@ main.rs
 
 ### Integration Tests
 
-- End-to-end CLI functionality
-- Real binary file testing
+- End-to-end CLI functionality via `assert_cmd`
+- Real binary file testing with compiled fixtures
+- Snapshot testing via `insta`
 - Cross-platform validation
 
 ### Performance Tests
 
-- Benchmarks for critical path components
-- Memory usage profiling
-- Large file handling validation
-
-This architecture provides a solid foundation for reliable, efficient, and extensible binary string analysis.
+- Benchmarks via `criterion` in `benches/`

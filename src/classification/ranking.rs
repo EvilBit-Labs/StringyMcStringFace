@@ -285,16 +285,7 @@ mod tests {
     use crate::types::{Encoding, StringSource};
 
     fn make_section_info(section_type: SectionType) -> SectionInfo {
-        SectionInfo {
-            name: "test".to_string(),
-            offset: 0,
-            size: 0,
-            rva: None,
-            section_type,
-            is_executable: false,
-            is_writable: false,
-            weight: 1.0,
-        }
+        SectionInfo::new("test".to_string(), 0, 0, section_type, 1.0)
     }
 
     fn make_found_string(tags: Vec<Tag>, confidence: f32) -> FoundString {
