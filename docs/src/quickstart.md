@@ -130,7 +130,7 @@ stringy --enc utf16 binary.exe
 stringy --only-tags url --only-tags domain --only-tags ipv4 --only-tags ipv6 binary
 
 # Exclude Base64 noise
-stringy --notags b64 binary
+stringy --no-tags b64 binary
 ```
 
 ### Limit Results

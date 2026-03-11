@@ -22,7 +22,7 @@ fn flow8_invalid_tag_value_exit_2() {
 #[test]
 fn flow8_invalid_notag_value_exit_2() {
     stringy()
-        .args(["tests/fixtures/test_binary_elf", "--notags", "bad_tag"])
+        .args(["tests/fixtures/test_binary_elf", "--no-tags", "bad_tag"])
         .assert()
         .failure()
         .code(2)
@@ -64,7 +64,12 @@ fn flow8_raw_only_tags_conflict_exit_2() {
 #[test]
 fn flow8_raw_notags_conflict_exit_2() {
     stringy()
-        .args(["tests/fixtures/test_binary_elf", "--raw", "--notags", "url"])
+        .args([
+            "tests/fixtures/test_binary_elf",
+            "--raw",
+            "--no-tags",
+            "url",
+        ])
         .assert()
         .failure()
         .code(2)
@@ -107,17 +112,17 @@ fn flow8_raw_yara_conflict_exit_2() {
 // (flow7_summary_non_tty_exit_1).
 
 #[test]
-fn flow8_tag_overlap_exit_1() {
+fn flow8_tag_overlap_exit_2() {
     stringy()
         .args([
             "tests/fixtures/test_binary_elf",
             "--only-tags",
             "url",
-            "--notags",
+            "--no-tags",
             "url",
         ])
         .assert()
         .failure()
-        .code(1)
-        .stderr(predicate::str::contains("--only-tags and --notags"));
+        .code(2)
+        .stderr(predicate::str::contains("--only-tags and --no-tags"));
 }

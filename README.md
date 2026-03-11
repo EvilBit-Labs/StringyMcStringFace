@@ -97,7 +97,7 @@ stringy --only-tags url target_binary
 stringy --only-tags url --only-tags filepath target_binary
 
 # Exclude noisy tags
-stringy --notags format_string target_binary
+stringy --no-tags format_string target_binary
 
 # Control extraction
 stringy --min-len 8 target_binary

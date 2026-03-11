@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PipelineConfig`, `FilterConfig`, and `EncodingFilter` for pipeline configuration
 - `FilterEngine` for post-extraction string filtering (min-len, encoding, tags, top-N)
 - `ScoreNormalizer` for mapping raw scores to bounded 0-100 display range
-- CLI flags: `--raw`, `--json`, `--yara`, `--summary`, `--debug`, `--enc`, `--only-tags`, `--notags`, `--min-len`, `--top`
+- CLI flags: `--raw`, `--json`, `--yara`, `--summary`, `--debug`, `--enc`, `--only-tags`, `--no-tags`, `--min-len`, `--top`
 - `parse_from()` methods on container parsers to avoid double-parsing (single `Object::parse` dispatch)
 - Memory-mapped file I/O via `mmap-guard` for zero-copy read-only access
 - Progress spinner via `indicatif` for CLI feedback

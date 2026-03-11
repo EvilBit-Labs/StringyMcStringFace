@@ -30,7 +30,7 @@ pub struct FilterConfig {
     pub encoding: Option<EncodingFilter>,
     /// Only include strings with at least one of these tags (from `--only-tags`).
     pub include_tags: Vec<Tag>,
-    /// Exclude strings with any of these tags (from `--notags`).
+    /// Exclude strings with any of these tags (from `--no-tags`).
     pub exclude_tags: Vec<Tag>,
     /// Keep only the top N strings by score (from `--top`).
     pub top_n: Option<usize>,

@@ -26,7 +26,11 @@ Changing default values in `ExtractionConfig::default()` requires updating asser
 - `Tag::from_str` in `value_parser` requires `use std::str::FromStr` in scope (clap resolves it as an associated fn, not a trait method)
 - CLI flag changes in `main.rs` require updating `tests/integration_cli.rs` (uses `Command` with flag names)
 - `Tag::from_str` accepts lowercase (`"url"`) but serde serializes PascalCase (`"Url"`) for variants without `#[serde(rename)]` -- tests comparing JSON output must use case-insensitive comparison or the serialized form
-- `--raw` mode performs extraction only and then early-exits: ranking, normalization, and pipeline-level classification are skipped. `tags` are cleared, `score` is forced to 0, and `display_score` is set to `Some(0)`. Note that extraction-time classification (`SemanticClassifier` in `extraction/helpers.rs`) still runs before the pipeline clears the results. `assert_cmd` tests run piped (non-TTY); use `format_table_with_mode(&strings, &metadata, true)` to test TTY table rendering
+- `--raw` mode performs extraction only and then early-exits: ranking, normalization, and pipeline-level classification are skipped. `tags` are cleared, `score` is forced to 0, and `display_score` is set to `Some(0)`. `assert_cmd` tests run piped (non-TTY); use `format_table_with_mode(&strings, &metadata, true)` to test TTY table rendering
+- Exit codes are typed: 0=success, 2=config/validation error, 3=file not found, 4=permission denied, 1=other. Tests asserting exit codes must match `StringyError::exit_code()` in `types/error.rs`
+- `--no-tags` is the canonical flag name (kebab-case). Previously was `--notags` -- update all references when touching CLI flag names
+- Short flags: `-j` (json), `-m` (min-len), `-t` (top), `-e` (enc). Do not add short flags for infrequent flags (--yara, --raw, --summary, --debug)
+- `NO_COLOR` env var disables progress spinner. The spinner is also hidden when stderr is not a TTY
 
 ## Dependencies
 
@@ -66,4 +70,4 @@ Changing default values in `ExtractionConfig::default()` requires updating asser
 - Homogeneous strings (e.g. `"A".repeat(250)`) are filtered as noise by the extractor. Use varied character patterns for test fixtures that must survive extraction.
 - Do NOT make pipeline helpers `pub` solely for test access -- keep them private and add `#[cfg(test)] mod tests` within the module for format-contract checks; use e2e CLI assertions (env var injection) for integration tests
 - Debug-build env vars `STRINGY_TEST_INJECT_DEMANGLE_FAILURES` and `STRINGY_TEST_INJECT_CLASSIFY_FAILURES` inject failure counts for e2e warning-path testing (only active under `#[cfg(debug_assertions)]`)
-- Strings are classified twice -- once during extraction (`apply_semantic_enrichment` in `extraction/helpers.rs`) and again in `classify_strings()` in the pipeline. The pipeline classification is the authoritative pass with `catch_unwind` safety. This doubles classification CPU cost; removing extraction-time classification is tracked as a known improvement.
+- Classification is performed once in the pipeline's `classify_strings()` with `catch_unwind` safety. Extraction does NOT classify strings.

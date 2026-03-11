@@ -35,13 +35,13 @@ fn exit_code_2_for_clap_errors() {
 }
 
 #[test]
-fn exit_code_1_for_runtime_errors() {
-    // Non-existent file triggers a runtime I/O error
+fn exit_code_3_for_missing_file() {
+    // Non-existent file triggers NotFound I/O error (exit code 3)
     stringy()
         .arg("this_file_also_does_not_exist.bin")
         .assert()
         .failure()
-        .code(1);
+        .code(3);
 }
 
 #[test]

@@ -17,20 +17,27 @@ use stringy::{Encoding, EncodingFilter, FilterConfig, Pipeline, PipelineConfig};
 /// Encoding filter for string extraction
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum CliEncoding {
+    /// ASCII-encoded strings only
     Ascii,
+    /// UTF-8 encoded strings only
     Utf8,
+    /// UTF-16 in either byte order (LE or BE)
     Utf16,
+    /// UTF-16 Little Endian only
     #[value(name = "utf16le")]
     Utf16Le,
+    /// UTF-16 Big Endian only
     #[value(name = "utf16be")]
     Utf16Be,
 }
 
 /// Parse a positive usize (>= 1) from a CLI argument.
 fn parse_positive_usize(s: &str) -> Result<usize, String> {
-    let value: usize = s.parse().map_err(|e| format!("invalid value '{s}': {e}"))?;
+    let value: usize = s
+        .parse()
+        .map_err(|_| format!("'{s}' is not a valid positive integer"))?;
     if value == 0 {
-        return Err("value must be >= 1".to_string());
+        return Err("value must be at least 1".to_string());
     }
     Ok(value)
 }
@@ -59,10 +66,11 @@ fn cli_encoding_to_filter(enc: CliEncoding) -> EncodingFilter {
 )]
 #[command(after_help = "EXAMPLES:\n  \
     stringy binary.exe\n  \
-    stringy --json binary.elf\n  \
+    stringy -j binary.elf\n  \
     stringy --yara malware.dll\n  \
-    stringy --min-len 8 --only-tags url --only-tags domain binary.exe\n  \
-    stringy --top 50 --json binary.elf\n\n\
+    cat binary.exe | stringy -\n  \
+    stringy -m 8 --only-tags url --only-tags domain binary.exe\n  \
+    stringy -t 50 -j binary.elf\n\n\
     More info: https://github.com/EvilBit-Labs/Stringy")]
 struct Cli {
     /// Input binary file to analyze (use "-" for stdin)
@@ -70,7 +78,7 @@ struct Cli {
     input: InputArg,
 
     /// Emit JSONL output (one JSON object per line)
-    #[arg(long, conflicts_with = "yara")]
+    #[arg(short = 'j', long, conflicts_with = "yara")]
     json: bool,
 
     /// Emit YARA rule template output
@@ -92,7 +100,7 @@ struct Cli {
 
     /// Exclude strings with these tags (repeatable)
     #[arg(
-        long = "notags",
+        long = "no-tags",
         action = ArgAction::Append,
         value_parser = Tag::from_str,
         value_name = "TAG",
@@ -101,50 +109,55 @@ struct Cli {
             user-agent-ish, demangled, import, export, version, manifest, resource,\n\
             dylib-path, rpath, rpath-var, framework-path"
     )]
-    notags: Vec<Tag>,
+    no_tags: Vec<Tag>,
 
     /// Minimum string length in bytes (must be >= 1)
-    #[arg(long = "min-len", value_parser = parse_positive_usize)]
+    #[arg(short = 'm', long = "min-len", value_name = "N", value_parser = parse_positive_usize)]
     min_len: Option<usize>,
 
     /// Show only the top N strings by score
-    #[arg(long, value_parser = parse_positive_usize)]
+    #[arg(short = 't', long, value_name = "N", value_parser = parse_positive_usize)]
     top: Option<usize>,
 
-    /// Filter by encoding
-    #[arg(long, value_enum)]
+    /// Filter by encoding [possible values: ascii, utf8, utf16, utf16le, utf16be]
+    #[arg(short = 'e', long, value_enum, value_name = "ENCODING")]
     enc: Option<CliEncoding>,
 
     /// Raw output: no tags, no scores, no headers
-    #[arg(long, conflicts_with_all = ["only_tags", "notags", "top", "debug", "yara"])]
+    #[arg(long, conflicts_with_all = ["only_tags", "no_tags", "top", "debug", "yara"])]
     raw: bool,
 
     /// Print a summary banner after output
     #[arg(long, conflicts_with_all = ["json", "yara"])]
     summary: bool,
 
-    /// Include debug metadata in output
+    /// Include debug metadata in output (extraction source, section info, weights)
     #[arg(long, conflicts_with = "raw")]
     debug: bool,
 }
 
 fn run(cli: &Cli) -> Result<(), StringyError> {
-    // Runtime validation: tag overlap between --only-tags and --notags
+    // Runtime validation: tag overlap between --only-tags and --no-tags
     let overlap: Vec<&Tag> = cli
         .only_tags
         .iter()
-        .filter(|t| cli.notags.contains(t))
+        .filter(|t| cli.no_tags.contains(t))
         .collect();
     if !overlap.is_empty() {
+        let tag_names: Vec<String> = overlap.iter().map(|t| format!("{t:?}")).collect();
         return Err(StringyError::ValidationError(format!(
-            "tag(s) {overlap:?} appear in both --only-tags and --notags"
+            "conflicting tag filters: {} appear in both --only-tags and --no-tags\n\
+             Remove these tags from one of the filter lists to continue.",
+            tag_names.join(", ")
         )));
     }
 
     // Runtime validation: --summary requires a TTY
     if cli.summary && !std::io::stdout().is_terminal() {
         return Err(StringyError::ValidationError(
-            "--summary requires a TTY; redirect output or omit --summary".to_string(),
+            "--summary requires terminal output (not supported for piped/redirected output)\n\
+             Try removing --summary or run without output redirection."
+                .to_string(),
         ));
     }
 
@@ -181,8 +194,8 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
     if !cli.only_tags.is_empty() {
         filter_config = filter_config.with_include_tags(cli.only_tags.clone());
     }
-    if !cli.notags.is_empty() {
-        filter_config = filter_config.with_exclude_tags(cli.notags.clone());
+    if !cli.no_tags.is_empty() {
+        filter_config = filter_config.with_exclude_tags(cli.no_tags.clone());
     }
     if let Some(n) = cli.top {
         filter_config = filter_config.with_top_n(n);
@@ -218,12 +231,18 @@ fn resolve_input_path(cli: &Cli) -> Result<(PathBuf, Option<NamedTempFile>), Str
     match &cli.input {
         InputArg::Path(p) => Ok((p.clone(), None)),
         InputArg::Stdin => {
+            if std::io::stderr().is_terminal() {
+                eprint!("Reading from stdin... ");
+            }
             let data = cli.input.read().map_err(|e| {
                 StringyError::IoError(std::io::Error::new(
                     e.kind(),
                     format!("{}: {}", cli.input, e),
                 ))
             })?;
+            if std::io::stderr().is_terminal() {
+                eprintln!("{} bytes", data.len());
+            }
             let mut temp_file = NamedTempFile::with_prefix("stringy-stdin-").map_err(|e| {
                 StringyError::IoError(std::io::Error::new(
                     e.kind(),
@@ -246,6 +265,6 @@ fn main() {
     let cli = Cli::parse();
     if let Err(e) = run(&cli) {
         eprintln!("Error: {e}");
-        std::process::exit(1);
+        std::process::exit(e.exit_code());
     }
 }

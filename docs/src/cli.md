@@ -27,15 +27,15 @@ stringy [OPTIONS] -        # read from stdin
 | `--top N`         | Limit to top N strings by score (applied after all filters)        | -       |
 | `--enc ENCODING`  | Filter by encoding: `ascii`, `utf8`, `utf16`, `utf16le`, `utf16be` | all     |
 | `--only-tags TAG` | Include strings with any of these tags (OR); repeatable            | all     |
-| `--notags TAG`    | Exclude strings with any of these tags; repeatable                 | none    |
+| `--no-tags TAG`   | Exclude strings with any of these tags; repeatable                 | none    |
 
 ### Mode Flags
 
-| Option      | Description                                                                                                                    |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `--raw`     | Extraction-only mode (no tagging, ranking, or scoring); conflicts with `--only-tags`, `--notags`, `--top`, `--debug`, `--yara` |
-| `--summary` | Append summary block (TTY table mode only); conflicts with `--json`, `--yara`                                                  |
-| `--debug`   | Include score-breakdown fields (`section_weight`, `semantic_boost`, `noise_penalty`) in JSON output; conflicts with `--raw`    |
+| Option      | Description                                                                                                                     |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `--raw`     | Extraction-only mode (no tagging, ranking, or scoring); conflicts with `--only-tags`, `--no-tags`, `--top`, `--debug`, `--yara` |
+| `--summary` | Append summary block (TTY table mode only); conflicts with `--json`, `--yara`                                                   |
+| `--debug`   | Include score-breakdown fields (`section_weight`, `semantic_boost`, `noise_penalty`) in JSON output; conflicts with `--raw`     |
 
 ## Encoding Options
 
@@ -64,14 +64,14 @@ stringy --enc utf8 binary
 
 ## Tag Filtering
 
-Tags are specified with the repeatable `--only-tags` and `--notags` flags. Repeat the flag for each tag value:
+Tags are specified with the repeatable `--only-tags` and `--no-tags` flags. Repeat the flag for each tag value:
 
 ```bash
 # Network indicators only
 stringy --only-tags url --only-tags domain --only-tags ipv4 --only-tags ipv6 malware.exe
 
 # Exclude noisy Base64
-stringy --notags b64 binary
+stringy --no-tags b64 binary
 
 # File system related
 stringy --only-tags filepath --only-tags regpath app.exe

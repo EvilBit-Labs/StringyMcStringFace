@@ -98,13 +98,14 @@ fn flow7_summary_conflicts_with_yara_exit_2() {
 }
 
 #[test]
-fn flow7_summary_non_tty_exit_1() {
-    // assert_cmd output is piped, so --summary triggers the runtime TTY check.
+fn flow7_summary_non_tty_exit_2() {
+    // assert_cmd output is piped, so --summary triggers the runtime TTY check
+    // (ValidationError -> exit code 2).
     stringy()
         .args(["tests/fixtures/test_binary_elf", "--summary"])
         .assert()
         .failure()
-        .code(1)
+        .code(2)
         .stderr(predicate::str::contains("--summary"));
 }
 

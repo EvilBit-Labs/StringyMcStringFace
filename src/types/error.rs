@@ -28,6 +28,23 @@ pub enum StringyError {
     MemoryMapError(String),
 }
 
+impl StringyError {
+    /// Return a meaningful exit code for this error category.
+    ///
+    /// - 1: general/unknown error
+    /// - 2: configuration or validation error
+    /// - 3: file not found
+    /// - 4: permission denied
+    pub fn exit_code(&self) -> i32 {
+        match self {
+            StringyError::ConfigError(_) | StringyError::ValidationError(_) => 2,
+            StringyError::IoError(e) if e.kind() == std::io::ErrorKind::NotFound => 3,
+            StringyError::IoError(e) if e.kind() == std::io::ErrorKind::PermissionDenied => 4,
+            _ => 1,
+        }
+    }
+}
+
 /// Result type alias for the stringy library
 pub type Result<T> = std::result::Result<T, StringyError>;
 

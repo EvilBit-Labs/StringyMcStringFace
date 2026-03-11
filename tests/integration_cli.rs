@@ -108,7 +108,7 @@ fn cli_min_len_zero_rejected() {
         .args(["tests/fixtures/test_binary_elf", "--min-len", "0"])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("must be >= 1"));
+        .stderr(predicate::str::contains("value must be at least 1"));
 }
 
 #[test]
@@ -150,12 +150,12 @@ fn cli_overlapping_tags_rejected() {
             "tests/fixtures/test_binary_elf",
             "--only-tags",
             "url",
-            "--notags",
+            "--no-tags",
             "url",
         ])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("--only-tags and --notags"));
+        .stderr(predicate::str::contains("--only-tags and --no-tags"));
 }
 
 #[test]
@@ -242,8 +242,8 @@ fn cli_help_examples_use_repeated_flags_not_comma_syntax() {
         "help examples must not use comma-delimited tag syntax: {stdout}"
     );
     assert!(
-        !stdout.contains("--notags url,"),
-        "help examples must not use comma-delimited notags syntax: {stdout}"
+        !stdout.contains("--no-tags url,"),
+        "help examples must not use comma-delimited no-tags syntax: {stdout}"
     );
     // Verify the correct repeated-flag pattern is present
     assert!(

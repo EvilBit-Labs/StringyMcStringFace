@@ -118,7 +118,7 @@ pub struct FilterConfig {
     /// Only include strings with these tags (empty = no filter)
     pub include_tags: Vec<Tag>,     // --only-tags
     /// Exclude strings with these tags (empty = no filter)
-    pub exclude_tags: Vec<Tag>,     // --notags
+    pub exclude_tags: Vec<Tag>,     // --no-tags
     /// Limit output to top N strings by score
     pub top_n: Option<usize>,      // --top
 }

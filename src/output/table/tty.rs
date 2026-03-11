@@ -148,9 +148,13 @@ fn format_summary_block(metadata: &OutputMetadata) -> String {
         let millis = duration.as_millis();
         if millis < 1000 {
             block.push_str(&format!("\nAnalysis time: {millis}ms"));
-        } else {
+        } else if millis < 60_000 {
             let secs = duration.as_secs_f64();
-            block.push_str(&format!("\nAnalysis time: {secs:.2}s"));
+            block.push_str(&format!("\nAnalysis time: {secs:.1}s"));
+        } else {
+            let mins = duration.as_secs() / 60;
+            let secs = duration.as_secs() % 60;
+            block.push_str(&format!("\nAnalysis time: {mins}m {secs}s"));
         }
     }
 

@@ -195,7 +195,7 @@ stringy --summary binary
 
 ### Tag overlap error
 
-**Problem**: Same tag appears in both `--only-tags` and `--notags`.
+**Problem**: Same tag appears in both `--only-tags` and `--no-tags`.
 
 **Solution**: Remove the duplicate tag from one of the two flags. This is a runtime validation error (exit 1).
 

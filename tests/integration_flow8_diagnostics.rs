@@ -20,7 +20,9 @@ fn flow8_injected_demangle_failures_emit_warning_on_stderr() {
         .assert()
         .success()
         .stderr(predicate::str::contains("Warning:"))
-        .stderr(predicate::str::contains("demangle_failures: 3"));
+        .stderr(predicate::str::contains(
+            "3 symbol(s) could not be demangled",
+        ));
 }
 
 #[test]
@@ -31,7 +33,9 @@ fn flow8_injected_classify_failures_emit_warning_on_stderr() {
         .assert()
         .success()
         .stderr(predicate::str::contains("Warning:"))
-        .stderr(predicate::str::contains("classification_failures: 5"));
+        .stderr(predicate::str::contains(
+            "5 string(s) failed semantic classification",
+        ));
 }
 
 #[test]
@@ -43,8 +47,12 @@ fn flow8_injected_both_failures_emit_combined_warning() {
         .assert()
         .success()
         .stderr(predicate::str::contains("Warning:"))
-        .stderr(predicate::str::contains("demangle_failures: 2"))
-        .stderr(predicate::str::contains("classification_failures: 4"));
+        .stderr(predicate::str::contains(
+            "2 symbol(s) could not be demangled",
+        ))
+        .stderr(predicate::str::contains(
+            "4 string(s) failed semantic classification",
+        ));
 }
 
 #[test]

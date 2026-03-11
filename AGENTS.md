@@ -58,23 +58,23 @@ Use idiomatic `clap` derive API patterns. Push validation into clap wherever pos
 
 ### Current CLI Flags (main.rs)
 
-| Flag          | Type                  | Notes                                                                  |
-| ------------- | --------------------- | ---------------------------------------------------------------------- |
-| `FILE`        | positional            | Input binary                                                           |
-| `--json`      | bool                  | Conflicts with `--yara`                                                |
-| `--yara`      | bool                  | Conflicts with `--json`                                                |
-| `--only-tags` | `Vec<Tag>`            | Repeatable, `value_parser = Tag::from_str`                             |
-| `--notags`    | `Vec<Tag>`            | Repeatable, runtime overlap check with `--only-tags`                   |
-| `--min-len`   | `Option<usize>`       | Default 4, custom parser enforces >= 1                                 |
-| `--top`       | `Option<usize>`       | Custom parser enforces >= 1                                            |
-| `--enc`       | `Option<CliEncoding>` | ascii, utf8, utf16, utf16le, utf16be                                   |
-| `--raw`       | bool                  | Conflicts with `--only-tags`, `--notags`, `--top`, `--debug`, `--yara` |
-| `--summary`   | bool                  | Conflicts with `--json`, `--yara`; runtime TTY check                   |
-| `--debug`     | bool                  | Conflicts with `--raw`                                                 |
+| Flag          | Short | Type                  | Notes                                                                   |
+| ------------- | ----- | --------------------- | ----------------------------------------------------------------------- |
+| `FILE`        |       | positional            | Input binary (use `-` for stdin)                                        |
+| `--json`      | `-j`  | bool                  | Conflicts with `--yara`                                                 |
+| `--yara`      |       | bool                  | Conflicts with `--json`                                                 |
+| `--only-tags` |       | `Vec<Tag>`            | Repeatable, `value_parser = Tag::from_str`                              |
+| `--no-tags`   |       | `Vec<Tag>`            | Repeatable, runtime overlap check with `--only-tags`                    |
+| `--min-len`   | `-m`  | `Option<usize>`       | Custom parser enforces >= 1                                             |
+| `--top`       | `-t`  | `Option<usize>`       | Custom parser enforces >= 1                                             |
+| `--enc`       | `-e`  | `Option<CliEncoding>` | ascii, utf8, utf16, utf16le, utf16be                                    |
+| `--raw`       |       | bool                  | Conflicts with `--only-tags`, `--no-tags`, `--top`, `--debug`, `--yara` |
+| `--summary`   |       | bool                  | Conflicts with `--json`, `--yara`; runtime TTY check                    |
+| `--debug`     |       | bool                  | Conflicts with `--raw`                                                  |
 
 ### Regex Patterns
 
-Use `lazy_static!` or `once_cell::sync::Lazy` for compiled regexes. Always use `.expect("descriptive message")` instead of `.unwrap()` for regex compilation - invalid regex patterns should fail fast with clear error messages.
+Use `std::sync::LazyLock` for compiled regexes. Always use `.expect("descriptive message")` instead of `.unwrap()` for regex compilation - invalid regex patterns should fail fast with clear error messages.
 
 ## Development Commands
 

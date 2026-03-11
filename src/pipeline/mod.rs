@@ -150,12 +150,20 @@ fn load_file(file_path: &Path) -> crate::types::Result<mmap_guard::FileData> {
 }
 
 /// Create an `indicatif` spinner targeting stderr.
+///
+/// Returns a hidden (no-op) spinner when `NO_COLOR` is set or stderr is not a
+/// terminal, respecting the <https://no-color.org> convention.
 fn create_spinner() -> ProgressBar {
+    if std::env::var_os("NO_COLOR").is_some()
+        || !std::io::IsTerminal::is_terminal(&std::io::stderr())
+    {
+        return ProgressBar::hidden();
+    }
+
     let pb = ProgressBar::with_draw_target(None, ProgressDrawTarget::stderr());
-    let style = ProgressStyle::default_spinner()
-        .template("{spinner} {msg}")
-        .expect("invalid spinner template");
-    pb.set_style(style);
+    if let Ok(style) = ProgressStyle::default_spinner().template("{spinner} {msg}") {
+        pb.set_style(style);
+    }
     pb.enable_steady_tick(std::time::Duration::from_millis(120));
     pb
 }
@@ -354,16 +362,18 @@ fn format_processing_warnings(
     }
     let mut parts = Vec::new();
     if demangle_failures > 0 {
-        parts.push(format!("demangle_failures: {demangle_failures}"));
+        parts.push(format!(
+            "{demangle_failures} symbol(s) could not be demangled (invalid mangled names)"
+        ));
     }
     if classification_failures > 0 {
         parts.push(format!(
-            "classification_failures: {classification_failures}"
+            "{classification_failures} string(s) failed semantic classification (unexpected content)"
         ));
     }
     Some(format!(
-        "Warning: Completed with partial processing issues ({})",
-        parts.join(", ")
+        "Warning: {}. Results may be incomplete for affected strings.",
+        parts.join("; ")
     ))
 }
 
@@ -421,24 +431,24 @@ mod tests {
     fn warning_format_demangle_only() {
         let msg = format_processing_warnings(3, 0).expect("must produce warning");
         assert!(msg.starts_with("Warning:"));
-        assert!(msg.contains("demangle_failures: 3"));
-        assert!(!msg.contains("classification_failures"));
+        assert!(msg.contains("3 symbol(s) could not be demangled"));
+        assert!(!msg.contains("classification"));
     }
 
     #[test]
     fn warning_format_classify_only() {
         let msg = format_processing_warnings(0, 7).expect("must produce warning");
         assert!(msg.starts_with("Warning:"));
-        assert!(msg.contains("classification_failures: 7"));
-        assert!(!msg.contains("demangle_failures"));
+        assert!(msg.contains("7 string(s) failed semantic classification"));
+        assert!(!msg.contains("demangled"));
     }
 
     #[test]
     fn warning_format_both_nonzero() {
         let msg = format_processing_warnings(2, 5).expect("must produce warning");
         assert!(msg.starts_with("Warning:"));
-        assert!(msg.contains("demangle_failures: 2"));
-        assert!(msg.contains("classification_failures: 5"));
+        assert!(msg.contains("2 symbol(s) could not be demangled"));
+        assert!(msg.contains("5 string(s) failed semantic classification"));
     }
 
     #[test]
