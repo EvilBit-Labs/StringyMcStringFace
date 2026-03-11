@@ -22,7 +22,7 @@ impl FilterEngine {
     /// Apply all filters in deterministic order and return the filtered collection.
     ///
     /// Filter order:
-    /// 1. min-len: retain strings where `text.len() >= min_length`
+    /// 1. min-len: retain strings by UTF-8 byte length (`text.len() >= min_length`)
     /// 2. encoding: restrict by encoding variant
     /// 3. include-tags: retain only strings with at least one included tag
     /// 4. exclude-tags: drop strings with any excluded tag

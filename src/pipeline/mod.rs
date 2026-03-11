@@ -410,9 +410,11 @@ fn emit_output(
     }
 
     let output = format_output(strings, &metadata)?;
-    print!("{output}");
-    if !output.ends_with('\n') {
-        println!();
+    if !output.is_empty() {
+        print!("{output}");
+        if !output.ends_with('\n') {
+            println!();
+        }
     }
 
     Ok(())

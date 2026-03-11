@@ -24,7 +24,7 @@ pub enum EncodingFilter {
 #[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct FilterConfig {
-    /// Minimum string length in bytes (default: None, no minimum).
+    /// Minimum string length in UTF-8 bytes (default: None, no minimum).
     pub min_length: Option<usize>,
     /// Restrict to a specific encoding (default: None, all encodings).
     pub encoding: Option<EncodingFilter>,

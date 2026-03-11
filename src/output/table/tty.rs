@@ -99,7 +99,10 @@ pub(super) fn format_table_tty(
             pad_string(&truncated_text, STRING_COLUMN_WIDTH, Alignment::Left),
             pad_string(tags_display, tags_width, Alignment::Left),
             pad_string(
-                &found_string.display_score.unwrap_or(0).to_string(),
+                &found_string
+                    .display_score
+                    .unwrap_or(found_string.score)
+                    .to_string(),
                 SCORE_COLUMN_WIDTH,
                 Alignment::Right
             ),
