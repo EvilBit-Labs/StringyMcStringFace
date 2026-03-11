@@ -255,11 +255,9 @@ fn test_full_extraction_path_with_filtering() {
     let data = b"Hello World\0AAAA\0Error: file not found\0!!!@@@###\0Test123";
 
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        noise_filtering_enabled: true,
-        min_confidence_threshold: 0.5,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default()
+        .with_noise_filtering(true)
+        .with_min_confidence_threshold(0.5);
 
     let container_info = ContainerInfo::new(
         BinaryFormat::Elf,
@@ -325,10 +323,7 @@ fn test_extraction_with_filtering_disabled() {
     let data = b"Hello World\0AAAA\0Test123";
 
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        noise_filtering_enabled: false,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_noise_filtering(false);
 
     let container_info = ContainerInfo::new(BinaryFormat::Elf, vec![section], vec![], vec![], None);
 

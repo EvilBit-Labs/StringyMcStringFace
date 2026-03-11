@@ -94,23 +94,13 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                     // Convert bytes to UTF-8 string (ASCII is valid UTF-8)
                     let bytes = std::mem::take(&mut current_string_bytes);
                     let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
-                    strings.push(FoundString {
+                    strings.push(FoundString::new(
                         text,
-                        original_text: None,
-                        encoding: Encoding::Ascii,
-                        offset: start as u64,
-                        rva: None,
-                        section: None,
-                        length: len as u32,
-                        tags: Vec::new(),
-                        score: 0,
-                        section_weight: None,
-                        semantic_boost: None,
-                        noise_penalty: None,
-                        display_score: None,
-                        source: StringSource::SectionData,
-                        confidence: 1.0,
-                    });
+                        Encoding::Ascii,
+                        start as u64,
+                        len as u32,
+                        StringSource::SectionData,
+                    ));
                 }
             }
             current_string_start = None;
@@ -129,44 +119,24 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                 } else {
                     let bytes = std::mem::take(&mut current_string_bytes);
                     let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
-                    strings.push(FoundString {
+                    strings.push(FoundString::new(
                         text,
-                        original_text: None,
-                        encoding: Encoding::Ascii,
-                        offset: start as u64,
-                        rva: None,
-                        section: None,
-                        length: len as u32,
-                        tags: Vec::new(),
-                        score: 0,
-                        section_weight: None,
-                        semantic_boost: None,
-                        noise_penalty: None,
-                        display_score: None,
-                        source: StringSource::SectionData,
-                        confidence: 1.0,
-                    });
+                        Encoding::Ascii,
+                        start as u64,
+                        len as u32,
+                        StringSource::SectionData,
+                    ));
                 }
             } else {
                 let bytes = std::mem::take(&mut current_string_bytes);
                 let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
-                strings.push(FoundString {
+                strings.push(FoundString::new(
                     text,
-                    original_text: None,
-                    encoding: Encoding::Ascii,
-                    offset: start as u64,
-                    rva: None,
-                    section: None,
-                    length: len as u32,
-                    tags: Vec::new(),
-                    score: 0,
-                    section_weight: None,
-                    semantic_boost: None,
-                    noise_penalty: None,
-                    display_score: None,
-                    source: StringSource::SectionData,
-                    confidence: 1.0,
-                });
+                    Encoding::Ascii,
+                    start as u64,
+                    len as u32,
+                    StringSource::SectionData,
+                ));
             }
         }
     }

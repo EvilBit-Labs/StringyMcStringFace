@@ -2,61 +2,9 @@
 //!
 //! This module contains utility functions used by the extraction framework:
 //!
-//! - [`apply_semantic_enrichment`]: Applies semantic tagging and symbol demangling
 //! - [`extract_ascii_utf8_strings`]: Extracts ASCII/UTF-8 strings from raw bytes
 //! - [`is_printable_text_byte`]: Checks if a byte is printable ASCII text
 //! - [`could_be_utf8_byte`]: Checks if a byte could be part of a UTF-8 sequence
-
-use crate::classification::{SemanticClassifier, SymbolDemangler};
-use crate::types::{ContainerInfo, FoundString, SectionInfo, SectionType, StringContext};
-
-/// Apply semantic enrichment (classification and demangling) to extracted strings
-///
-/// Iterates over the extracted strings, applying symbol demangling and semantic
-/// classification based on the container format and section context.
-pub(super) fn apply_semantic_enrichment(
-    strings: &mut [FoundString],
-    container_info: &ContainerInfo,
-) {
-    let classifier = SemanticClassifier::new();
-    let demangler = SymbolDemangler::new();
-
-    // Build a map from section name to SectionInfo for fast lookup
-    let section_map: std::collections::HashMap<&str, &SectionInfo> = container_info
-        .sections
-        .iter()
-        .map(|s| (s.name.as_str(), s))
-        .collect();
-
-    for string in strings {
-        demangler.demangle(string);
-
-        // Look up section info to get real section_type
-        let section_type = string
-            .section
-            .as_ref()
-            .and_then(|name| section_map.get(name.as_str()))
-            .map(|info| info.section_type)
-            .unwrap_or(SectionType::Other);
-
-        let context = StringContext::new(
-            section_type,
-            container_info.format,
-            string.encoding,
-            string.source,
-        );
-        let context = match &string.section {
-            Some(name) => context.with_section_name(name.clone()),
-            None => context,
-        };
-        let tags = classifier.classify(&string.text, &context);
-        for tag in tags {
-            if !string.tags.contains(&tag) {
-                string.tags.push(tag);
-            }
-        }
-    }
-}
 
 /// Check if a byte is printable text (ASCII or common whitespace)
 ///

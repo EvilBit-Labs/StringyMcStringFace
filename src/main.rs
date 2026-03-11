@@ -161,12 +161,7 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
 
     // -- Extraction config --
     let extraction_config = if let Some(n) = cli.min_len {
-        let config = ExtractionConfig {
-            min_length: n,
-            min_ascii_length: n,
-            min_wide_length: n,
-            ..ExtractionConfig::default()
-        };
+        let config = ExtractionConfig::default().with_min_length(n);
         config.validate()?;
         config
     } else {

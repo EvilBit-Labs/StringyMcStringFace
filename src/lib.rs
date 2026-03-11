@@ -3,70 +3,42 @@
 //! Stringy - A smarter alternative to the strings command
 //!
 //! Stringy leverages format-specific knowledge to distinguish meaningful strings
-//! from random garbage data in binary files.
+//! from random garbage data in binary files. It is section-aware and semantically
+//! intelligent, extracting strings from ELF, PE, and Mach-O binaries with
+//! classification, ranking, and multiple output formats.
 //!
-//! ## Current Implementation Status
-//!
-//! The core infrastructure is complete and robust:
+//! ## Features
 //!
 //! - **Binary Format Detection**: Automatic ELF, PE, Mach-O detection via `goblin`
-//! - **Container Parsing**: Full section analysis with intelligent classification
-//! - **Import/Export Extraction**: Symbol processing from all supported formats
-//! - **Section Weighting**: Priority-based scoring for string extraction
-//! - **Type Safety**: Comprehensive error handling and data structures
+//! - **Container Parsing**: Full section analysis with weighted scoring
+//! - **String Extraction**: ASCII, UTF-8, UTF-16LE/BE with noise filtering and deduplication
+//! - **PE Resources**: VERSIONINFO, STRINGTABLE, and MANIFEST extraction
+//! - **Mach-O Load Commands**: Dylib paths, rpaths, framework paths
+//! - **Semantic Classification**: URLs, IPs, domains, paths, GUIDs, emails, and more
+//! - **Ranking**: Section-weight, semantic-boost, and noise-penalty scoring
+//! - **Output Formats**: Table (TTY-aware), JSONL, and YARA rule generation
 //!
-//! ## Basic Usage
+//! ## Quick Start
 //!
-//! ```rust
-//! use stringy::container::{detect_format, create_parser};
-//! use stringy::extraction::{BasicExtractor, ExtractionConfig, StringExtractor};
+//! ```rust,no_run
+//! use stringy::pipeline::{Pipeline, PipelineConfig};
+//! use std::path::Path;
 //!
-//! # fn example() -> stringy::Result<()> {
-//! let data = std::fs::read("binary_file")?;
-//! let format = detect_format(&data);
-//! let parser = create_parser(format)?;
-//! let container_info = parser.parse(&data)?;
-//!
-//! println!("Format: {:?}", container_info.format);
-//! println!("Sections: {}", container_info.sections.len());
-//! println!("Imports: {}", container_info.imports.len());
-//!
-//! // Extract strings using the basic extractor
-//! let extractor = BasicExtractor::new();
-//! let config = ExtractionConfig::default();
-//! let strings = extractor.extract(&data, &container_info, &config)?;
-//! println!("Found {} strings", strings.len());
-//!
-//! // ASCII string extraction (foundational encoding type)
-//! use stringy::extraction::{extract_ascii_strings, AsciiExtractionConfig};
-//! let ascii_config = AsciiExtractionConfig::default();
-//! let ascii_strings = extract_ascii_strings(&data, &ascii_config);
-//! println!("Found {} ASCII strings", ascii_strings.len());
-//!
-//! // UTF-16LE string extraction (Windows PE binaries)
-//! use stringy::extraction::{extract_utf16_strings, Utf16ExtractionConfig};
-//! let utf16_config = Utf16ExtractionConfig::default();
-//! let utf16_strings = extract_utf16_strings(&data, &utf16_config);
-//! println!("Found {} UTF-16 strings", utf16_strings.len());
-//! # Ok(())
-//! # }
+//! let config = PipelineConfig::default();
+//! let pipeline = Pipeline::new(config);
+//! pipeline.run(Path::new("binary")).expect("pipeline failed");
 //! ```
 //!
 //! ## Architecture
 //!
 //! The library is organized into focused modules:
 //!
-//! - [`container`]: Binary format detection and parsing (complete)
-//! - [`extraction`]: String extraction algorithms (complete: ASCII, UTF-16LE extraction and PE resources)
-//!   - ASCII extraction provides foundational encoding extraction as the reference implementation
-//!   - UTF-16LE extraction provides Windows PE binary string extraction with confidence scoring
-//! - [`classification`]: Semantic analysis and tagging (in progress)
-//! - [`output`]: Result formatting (in progress)
-//! - [`types`]: Core data structures and error handling (complete)
-//!
-//! ## PE Resource String Extraction
-//!
-//! - **PE Resource Strings**: VERSIONINFO, STRINGTABLE, and MANIFEST extraction (complete)
+//! - [`container`]: Binary format detection and parsing
+//! - [`extraction`]: Encoding-aware string extraction with noise filtering
+//! - [`classification`]: Semantic analysis, tagging, and ranking
+//! - [`output`]: Result formatting (table, JSON, YARA)
+//! - [`pipeline`]: Orchestration from file loading through output
+//! - [`types`]: Core data structures and error handling
 
 pub mod classification;
 pub mod container;

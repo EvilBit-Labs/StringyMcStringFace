@@ -230,27 +230,21 @@ fn extract_utf16_strings_with_byte_order(
                     let utf16_confidence = calculate_utf16_confidence(&u16_vec);
 
                     if utf16_confidence >= config.confidence_threshold {
-                        found_strings.push(FoundString {
-                            text,
-                            original_text: None,
-                            encoding: match byte_order {
-                                ByteOrder::LE => Encoding::Utf16Le,
-                                ByteOrder::BE => Encoding::Utf16Be,
-                                ByteOrder::Auto => unreachable!(),
-                            },
-                            offset: start as u64,
-                            rva: None,
-                            section: None,
-                            length: bytes_for_decoding.len() as u32,
-                            tags: Vec::new(),
-                            score: 0,
-                            section_weight: None,
-                            semantic_boost: None,
-                            noise_penalty: None,
-                            display_score: None,
-                            source: StringSource::SectionData,
-                            confidence: utf16_confidence,
-                        });
+                        let encoding = match byte_order {
+                            ByteOrder::LE => Encoding::Utf16Le,
+                            ByteOrder::BE => Encoding::Utf16Be,
+                            ByteOrder::Auto => unreachable!(),
+                        };
+                        found_strings.push(
+                            FoundString::new(
+                                text,
+                                encoding,
+                                start as u64,
+                                bytes_for_decoding.len() as u32,
+                                StringSource::SectionData,
+                            )
+                            .with_confidence(utf16_confidence),
+                        );
                     }
                 }
             }

@@ -254,24 +254,41 @@ fn classify_strings(strings: &mut [FoundString], container_info: &ContainerInfo)
         }
     }
 
+    // Build section lookup map once for O(1) per-string access
+    let section_map: std::collections::HashMap<&str, SectionType> = container_info
+        .sections
+        .iter()
+        .map(|sec| (sec.name.as_str(), sec.section_type))
+        .collect();
+
     for s in strings.iter_mut() {
-        // Demangle (wrapping in catch_unwind for safety against third-party crate panics)
-        let text_clone = s.text.clone();
-        let demangle_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            demangler.demangle(s);
-        }));
-        if demangle_result.is_err() {
-            demangle_failures += 1;
-            // Restore text if panic corrupted it
-            s.text = text_clone;
+        // Demangle (wrapping in catch_unwind for safety against third-party crate panics).
+        // Only clone text for strings that look like mangled symbols to avoid
+        // unconditional allocation overhead.
+        let looks_mangled =
+            s.text.starts_with("_Z") || s.text.starts_with("_R") || s.text.starts_with('?');
+        let text_backup = if looks_mangled {
+            Some(s.text.clone())
+        } else {
+            None
+        };
+        if looks_mangled {
+            let demangle_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                demangler.demangle(s);
+            }));
+            if demangle_result.is_err() {
+                demangle_failures += 1;
+                if let Some(backup) = text_backup {
+                    s.text = backup;
+                }
+            }
         }
 
         // Classify (catch panics from classifier as actual failures)
-        let section_type = container_info
-            .sections
-            .iter()
-            .find(|sec| Some(&sec.name) == s.section.as_ref())
-            .map(|sec| sec.section_type)
+        let section_type = s
+            .section
+            .as_deref()
+            .and_then(|name| section_map.get(name).copied())
             .unwrap_or(SectionType::Other);
 
         let context = StringContext::new(section_type, container_info.format, s.encoding, s.source);
@@ -306,11 +323,18 @@ fn classify_strings(strings: &mut [FoundString], container_info: &ContainerInfo)
 fn rank_strings(strings: &mut [FoundString], container_info: &ContainerInfo, debug_mode: bool) {
     let ranking_engine = RankingEngine::new(debug_mode);
 
+    // Build section lookup map once for O(1) per-string access
+    let section_map: std::collections::HashMap<&str, &SectionInfo> = container_info
+        .sections
+        .iter()
+        .map(|sec| (sec.name.as_str(), sec))
+        .collect();
+
     for s in strings.iter_mut() {
-        let section_info = container_info
-            .sections
-            .iter()
-            .find(|sec| Some(&sec.name) == s.section.as_ref());
+        let section_info = s
+            .section
+            .as_deref()
+            .and_then(|name| section_map.get(name).copied());
         ranking_engine.calculate_score(s, section_info);
     }
 }

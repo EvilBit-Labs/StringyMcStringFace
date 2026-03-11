@@ -3,6 +3,8 @@
 //! Applies deterministic filters (length, encoding, tags, sorting, top-N)
 //! to the extracted string collection in a fixed order.
 
+use std::collections::HashSet;
+
 use crate::pipeline::config::{EncodingFilter, FilterConfig};
 use crate::types::{Encoding, FoundString};
 
@@ -28,6 +30,10 @@ impl FilterEngine {
     /// 6. top-N: truncate to N entries
     #[must_use]
     pub fn apply(&self, strings: Vec<FoundString>, config: &FilterConfig) -> Vec<FoundString> {
+        // Pre-build HashSets for O(1) tag containment checks
+        let include_set: HashSet<_> = config.include_tags.iter().collect();
+        let exclude_set: HashSet<_> = config.exclude_tags.iter().collect();
+
         let mut result: Vec<FoundString> = strings
             .into_iter()
             // 1. min-len (only applied when set)
@@ -41,15 +47,9 @@ impl FilterEngine {
                 }
             })
             // 3. include-tags
-            .filter(|s| {
-                config.include_tags.is_empty()
-                    || s.tags.iter().any(|t| config.include_tags.contains(t))
-            })
+            .filter(|s| include_set.is_empty() || s.tags.iter().any(|t| include_set.contains(t)))
             // 4. exclude-tags
-            .filter(|s| {
-                config.exclude_tags.is_empty()
-                    || !s.tags.iter().any(|t| config.exclude_tags.contains(t))
-            })
+            .filter(|s| exclude_set.is_empty() || !s.tags.iter().any(|t| exclude_set.contains(t)))
             .collect();
 
         // 5. stable sort: score desc -> offset asc -> text asc

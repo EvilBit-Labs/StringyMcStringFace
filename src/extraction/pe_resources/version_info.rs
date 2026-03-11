@@ -52,23 +52,15 @@ pub fn extract_version_info_strings(data: &[u8]) -> Vec<FoundString> {
             let text = value.to_string();
             // Source encoding is UTF-16LE: 2 bytes per code unit
             let length = (text.encode_utf16().count() * 2) as u32;
-            let found_string = FoundString {
+            let found_string = FoundString::new(
                 text,
-                original_text: None,
-                encoding: Encoding::Utf16Le,
-                offset: 0, // pelite doesn't provide offsets easily
-                rva: None,
-                section: Some(".rsrc".to_string()),
+                Encoding::Utf16Le,
+                0, // pelite doesn't provide offsets easily
                 length,
-                tags: vec![Tag::Version, Tag::Resource],
-                score: 0,
-                section_weight: None,
-                semantic_boost: None,
-                noise_penalty: None,
-                display_score: None,
-                source: StringSource::ResourceString,
-                confidence: 1.0,
-            };
+                StringSource::ResourceString,
+            )
+            .with_section(".rsrc".to_string())
+            .with_tags(vec![Tag::Version, Tag::Resource]);
             strings.push(found_string);
         });
     }

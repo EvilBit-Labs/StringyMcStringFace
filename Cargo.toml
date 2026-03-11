@@ -7,7 +7,7 @@ authors      = ["UncleSp1d3r <unclesp1d3r@evilbitlabs.io>"]
 description  = "A smarter alternative to the strings command that leverages format-specific knowledge"
 license      = "Apache-2.0"
 repository   = "https://github.com/EvilBit-Labs/Stringy"
-homepage     = "http://evilbitlabs.io/Stringy/"
+homepage     = "https://evilbitlabs.io/Stringy/"
 keywords     = ["binary", "strings", "analysis", "reverse-engineering", "malware"]
 categories   = ["command-line-utilities", "development-tools"]
 
@@ -26,18 +26,17 @@ entropy        = "0.4.3"
 goblin         = "0.10.5"
 indicatif      = "0.18.4"
 mmap-guard     = "0.2.0"
-once_cell      = "1.21.3"
 patharg        = "0.4.1"
 pelite         = "0.10.0"
 regex          = "1.12.3"
 rustc-demangle = "0.1.27"
 serde          = { version = "1.0.228", features = [ "derive" ] }
 serde_json     = "1.0.149"
-tempfile       = "3.26.0"
+tempfile       = "3.27.0"
 thiserror      = "2.0.18"
 
 [dev-dependencies]
-assert_cmd = "2.1.2"
+assert_cmd = "2.2.0"
 criterion  = "0.8.2"
 insta      = "1.46.3"
 predicates = "3.1.4"

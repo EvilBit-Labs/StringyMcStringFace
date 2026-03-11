@@ -34,6 +34,7 @@ use super::utf16::ByteOrder;
 /// config.noise_filtering_enabled = true;
 /// config.min_confidence_threshold = 0.6;
 /// ```
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct ExtractionConfig {
     /// Minimum string length in bytes (default: 1)
@@ -109,6 +110,78 @@ impl Default for ExtractionConfig {
 }
 
 impl ExtractionConfig {
+    /// Sets the minimum string length in bytes (applies to all extraction modes).
+    #[must_use]
+    pub fn with_min_length(mut self, min_length: usize) -> Self {
+        self.min_length = min_length;
+        self.min_ascii_length = min_length;
+        self.min_wide_length = min_length;
+        self
+    }
+
+    /// Sets the maximum string length in bytes.
+    #[must_use]
+    pub fn with_max_length(mut self, max_length: usize) -> Self {
+        self.max_length = max_length;
+        self
+    }
+
+    /// Sets whether to scan executable code sections.
+    #[must_use]
+    pub fn with_scan_code_sections(mut self, scan: bool) -> Self {
+        self.scan_code_sections = scan;
+        self
+    }
+
+    /// Sets whether to include debug sections.
+    #[must_use]
+    pub fn with_include_debug(mut self, include: bool) -> Self {
+        self.include_debug = include;
+        self
+    }
+
+    /// Sets whether to include import/export symbol names.
+    #[must_use]
+    pub fn with_include_symbols(mut self, include: bool) -> Self {
+        self.include_symbols = include;
+        self
+    }
+
+    /// Sets the enabled encodings for extraction.
+    #[must_use]
+    pub fn with_enabled_encodings(mut self, encodings: Vec<Encoding>) -> Self {
+        self.enabled_encodings = encodings;
+        self
+    }
+
+    /// Sets whether noise filtering is enabled.
+    #[must_use]
+    pub fn with_noise_filtering(mut self, enabled: bool) -> Self {
+        self.noise_filtering_enabled = enabled;
+        self
+    }
+
+    /// Sets the minimum confidence threshold.
+    #[must_use]
+    pub fn with_min_confidence_threshold(mut self, threshold: f32) -> Self {
+        self.min_confidence_threshold = threshold;
+        self
+    }
+
+    /// Sets whether deduplication is enabled.
+    #[must_use]
+    pub fn with_deduplication(mut self, enabled: bool) -> Self {
+        self.enable_deduplication = enabled;
+        self
+    }
+
+    /// Sets the UTF-16 byte order.
+    #[must_use]
+    pub fn with_utf16_byte_order(mut self, byte_order: ByteOrder) -> Self {
+        self.utf16_byte_order = byte_order;
+        self
+    }
+
     /// Validate the configuration
     ///
     /// Returns an error if any thresholds are invalid.

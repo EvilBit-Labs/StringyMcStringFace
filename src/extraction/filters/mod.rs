@@ -71,6 +71,7 @@ impl CharStats {
 ///
 /// Provides section metadata and surrounding context to help filters make
 /// informed decisions about string legitimacy.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct FilterContext {
     /// Section type where the string was found
@@ -112,6 +113,34 @@ impl FilterContext {
             surrounding_bytes: None,
         }
     }
+
+    /// Sets the section type.
+    #[must_use]
+    pub fn with_section_type(mut self, section_type: SectionType) -> Self {
+        self.section_type = section_type;
+        self
+    }
+
+    /// Sets the section weight.
+    #[must_use]
+    pub fn with_section_weight(mut self, weight: f32) -> Self {
+        self.section_weight = weight;
+        self
+    }
+
+    /// Sets whether the section is executable.
+    #[must_use]
+    pub fn with_is_executable(mut self, is_executable: bool) -> Self {
+        self.is_executable = is_executable;
+        self
+    }
+
+    /// Sets whether the section is writable.
+    #[must_use]
+    pub fn with_is_writable(mut self, is_writable: bool) -> Self {
+        self.is_writable = is_writable;
+        self
+    }
 }
 
 /// Trait for noise filters that calculate confidence scores
@@ -138,6 +167,7 @@ pub trait NoiseFilter {
 ///
 /// Combines multiple filters with configurable weights to produce an overall
 /// confidence score. Allows enabling/disabling individual filters.
+#[non_exhaustive]
 pub struct CompositeNoiseFilter {
     /// Entropy filter
     pub entropy_filter: EntropyFilter,

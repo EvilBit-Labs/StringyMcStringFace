@@ -12,7 +12,7 @@ use super::ascii;
 use super::config::NoiseFilterConfig;
 use super::dedup::{CanonicalString, deduplicate, found_string_to_occurrence};
 use super::filters::{CompositeNoiseFilter, FilterContext};
-use super::helpers::{apply_semantic_enrichment, extract_ascii_utf8_strings};
+use super::helpers::extract_ascii_utf8_strings;
 use super::traits::{BasicExtractor, ExtractionConfig, StringExtractor};
 use super::utf16::{self, ByteOrder};
 
@@ -87,9 +87,6 @@ fn collect_all_strings(
             ));
         }
     }
-
-    // Apply demangling and semantic classification before deduplication
-    apply_semantic_enrichment(&mut all_strings, container_info);
 
     Ok(all_strings)
 }

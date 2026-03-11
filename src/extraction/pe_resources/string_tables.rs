@@ -131,11 +131,6 @@ pub fn extract_string_table_strings(data: &[u8]) -> Vec<FoundString> {
                 Err(_) => continue,
             };
 
-            // Best-effort RVA retrieval from pelite DataEntry
-            // Note: pelite's DataEntry API doesn't directly expose RVA, so we set to None
-            // If RVA mapping is needed, it would require parsing section headers separately
-            let rva = None;
-
             // Parse the block
             let parsed_strings = parse_string_table_block(block_bytes);
 
@@ -146,23 +141,15 @@ pub fn extract_string_table_strings(data: &[u8]) -> Vec<FoundString> {
                 // Source encoding is UTF-16LE: 2 bytes per code unit
                 let text_len = (text.encode_utf16().count() * 2) as u32;
 
-                let found_string = FoundString {
+                let found_string = FoundString::new(
                     text,
-                    original_text: None,
-                    encoding: Encoding::Utf16Le,
-                    offset: 0, // File offset not easily available from pelite DataEntry
-                    rva,
-                    section: Some(".rsrc".to_string()),
-                    length: text_len,
-                    tags: vec![Tag::Resource],
-                    score: 0,
-                    section_weight: None,
-                    semantic_boost: None,
-                    noise_penalty: None,
-                    display_score: None,
-                    source: StringSource::ResourceString,
-                    confidence: 1.0,
-                };
+                    Encoding::Utf16Le,
+                    0, // File offset not easily available from pelite DataEntry
+                    text_len,
+                    StringSource::ResourceString,
+                )
+                .with_section(".rsrc".to_string())
+                .with_tags(vec![Tag::Resource]);
                 strings.push(found_string);
             }
         }

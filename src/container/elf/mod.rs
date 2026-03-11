@@ -330,8 +330,8 @@ impl ElfParser {
             let name = elf
                 .shdr_strtab
                 .get_at(section.sh_name)
-                .unwrap_or(&format!("section_{}", i))
-                .to_string();
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| format!("section_{}", i));
 
             // Skip empty sections
             if section.sh_size == 0 {

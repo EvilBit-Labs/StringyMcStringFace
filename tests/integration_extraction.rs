@@ -78,10 +78,7 @@ fn test_basic_extractor_utf8_strings() {
 #[test]
 fn test_basic_extractor_min_length_filtering() {
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        min_length: 4,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_min_length(4);
 
     let data = b"Hi\0Test\0AB\0LongString\0OK";
     let section = stringy::types::SectionInfo::new(
@@ -146,10 +143,7 @@ fn test_basic_extractor_with_elf_fixture() {
 
     // Use BasicExtractor with config that excludes symbols to focus on section data
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        include_symbols: false,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_include_symbols(false);
     let strings = extractor
         .extract(&elf_data, &container_info, &config)
         .expect("Failed to extract strings");
@@ -207,10 +201,7 @@ fn test_basic_extractor_with_pe_fixture() {
 
     // Extract strings using BasicExtractor with config that excludes symbols
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        include_symbols: false,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_include_symbols(false);
     let strings = extractor
         .extract(&pe_data, &container_info, &config)
         .expect("Failed to extract strings");
@@ -253,11 +244,9 @@ fn test_basic_extractor_section_filtering() {
     let container_info = parser.parse(&elf_data).expect("Failed to parse ELF");
 
     // Create config that excludes code and debug sections
-    let config = ExtractionConfig {
-        scan_code_sections: false,
-        include_debug: false,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default()
+        .with_scan_code_sections(false)
+        .with_include_debug(false);
 
     let extractor = BasicExtractor::new();
     let strings = extractor
@@ -380,10 +369,7 @@ fn test_extraction_config_defaults() {
 fn test_basic_extractor_encoding_filtering() {
     let extractor = BasicExtractor::new();
     // Only allow ASCII, exclude UTF-8
-    let config = ExtractionConfig {
-        enabled_encodings: vec![Encoding::Ascii],
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_enabled_encodings(vec![Encoding::Ascii]);
 
     let section = stringy::types::SectionInfo::new(
         ".rodata".to_string(),
@@ -419,10 +405,7 @@ fn test_basic_extractor_include_symbols() {
 
     // Extract with symbols included
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        include_symbols: true,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_include_symbols(true);
     let strings = extractor
         .extract(&elf_data, &container_info, &config)
         .expect("Failed to extract strings");
@@ -470,10 +453,7 @@ fn test_basic_extractor_exclude_symbols() {
 
     // Extract with symbols excluded
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        include_symbols: false,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_include_symbols(false);
     let strings = extractor
         .extract(&elf_data, &container_info, &config)
         .expect("Failed to extract strings");
@@ -567,10 +547,8 @@ fn test_utf16le_encoding_filtering() {
     let extractor = BasicExtractor::new();
 
     // Test with UTF-16LE disabled
-    let config_disabled = ExtractionConfig {
-        enabled_encodings: vec![Encoding::Ascii, Encoding::Utf8],
-        ..Default::default()
-    };
+    let config_disabled =
+        ExtractionConfig::default().with_enabled_encodings(vec![Encoding::Ascii, Encoding::Utf8]);
     let strings_disabled = extractor
         .extract(&data, &container_info, &config_disabled)
         .expect("Failed to extract strings");
@@ -911,11 +889,9 @@ fn test_basic_extractor_utf16_encoding_filtering() {
     let extractor = BasicExtractor::new();
 
     // Only allow UTF-16LE
-    let config_le_only = ExtractionConfig {
-        enabled_encodings: vec![Encoding::Utf16Le],
-        utf16_byte_order: ByteOrder::LE,
-        ..Default::default()
-    };
+    let config_le_only = ExtractionConfig::default()
+        .with_enabled_encodings(vec![Encoding::Utf16Le])
+        .with_utf16_byte_order(ByteOrder::LE);
 
     let strings_le_only = extractor
         .extract(&data, &container_info, &config_le_only)
@@ -931,11 +907,9 @@ fn test_basic_extractor_utf16_encoding_filtering() {
     );
 
     // Only allow UTF-16BE
-    let config_be_only = ExtractionConfig {
-        enabled_encodings: vec![Encoding::Utf16Be],
-        utf16_byte_order: ByteOrder::BE,
-        ..Default::default()
-    };
+    let config_be_only = ExtractionConfig::default()
+        .with_enabled_encodings(vec![Encoding::Utf16Be])
+        .with_utf16_byte_order(ByteOrder::BE);
 
     let strings_be_only = extractor
         .extract(&data, &container_info, &config_be_only)

@@ -35,10 +35,7 @@ fn test_deduplication_with_basic_extractor() {
     );
 
     // Disable deduplication in extractor to test manual deduplication
-    let config_no_dedup = ExtractionConfig {
-        enable_deduplication: false,
-        ..config.clone()
-    };
+    let config_no_dedup = config.clone().with_deduplication(false);
 
     let strings = extractor
         .extract(data, &container_info, &config_no_dedup)
@@ -114,10 +111,7 @@ fn test_deduplication_metadata_preservation() {
     );
 
     // Disable deduplication in extractor to test manual deduplication
-    let config_no_dedup = ExtractionConfig {
-        enable_deduplication: false,
-        ..config.clone()
-    };
+    let config_no_dedup = config.clone().with_deduplication(false);
 
     let strings = extractor
         .extract(data, &container_info, &config_no_dedup)
@@ -166,10 +160,7 @@ fn test_deduplication_with_real_fixture() {
     let extractor = BasicExtractor::new();
 
     // Test with deduplication disabled to get baseline count
-    let config_no_dedup = ExtractionConfig {
-        enable_deduplication: false,
-        ..Default::default()
-    };
+    let config_no_dedup = ExtractionConfig::default().with_deduplication(false);
     let strings_no_dedup = extractor
         .extract(&data, &container_info, &config_no_dedup)
         .unwrap();

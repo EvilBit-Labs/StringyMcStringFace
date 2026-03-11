@@ -170,30 +170,17 @@ pub fn extract_manifest_strings(data: &[u8]) -> Vec<FoundString> {
 
             let encoding = detect_manifest_encoding(manifest_bytes);
 
-            // Best-effort RVA retrieval from pelite DataEntry
-            // Note: pelite's DataEntry API doesn't directly expose RVA, so we set to None
-            // If RVA mapping is needed, it would require parsing section headers separately
-            let rva = None;
-
             // Length is based on decoded string bytes (String::len() returns byte length)
             let length = manifest_text.len() as u32;
-            let found_string = FoundString {
-                text: manifest_text,
-                original_text: None,
+            let found_string = FoundString::new(
+                manifest_text,
                 encoding,
-                offset: 0, // File offset not easily available from pelite DataEntry
-                rva,
-                section: Some(".rsrc".to_string()),
+                0, // File offset not easily available from pelite DataEntry
                 length,
-                tags: vec![Tag::Manifest, Tag::Resource],
-                score: 0,
-                section_weight: None,
-                semantic_boost: None,
-                noise_penalty: None,
-                display_score: None,
-                source: StringSource::ResourceString,
-                confidence: 1.0,
-            };
+                StringSource::ResourceString,
+            )
+            .with_section(".rsrc".to_string())
+            .with_tags(vec![Tag::Manifest, Tag::Resource]);
             strings.push(found_string);
         }
     }

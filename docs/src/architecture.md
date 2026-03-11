@@ -94,7 +94,7 @@ Orchestrates the entire flow from file reading through output:
 
 - **Configuration** (`src/pipeline/config.rs`): `PipelineConfig`, `FilterConfig`, and `EncodingFilter`
 - **Filtering** (`src/pipeline/filter.rs`): `FilterEngine` applies post-extraction filtering by min-length, encoding, tags, and top-N
-- **Score Normalization** (`src/pipeline/normalizer.rs`): `ScoreNormalizer` maps internal scores to display scores (0-100) and populates `display_score` on each `FoundString` only when `--debug` is active
+- **Score Normalization** (`src/pipeline/normalizer.rs`): `ScoreNormalizer` maps internal scores to display scores (0-100) and populates `display_score` on each `FoundString` unconditionally in all non-raw executions
 - **Orchestration** (`src/pipeline/mod.rs`): `Pipeline::run` drives the full pipeline
 
 ## Data Flow
@@ -133,7 +133,7 @@ pub struct FoundString {
     pub section_weight: Option<i32>, // debug only
     pub semantic_boost: Option<i32>, // debug only
     pub noise_penalty: Option<i32>,  // debug only
-    pub display_score: Option<i32>,  // debug only
+    pub display_score: Option<i32>,  // populated in all non-raw executions
     pub source: StringSource,
     pub confidence: f32,
 }
@@ -167,11 +167,20 @@ main.rs
 +-- types/
 |   +-- mod.rs (core data structures: Tag, FoundString, Encoding, etc.)
 |   +-- error.rs (StringyError, Result)
+|   +-- constructors.rs (constructor implementations)
+|   +-- found_string.rs (FoundString builder methods)
+|   +-- tests.rs
 +-- container/
 |   +-- mod.rs (format detection, ContainerParser trait)
-|   +-- elf.rs (ELF parser)
-|   +-- pe.rs (PE parser)
-|   +-- macho.rs (Mach-O parser)
+|   +-- elf/
+|   |   +-- mod.rs (ELF parser)
+|   |   +-- tests.rs
+|   +-- pe/
+|   |   +-- mod.rs (PE parser)
+|   |   +-- tests.rs
+|   +-- macho/
+|   |   +-- mod.rs (Mach-O parser)
+|   |   +-- tests.rs
 +-- extraction/
 |   +-- mod.rs (extraction orchestration)
 |   +-- ascii/ (ASCII/UTF-8 extraction)

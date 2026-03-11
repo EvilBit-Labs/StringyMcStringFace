@@ -10,6 +10,7 @@ impl ContainerInfo {
     ///
     /// This constructor should be used instead of struct literals to ensure
     /// all fields are properly initialized, especially when new fields are added.
+    #[must_use]
     pub fn new(
         format: super::BinaryFormat,
         sections: Vec<SectionInfo>,

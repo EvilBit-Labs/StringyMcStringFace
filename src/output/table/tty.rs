@@ -54,9 +54,17 @@ pub(super) fn format_table_tty(
 
     let mut output = String::new();
 
+    // Pre-compute tag display strings once to avoid double format_tags() calls
+    let tag_displays: Vec<String> = strings.iter().map(|s| format_tags(&s.tags)).collect();
+
     // Calculate dynamic column widths based on content
     let section_width = calculate_section_width(strings);
-    let tags_width = calculate_tags_width(strings);
+    let tags_width = tag_displays
+        .iter()
+        .map(|t| t.len())
+        .max()
+        .unwrap_or(0)
+        .clamp("Tags".len(), TAGS_COLUMN_WIDTH);
 
     // Build header
     let header = format!(
@@ -81,16 +89,15 @@ pub(super) fn format_table_tty(
     output.push('\n');
 
     // Build rows
-    for found_string in strings {
+    for (found_string, tags_display) in strings.iter().zip(tag_displays.iter()) {
         let sanitized_text = sanitize_for_display(&found_string.text);
         let truncated_text = truncate_string(&sanitized_text, STRING_COLUMN_WIDTH);
-        let tags_display = format_tags(&found_string.tags);
         let section_display = found_string.section.as_deref().unwrap_or("");
 
         let row = format!(
             "{} | {} | {} | {}",
             pad_string(&truncated_text, STRING_COLUMN_WIDTH, Alignment::Left),
-            pad_string(&tags_display, tags_width, Alignment::Left),
+            pad_string(tags_display, tags_width, Alignment::Left),
             pad_string(
                 &found_string.display_score.unwrap_or(0).to_string(),
                 SCORE_COLUMN_WIDTH,
@@ -161,18 +168,6 @@ fn calculate_section_width(strings: &[FoundString]) -> usize {
 
     // Minimum width is "Section" header length, maximum is SECTION_COLUMN_WIDTH
     max_section_len.clamp("Section".len(), SECTION_COLUMN_WIDTH)
-}
-
-/// Calculate the optimal width for the tags column based on content.
-fn calculate_tags_width(strings: &[FoundString]) -> usize {
-    let max_tags_len = strings
-        .iter()
-        .map(|s| format_tags(&s.tags).len())
-        .max()
-        .unwrap_or(0);
-
-    // Minimum width is "Tags" header length, maximum is TAGS_COLUMN_WIDTH
-    max_tags_len.clamp("Tags".len(), TAGS_COLUMN_WIDTH)
 }
 
 #[cfg(test)]
@@ -314,21 +309,6 @@ mod tests {
             let strings = vec![make_test_string("test").with_section(long_section)];
             let width = calculate_section_width(&strings);
             assert_eq!(width, SECTION_COLUMN_WIDTH);
-        }
-
-        #[test]
-        fn tags_width_minimum() {
-            let strings = vec![make_test_string("test")];
-            let width = calculate_tags_width(&strings);
-            assert_eq!(width, "Tags".len());
-        }
-
-        #[test]
-        fn tags_width_from_content() {
-            let mut found = make_test_string("test");
-            found.tags = vec![Tag::Url, Tag::Domain];
-            let width = calculate_tags_width(&[found]);
-            assert_eq!(width, "Tags".len());
         }
     }
 }

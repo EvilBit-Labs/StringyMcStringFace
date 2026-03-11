@@ -45,10 +45,7 @@ fn test_basic_extractor_extract_from_section() {
 #[test]
 fn test_basic_extractor_max_length_filtering() {
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        max_length: 10,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_max_length(10);
 
     let section = SectionInfo::new(".data".to_string(), 0, 30, SectionType::WritableData, 0.5)
         .with_writable(true);
@@ -156,10 +153,7 @@ fn test_basic_extractor_utf8_encoding() {
 fn test_basic_extractor_encoding_filtering() {
     let extractor = BasicExtractor::new();
     // Only allow ASCII, exclude UTF-8
-    let config = ExtractionConfig {
-        enabled_encodings: vec![Encoding::Ascii],
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_enabled_encodings(vec![Encoding::Ascii]);
 
     let section = SectionInfo::new(".rodata".to_string(), 0, 30, SectionType::StringData, 1.0);
 
@@ -185,10 +179,7 @@ fn test_basic_extractor_encoding_filtering() {
 fn test_basic_extractor_ascii_disabled() {
     let extractor = BasicExtractor::new();
     // Exclude ASCII, only allow UTF-8
-    let config = ExtractionConfig {
-        enabled_encodings: vec![Encoding::Utf8],
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_enabled_encodings(vec![Encoding::Utf8]);
 
     let section = SectionInfo::new(".rodata".to_string(), 0, 30, SectionType::StringData, 1.0);
 
@@ -222,10 +213,7 @@ fn test_basic_extractor_ascii_disabled() {
 #[test]
 fn test_basic_extractor_include_symbols() {
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        include_symbols: true,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_include_symbols(true);
 
     let section =
         SectionInfo::new(".text".to_string(), 0, 10, SectionType::Code, 0.1).with_executable(true);
@@ -303,10 +291,7 @@ fn test_basic_extractor_include_symbols() {
 #[test]
 fn test_basic_extractor_exclude_symbols() {
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        include_symbols: false,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default().with_include_symbols(false);
 
     let section =
         SectionInfo::new(".text".to_string(), 0, 10, SectionType::Code, 0.1).with_executable(true);
@@ -339,11 +324,9 @@ fn test_basic_extractor_exclude_symbols() {
 #[test]
 fn test_basic_extractor_section_filtering() {
     let extractor = BasicExtractor::new();
-    let config = ExtractionConfig {
-        scan_code_sections: false,
-        include_debug: false,
-        ..Default::default()
-    };
+    let config = ExtractionConfig::default()
+        .with_scan_code_sections(false)
+        .with_include_debug(false);
 
     let code_section =
         SectionInfo::new(".text".to_string(), 0, 9, SectionType::Code, 0.1).with_executable(true);
