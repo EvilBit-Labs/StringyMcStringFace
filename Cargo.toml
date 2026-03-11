@@ -38,7 +38,7 @@ thiserror      = "2.0.18"
 [dev-dependencies]
 assert_cmd = "2.2.0"
 criterion  = "0.8.2"
-insta      = "1.46.3"
+insta      = { version = "1.46.3", features = ["filters"] }
 predicates = "3.1.4"
 
 [profile.release]
