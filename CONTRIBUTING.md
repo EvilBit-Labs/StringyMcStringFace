@@ -47,6 +47,7 @@ Module layout:
 - `extraction/` handles string extraction, filtering, and deduplication
 - `classification/` handles semantic tagging and ranking
 - `output/` handles output formatters
+- `pipeline/` handles orchestration: config, filtering, normalization, `Pipeline::run`
 - `types/` contains core data structures and error types
 
 Key patterns:
