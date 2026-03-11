@@ -7,43 +7,43 @@ Total: 71
 
 Import 1: _set_new_mode
   Library: api-ms-win-crt-heap-l1-1-0.dll
-  Address: 0x84c08
+  Address: 0x[ADDR]
 
 Import 2: calloc
   Library: api-ms-win-crt-heap-l1-1-0.dll
-  Address: 0x84c18
+  Address: 0x[ADDR]
 
 Import 3: free
   Library: api-ms-win-crt-heap-l1-1-0.dll
-  Address: 0x84c22
+  Address: 0x[ADDR]
 
 Import 4: malloc
   Library: api-ms-win-crt-heap-l1-1-0.dll
-  Address: 0x84c2a
+  Address: 0x[ADDR]
 
 Import 5: __C_specific_handler
   Library: api-ms-win-crt-private-l1-1-0.dll
-  Address: 0x84c34
+  Address: 0x[ADDR]
 
 Import 6: __p___argc
   Library: api-ms-win-crt-runtime-l1-1-0.dll
-  Address: 0x84c4c
+  Address: 0x[ADDR]
 
 Import 7: __p___argv
   Library: api-ms-win-crt-runtime-l1-1-0.dll
-  Address: 0x84c5a
+  Address: 0x[ADDR]
 
 Import 8: _cexit
   Library: api-ms-win-crt-runtime-l1-1-0.dll
-  Address: 0x84c68
+  Address: 0x[ADDR]
 
 Import 9: _configure_narrow_argv
   Library: api-ms-win-crt-runtime-l1-1-0.dll
-  Address: 0x84c72
+  Address: 0x[ADDR]
 
 Import 10: _crt_atexit
   Library: api-ms-win-crt-runtime-l1-1-0.dll
-  Address: 0x84c8c
+  Address: 0x[ADDR]
 
 ... and 61 more imports
 
