@@ -70,22 +70,18 @@ Analyze binaries for hardcoded credentials, API endpoints, configuration data, a
 
 Stringy is in active development with a solid foundation already in place. The core infrastructure is complete and robust:
 
-**✅ Implemented:**
+**Implemented:**
 
 - Complete binary format detection (ELF, PE, Mach-O)
 - Comprehensive section classification with intelligent weighting
 - Import/export symbol extraction from all formats
+- String extraction engines (ASCII/UTF-8, UTF-16LE/BE)
+- Semantic classification system (URLs, paths, GUIDs, etc.)
+- Ranking, scoring, and normalization algorithms
+- Output formatters (table, JSONL, YARA)
+- Full CLI interface with filtering, encoding, and mode flags
+- Noise filtering with multi-layered heuristics
 - Type-safe error handling and data structures
 - Extensible architecture with trait-based parsers
-
-**🚧 In Progress:**
-
-- String extraction engines (ASCII/UTF-8, UTF-16)
-- Semantic classification system (URLs, paths, GUIDs, etc.)
-- Ranking and scoring algorithms
-- Output formatters (JSON, human-readable, YARA)
-- Full CLI interface implementation
-
-The foundation provides reliable binary analysis capabilities that can already identify and classify sections by their likelihood of containing meaningful strings, extract symbol information, and handle cross-platform binary formats.
 
 See the [Architecture Overview](./architecture.md) for technical details and the [Contributing](./contributing.md) guide to get involved.

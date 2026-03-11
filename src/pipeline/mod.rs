@@ -125,7 +125,7 @@ impl Pipeline {
 }
 
 // ---------------------------------------------------------------------------
-// Private helpers — each keeps `Pipeline::run` readable and `mod.rs` under
+// Private helpers -- each keeps `Pipeline::run` readable and `mod.rs` under
 // the 500-line file limit.
 // ---------------------------------------------------------------------------
 
@@ -415,5 +415,43 @@ mod tests {
         assert!(msg.starts_with("Warning:"));
         assert!(msg.contains("demangle_failures: 2"));
         assert!(msg.contains("classification_failures: 5"));
+    }
+
+    #[test]
+    fn load_file_happy_path() {
+        use std::io::Write;
+        let mut tmp = tempfile::NamedTempFile::new().expect("create temp file");
+        tmp.write_all(b"hello world").expect("write bytes");
+        tmp.flush().expect("flush");
+
+        let data = load_file(tmp.path()).expect("load_file must succeed");
+        let bytes: &[u8] = &data;
+        assert!(!bytes.is_empty(), "loaded data must be non-empty");
+        assert_eq!(bytes, b"hello world");
+    }
+
+    #[test]
+    fn load_file_empty_file_returns_empty_buffer() {
+        let tmp = tempfile::NamedTempFile::new().expect("create temp file");
+        // File exists but has zero bytes written
+
+        let data = load_file(tmp.path()).expect("load_file must succeed for empty file");
+        let bytes: &[u8] = &data;
+        assert!(bytes.is_empty(), "empty file must produce empty buffer");
+    }
+
+    #[test]
+    fn load_file_missing_file_returns_io_error() {
+        let tmp = tempfile::NamedTempFile::new().expect("create temp file");
+        let path = tmp.path().to_path_buf();
+        drop(tmp); // delete the file
+
+        let result = load_file(&path);
+        assert!(result.is_err(), "missing file must return an error");
+        let err = result.unwrap_err();
+        assert!(
+            matches!(err, StringyError::IoError(_)),
+            "error must be IoError, got: {err:?}"
+        );
     }
 }

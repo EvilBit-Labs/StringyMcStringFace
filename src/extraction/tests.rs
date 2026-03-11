@@ -7,7 +7,7 @@ use crate::types::{
 #[test]
 fn test_extraction_config_default() {
     let config = ExtractionConfig::default();
-    assert_eq!(config.min_length, 4);
+    assert_eq!(config.min_length, 1);
     assert_eq!(config.max_length, 4096);
     assert_eq!(config.enabled_encodings.len(), 2);
     assert!(config.enabled_encodings.contains(&Encoding::Ascii));

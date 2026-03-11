@@ -253,6 +253,35 @@ fn cli_help_examples_use_repeated_flags_not_comma_syntax() {
 }
 
 #[test]
+fn cli_help_lists_all_canonical_tags() {
+    stringy()
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("url"))
+        .stdout(predicate::str::contains("domain"))
+        .stdout(predicate::str::contains("ipv4"))
+        .stdout(predicate::str::contains("ipv6"))
+        .stdout(predicate::str::contains("filepath"))
+        .stdout(predicate::str::contains("regpath"))
+        .stdout(predicate::str::contains("guid"))
+        .stdout(predicate::str::contains("email"))
+        .stdout(predicate::str::contains("b64"))
+        .stdout(predicate::str::contains("fmt"))
+        .stdout(predicate::str::contains("user-agent-ish"))
+        .stdout(predicate::str::contains("demangled"))
+        .stdout(predicate::str::contains("import"))
+        .stdout(predicate::str::contains("export"))
+        .stdout(predicate::str::contains("version"))
+        .stdout(predicate::str::contains("manifest"))
+        .stdout(predicate::str::contains("resource"))
+        .stdout(predicate::str::contains("dylib-path"))
+        .stdout(predicate::str::contains("rpath"))
+        .stdout(predicate::str::contains("rpath-var"))
+        .stdout(predicate::str::contains("framework-path"));
+}
+
+#[test]
 fn cli_only_tags_filter_excludes_untagged() {
     let assert = stringy()
         .args([

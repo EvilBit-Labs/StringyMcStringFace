@@ -10,11 +10,15 @@ Adding a field to `FoundString` requires updating struct literals in `extraction
 
 ### `SectionInfo`
 
-`SectionInfo` is NOT `#[non_exhaustive]` -- struct literals are valid. Adding a field requires updating all struct literal sites (search for `section_type:` or `weight:` to find them). Sites include `container/*.rs` parsers and `pipeline/mod.rs` (synthetic unknown-data fallback).
+`SectionInfo` is `#[non_exhaustive]` -- struct literals are NOT valid outside the crate. Always construct via `SectionInfo::new()` and configure optional fields with `with_*` builder methods. When adding a field, update the struct definition, initialize it with a sensible default in `SectionInfo::new()`, and add the relevant builder method.
 
 ### `OutputMetadata`
 
 Adding a field to `OutputMetadata` requires: (1) add field to struct, (2) initialize in `new()` with a sensible default, (3) add `with_*` builder method, (4) update unit tests in `output/mod.rs` for default assertion and builder test, (5) update TTY formatter if the field affects display (rename `_metadata` to `metadata` if unused).
+
+### `ExtractionConfig`
+
+Changing default values in `ExtractionConfig::default()` requires updating assertions in both `src/extraction/tests.rs` (`test_extraction_config_default`) and `tests/integration_extraction.rs` (`test_extraction_config_defaults`). Search for the field name (e.g., `min_length`) in both files.
 
 ## CLI
 
@@ -22,7 +26,7 @@ Adding a field to `OutputMetadata` requires: (1) add field to struct, (2) initia
 - `Tag::from_str` in `value_parser` requires `use std::str::FromStr` in scope (clap resolves it as an associated fn, not a trait method)
 - CLI flag changes in `main.rs` require updating `tests/integration_cli.rs` (uses `Command` with flag names)
 - `Tag::from_str` accepts lowercase (`"url"`) but serde serializes PascalCase (`"Url"`) for variants without `#[serde(rename)]` -- tests comparing JSON output must use case-insensitive comparison or the serialized form
-- `--raw` mode skips ranking/normalization but NOT extraction-time classification (`SemanticClassifier` runs in `extraction/helpers.rs`). Scores retain base extraction weights (not 0), tags may be populated, `display_score` is absent. `assert_cmd` tests run piped (non-TTY); use `format_table_with_mode(&strings, &metadata, true)` to test TTY table rendering
+- `--raw` mode performs extraction only and then early-exits: ranking, normalization, and pipeline-level classification are skipped. `tags` are cleared, `score` is forced to 0, and `display_score` is set to `Some(0)`. Note that extraction-time classification (`SemanticClassifier` in `extraction/helpers.rs`) still runs before the pipeline clears the results. `assert_cmd` tests run piped (non-TTY); use `format_table_with_mode(&strings, &metadata, true)` to test TTY table rendering
 
 ## Dependencies
 

@@ -210,56 +210,54 @@ fn test_export_ordinal_extraction() {
         .join("fixtures")
         .join("test_binary_pe.exe");
 
-    if fixture_path.exists() {
-        let pe_data = std::fs::read(&fixture_path).expect("Failed to read PE fixture");
+    if !fixture_path.exists() {
+        eprintln!(
+            "Skipping test_export_ordinal_extraction: fixture not found (run `just gen-fixtures`)"
+        );
+        return;
+    }
 
-        if PeParser::detect(&pe_data) {
-            let container_info = PeParser::new()
-                .parse(&pe_data)
-                .expect("Failed to parse PE fixture");
+    let pe_data = std::fs::read(&fixture_path).expect("Failed to read PE fixture");
 
-            // If exports exist, verify ordinals are present and reasonable
-            if !container_info.exports.is_empty() {
-                // All exports should have ordinals
-                for export in &container_info.exports {
-                    assert!(
-                        export.ordinal.is_some(),
-                        "Export '{}' should have an ordinal",
-                        export.name
-                    );
+    if !PeParser::detect(&pe_data) {
+        panic!("PE fixture should be detected as PE");
+    }
 
-                    // Ordinal should be a valid u16 value
-                    if let Some(ord) = export.ordinal {
-                        assert!(
-                            ord > 0,
-                            "Export '{}' should have a positive ordinal, got {}",
-                            export.name,
-                            ord
-                        );
-                    }
-                }
+    let container_info = PeParser::new()
+        .parse(&pe_data)
+        .expect("Failed to parse PE fixture");
 
-                // Verify ordinals are sequential (base + index)
-                // The first export should have ordinal = base_ordinal
-                // Subsequent exports should have ordinal = base_ordinal + index
-                for (i, export) in container_info.exports.iter().enumerate() {
-                    if let Some(ord) = export.ordinal {
-                        // Ordinal should be base_ordinal + index
-                        // We can't directly verify the base_ordinal without parsing the export directory,
-                        // but we can verify that ordinals are sequential
-                        if i > 0 {
-                            let prev_ord = container_info.exports[i - 1].ordinal.unwrap();
-                            assert!(
-                                ord >= prev_ord,
-                                "Export ordinals should be non-decreasing: export {} has ordinal {}, previous has {}",
-                                i,
-                                ord,
-                                prev_ord
-                            );
-                        }
-                    }
-                }
-            }
+    // If exports exist, verify ordinals are present and reasonable
+    for export in &container_info.exports {
+        assert!(
+            export.ordinal.is_some(),
+            "Export '{}' should have an ordinal",
+            export.name
+        );
+
+        if let Some(ord) = export.ordinal {
+            assert!(
+                ord > 0,
+                "Export '{}' should have a positive ordinal, got {}",
+                export.name,
+                ord
+            );
+        }
+    }
+
+    // Verify ordinals are non-decreasing
+    for (i, export) in container_info.exports.iter().enumerate() {
+        if let Some(ord) = export.ordinal
+            && i > 0
+        {
+            let prev_ord = container_info.exports[i - 1].ordinal.unwrap();
+            assert!(
+                ord >= prev_ord,
+                "Export ordinals should be non-decreasing: export {} has ordinal {}, previous has {}",
+                i,
+                ord,
+                prev_ord
+            );
         }
     }
 }
@@ -272,31 +270,35 @@ fn test_export_unnamed_ordinal_naming() {
         .join("fixtures")
         .join("test_binary_pe.exe");
 
-    if fixture_path.exists() {
-        let pe_data = std::fs::read(&fixture_path).expect("Failed to read PE fixture");
+    if !fixture_path.exists() {
+        eprintln!(
+            "Skipping test_export_unnamed_ordinal_naming: fixture not found (run `just gen-fixtures`)"
+        );
+        return;
+    }
 
-        if PeParser::detect(&pe_data) {
-            let container_info = PeParser::new()
-                .parse(&pe_data)
-                .expect("Failed to parse PE fixture");
+    let pe_data = std::fs::read(&fixture_path).expect("Failed to read PE fixture");
 
-            // Check for unnamed exports (those with names starting with "ordinal_")
-            for export in &container_info.exports {
-                if export.name.starts_with("ordinal_") {
-                    // Extract the ordinal from the name
-                    if let Some(ord_str) = export.name.strip_prefix("ordinal_")
-                        && let Ok(ord_from_name) = ord_str.parse::<u32>()
-                        && let Some(ord_from_field) = export.ordinal
-                    {
-                        // Verify the ordinal in the name matches the ordinal field
-                        assert_eq!(
-                            ord_from_name as u16, ord_from_field,
-                            "Unnamed export name '{}' should match ordinal field {}",
-                            export.name, ord_from_field
-                        );
-                    }
-                }
-            }
+    if !PeParser::detect(&pe_data) {
+        panic!("PE fixture should be detected as PE");
+    }
+
+    let container_info = PeParser::new()
+        .parse(&pe_data)
+        .expect("Failed to parse PE fixture");
+
+    // Check for unnamed exports (those with names starting with "ordinal_")
+    for export in &container_info.exports {
+        if export.name.starts_with("ordinal_")
+            && let Some(ord_str) = export.name.strip_prefix("ordinal_")
+            && let Ok(ord_from_name) = ord_str.parse::<u32>()
+            && let Some(ord_from_field) = export.ordinal
+        {
+            assert_eq!(
+                ord_from_name as u16, ord_from_field,
+                "Unnamed export name '{}' should match ordinal field {}",
+                export.name, ord_from_field
+            );
         }
     }
 }

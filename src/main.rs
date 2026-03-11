@@ -78,11 +78,29 @@ struct Cli {
     yara: bool,
 
     /// Only include strings with these tags (repeatable)
-    #[arg(long = "only-tags", action = ArgAction::Append, value_parser = Tag::from_str)]
+    #[arg(
+        long = "only-tags",
+        action = ArgAction::Append,
+        value_parser = Tag::from_str,
+        value_name = "TAG",
+        long_help = "Include only strings with this tag. Repeat the flag for multiple tags (OR logic).\n\
+            Valid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, b64, fmt,\n\
+            user-agent-ish, demangled, import, export, version, manifest, resource,\n\
+            dylib-path, rpath, rpath-var, framework-path"
+    )]
     only_tags: Vec<Tag>,
 
     /// Exclude strings with these tags (repeatable)
-    #[arg(long = "notags", action = ArgAction::Append, value_parser = Tag::from_str)]
+    #[arg(
+        long = "notags",
+        action = ArgAction::Append,
+        value_parser = Tag::from_str,
+        value_name = "TAG",
+        long_help = "Exclude strings with this tag. Repeat the flag for multiple tags (OR logic).\n\
+            Valid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, b64, fmt,\n\
+            user-agent-ish, demangled, import, export, version, manifest, resource,\n\
+            dylib-path, rpath, rpath-var, framework-path"
+    )]
     notags: Vec<Tag>,
 
     /// Minimum string length in bytes (must be >= 1)
@@ -142,19 +160,25 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
     };
 
     // -- Extraction config --
-    let min_length = cli.min_len.unwrap_or(4);
-    let extraction_config = ExtractionConfig {
-        min_length,
-        min_ascii_length: min_length,
-        min_wide_length: min_length,
-        ..ExtractionConfig::default()
+    let extraction_config = if let Some(n) = cli.min_len {
+        let config = ExtractionConfig {
+            min_length: n,
+            min_ascii_length: n,
+            min_wide_length: n,
+            ..ExtractionConfig::default()
+        };
+        config.validate()?;
+        config
+    } else {
+        let config = ExtractionConfig::default();
+        config.validate()?;
+        config
     };
-    extraction_config.validate()?;
 
     // -- Filter config --
     let mut filter_config = FilterConfig::new();
-    if cli.min_len.is_some() {
-        filter_config = filter_config.with_min_length(min_length);
+    if let Some(n) = cli.min_len {
+        filter_config = filter_config.with_min_length(n);
     }
     if let Some(enc) = cli.enc {
         filter_config = filter_config.with_encoding(cli_encoding_to_filter(enc));

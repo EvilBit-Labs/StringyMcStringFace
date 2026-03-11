@@ -115,6 +115,7 @@ fn flow8_empty_binary_info_stderr_exit_0() {
         .arg("tests/fixtures/test_empty.bin")
         .assert()
         .success()
+        .stdout(predicate::str::is_empty().trim())
         .stderr(predicate::str::contains("Info:"));
 }
 

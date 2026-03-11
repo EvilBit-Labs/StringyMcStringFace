@@ -9,8 +9,8 @@ We welcome contributions to Stringy! This guide will help you get started with d
 - **Rust**: 1.91 or later (MSRV - Minimum Supported Rust Version)
 - **Git**: For version control
 - **just**: Task runner (install via `cargo install just` or your package manager)
-- **Docker**: Required for generating ELF and PE test fixtures
-- **Platform tools**: macOS with clang for Mach-O fixture generation
+- **mise**: Tool version manager (manages Zig and other dev tools)
+- **Zig**: Cross-compiler for test fixtures (managed by mise)
 
 ### Clone and Setup
 
@@ -18,7 +18,7 @@ We welcome contributions to Stringy! This guide will help you get started with d
 git clone https://github.com/EvilBit-Labs/Stringy
 cd Stringy
 
-# Generate test fixtures (ELF/PE via Docker, Mach-O on macOS)
+# Generate test fixtures (ELF/PE/Mach-O via Zig cross-compilation)
 just gen-fixtures
 
 # Run the full check suite
@@ -179,7 +179,7 @@ Write comprehensive tests:
 
 - Use `insta` for snapshot testing
 - Binary fixtures in `tests/fixtures/` (flat structure)
-- Integration tests named `integration_*.rs`
+- Integration tests use two naming patterns: `integration_*.rs` and `test_*.rs`
 - Use `assert_cmd` for CLI testing (note: `assert_cmd` is non-TTY)
 
 ## Contribution Areas

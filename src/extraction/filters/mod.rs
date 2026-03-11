@@ -198,9 +198,12 @@ impl CompositeNoiseFilter {
         let mut total_weight = 0.0;
         let mut weighted_sum = 0.0;
 
-        // Pre-compute char stats once for filters that need them
-        let needs_char_stats =
-            self.enable_char_distribution || self.enable_linguistic || self.enable_repetition;
+        // Pre-compute char stats once for filters that need them (only if
+        // the filter is both enabled AND has a non-zero weight).
+        let needs_char_stats = (self.enable_char_distribution
+            && self.weights.char_distribution_weight > 0.0)
+            || (self.enable_linguistic && self.weights.linguistic_weight > 0.0)
+            || (self.enable_repetition && self.weights.repetition_weight > 0.0);
         let stats = if needs_char_stats && !text.is_empty() {
             Some(CharStats::new(text))
         } else {

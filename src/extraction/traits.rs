@@ -36,7 +36,7 @@ use super::utf16::ByteOrder;
 /// ```
 #[derive(Debug, Clone)]
 pub struct ExtractionConfig {
-    /// Minimum string length in bytes (default: 4)
+    /// Minimum string length in bytes (default: 1)
     pub min_length: usize,
     /// Maximum string length in bytes (default: 4096)
     pub max_length: usize,
@@ -48,9 +48,9 @@ pub struct ExtractionConfig {
     pub section_priority: Vec<SectionType>,
     /// Whether to include import/export names (default: true)
     pub include_symbols: bool,
-    /// Minimum length for ASCII strings (default: 4, same as min_length)
+    /// Minimum length for ASCII strings (default: 1, same as min_length)
     pub min_ascii_length: usize,
-    /// Minimum length for UTF-16 strings (default: 3, for future use)
+    /// Minimum length for UTF-16 strings (default: 1, for future use)
     pub min_wide_length: usize,
     /// Which encodings to extract (default: ASCII, UTF-8)
     pub enabled_encodings: Vec<Encoding>,
@@ -84,7 +84,7 @@ pub struct ExtractionConfig {
 impl Default for ExtractionConfig {
     fn default() -> Self {
         Self {
-            min_length: 4,
+            min_length: 1,
             max_length: 4096,
             scan_code_sections: true,
             include_debug: false,
@@ -94,8 +94,8 @@ impl Default for ExtractionConfig {
                 SectionType::Resources,
             ],
             include_symbols: true,
-            min_ascii_length: 4,
-            min_wide_length: 3,
+            min_ascii_length: 1,
+            min_wide_length: 1,
             enabled_encodings: vec![Encoding::Ascii, Encoding::Utf8],
             noise_filtering_enabled: true,
             min_confidence_threshold: 0.5,

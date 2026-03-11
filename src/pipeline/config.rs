@@ -8,6 +8,7 @@ use crate::output::OutputFormat;
 use crate::types::{Encoding, Tag};
 
 /// Encoding filter for restricting extracted strings by encoding type.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EncodingFilter {
     /// Match a single specific encoding variant.

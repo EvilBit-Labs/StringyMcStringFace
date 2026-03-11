@@ -16,7 +16,11 @@ pub fn format_json(strings: &[FoundString], _metadata: &OutputMetadata) -> Resul
             ));
         }
         let line = serde_json::to_string(item).map_err(|err| {
-            StringyError::SerializationError(format!("JSON serialization failed: {}", err))
+            let preview: String = item.text.chars().take(40).collect();
+            StringyError::SerializationError(format!(
+                "JSON serialization failed at offset {:#x} (\"{preview}\"): {err}",
+                item.offset
+            ))
         })?;
         lines.push(line);
     }

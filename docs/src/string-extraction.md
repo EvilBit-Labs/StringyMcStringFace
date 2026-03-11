@@ -10,11 +10,11 @@ Binary Data → Section Analysis → Encoding Detection → String Scanning → 
 
 ## Encoding Support
 
-### ASCII Extraction ✅
+### ASCII Extraction
 
 The most common encoding in most binaries. ASCII extraction provides foundational string extraction with configurable minimum length thresholds.
 
-### UTF-16LE Extraction ✅
+### UTF-16LE Extraction
 
 UTF-16LE extraction is now implemented and available for Windows PE binary string extraction. It provides UTF-16LE string extraction with confidence scoring and noise filtering integration.
 
@@ -213,11 +213,11 @@ The confidence score is separate from the `score` field used for final ranking. 
 
 Noise filtering is designed to add minimal overhead (\<10% per acceptance criteria). Individual filters are optimized for performance, and the composite filter allows enabling/disabling specific filters to balance accuracy and speed.
 
-### UTF-16 Extraction ✅
+### UTF-16 Extraction
 
 Critical for Windows binaries and some resources. Supports both UTF-16LE (Little-Endian) and UTF-16BE (Big-Endian) with automatic byte order detection.
 
-#### UTF-16LE (Little-Endian) ✅
+#### UTF-16LE (Little-Endian)
 
 Most common on Windows platforms. Default 3 character minimum.
 
@@ -228,7 +228,7 @@ Most common on Windows platforms. Default 3 character minimum.
 - Null termination patterns (0x00 0x00)
 - Advanced confidence scoring with multiple heuristics
 
-#### UTF-16BE (Big-Endian) ✅
+#### UTF-16BE (Big-Endian)
 
 Found in Java .class files, network protocols, some cross-platform binaries.
 
@@ -239,7 +239,7 @@ Found in Java .class files, network protocols, some cross-platform binaries.
 - Reverse byte order from UTF-16LE
 - Same advanced confidence scoring as UTF-16LE
 
-#### Automatic Byte Order Detection ✅
+#### Automatic Byte Order Detection
 
 The `ByteOrder::Auto` mode automatically detects and extracts both UTF-16LE and UTF-16BE strings from the same data, avoiding duplicates and correctly identifying the encoding of each string.
 

@@ -24,6 +24,7 @@ fn error_missing_file_shows_path() {
         .arg("this_file_does_not_exist.bin")
         .assert()
         .failure()
+        .stderr(predicate::str::contains("Error:"))
         .stderr(predicate::str::contains("this_file_does_not_exist.bin"));
 }
 
@@ -41,4 +42,37 @@ fn exit_code_1_for_runtime_errors() {
         .assert()
         .failure()
         .code(1);
+}
+
+#[test]
+fn invalid_tag_exits_code_2() {
+    stringy()
+        .args(["tests/fixtures/test_binary_elf", "--only-tags", "bad_tag"])
+        .assert()
+        .failure()
+        .code(2)
+        .stderr(predicate::str::is_empty().not());
+}
+
+#[test]
+fn comma_syntax_tag_exits_code_2() {
+    stringy()
+        .args(["tests/fixtures/test_binary_elf", "--only-tags", "url,ipv4"])
+        .assert()
+        .failure()
+        .code(2);
+}
+
+#[test]
+fn repeatable_tag_flags_accepted() {
+    stringy()
+        .args([
+            "tests/fixtures/test_binary_elf",
+            "--only-tags",
+            "url",
+            "--only-tags",
+            "ipv4",
+        ])
+        .assert()
+        .success();
 }
