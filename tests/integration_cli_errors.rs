@@ -6,7 +6,7 @@ fn stringy() -> Command {
 }
 
 #[test]
-fn unknown_format_falls_back_to_raw_scan() {
+fn test_unknown_format_falls_back_to_raw_scan() {
     // Feed a non-binary file -- not ELF/PE/Mach-O.
     // The pipeline gracefully falls back to unstructured byte scanning.
     stringy()
@@ -19,7 +19,7 @@ fn unknown_format_falls_back_to_raw_scan() {
 }
 
 #[test]
-fn error_missing_file_shows_path() {
+fn test_error_missing_file_shows_path() {
     stringy()
         .arg("this_file_does_not_exist.bin")
         .assert()
@@ -29,13 +29,13 @@ fn error_missing_file_shows_path() {
 }
 
 #[test]
-fn exit_code_2_for_clap_errors() {
+fn test_exit_code_2_for_clap_errors() {
     // Missing required argument
     stringy().assert().failure().code(2);
 }
 
 #[test]
-fn exit_code_3_for_missing_file() {
+fn test_exit_code_3_for_missing_file() {
     // Non-existent file triggers NotFound I/O error (exit code 3)
     stringy()
         .arg("this_file_also_does_not_exist.bin")
@@ -45,7 +45,7 @@ fn exit_code_3_for_missing_file() {
 }
 
 #[test]
-fn invalid_tag_exits_code_2() {
+fn test_invalid_tag_exits_code_2() {
     stringy()
         .args(["tests/fixtures/test_binary_elf", "--only-tags", "bad_tag"])
         .assert()
@@ -55,7 +55,7 @@ fn invalid_tag_exits_code_2() {
 }
 
 #[test]
-fn comma_syntax_tag_exits_code_2() {
+fn test_comma_syntax_tag_exits_code_2() {
     stringy()
         .args(["tests/fixtures/test_binary_elf", "--only-tags", "url,ipv4"])
         .assert()
@@ -64,7 +64,7 @@ fn comma_syntax_tag_exits_code_2() {
 }
 
 #[test]
-fn repeatable_tag_flags_accepted() {
+fn test_repeatable_tag_flags_accepted() {
     stringy()
         .args([
             "tests/fixtures/test_binary_elf",
