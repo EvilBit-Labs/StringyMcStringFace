@@ -282,6 +282,8 @@ gen-fixtures:
     {{ mise_exec }} zig cc -target x86_64-windows-gnu -o tests/fixtures/test_binary_with_resources.exe tests/fixtures/test_binary_with_resources.c tests/fixtures/test_binary_with_resources.res
     echo "  PE+RC tests/fixtures/test_binary_with_resources.exe"
     just rmrf tests/fixtures/test_binary_with_resources.res
+    # Zig bundles macOS libc stubs, so this works from any host without an Apple SDK.
+    # The fixture only needs to be a valid Mach-O container for parser tests, not a runnable binary.
     {{ mise_exec }} zig cc -target x86_64-macos -o tests/fixtures/test_binary_macho tests/fixtures/test_binary.c
     echo "  MACHO tests/fixtures/test_binary_macho"
     truncate -s 0 tests/fixtures/test_empty.bin
@@ -301,6 +303,8 @@ gen-fixtures:
     {{ mise_exec }} zig cc -target x86_64-windows-gnu -o tests/fixtures/test_binary_with_resources.exe tests/fixtures/test_binary_with_resources.c tests/fixtures/test_binary_with_resources.res
     Write-Host "  PE+RC tests/fixtures/test_binary_with_resources.exe"
     just rmrf tests/fixtures/test_binary_with_resources.res
+    # Zig bundles macOS libc stubs, so this works from any host without an Apple SDK.
+    # The fixture only needs to be a valid Mach-O container for parser tests, not a runnable binary.
     {{ mise_exec }} zig cc -target x86_64-macos -o tests/fixtures/test_binary_macho tests/fixtures/test_binary.c
     Write-Host "  MACHO tests/fixtures/test_binary_macho"
     New-Item -ItemType File -Force -Path "tests/fixtures/test_empty.bin" | Out-Null
