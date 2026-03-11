@@ -4,7 +4,7 @@ expression: result
 ---
 String                                                       | Tags     |  Score | Section
 -------------------------------------------------------------|----------|--------|--------
-https://malware.example.com/beacon                           | url      |      0 | .rdata 
-C:\Windows\System32\cmd.exe                                  | filepath |      0 | .data  
-GetProcAddress                                               | import   |      0 |        
-192.168.1.100                                                | ipv4     |      0 | .rodata
+https://malware.example.com/beacon                           | url      |    150 | .rdata 
+C:\Windows\System32\cmd.exe                                  | filepath |    120 | .data  
+GetProcAddress                                               | import   |     80 |        
+192.168.1.100                                                | ipv4     |    100 | .rodata

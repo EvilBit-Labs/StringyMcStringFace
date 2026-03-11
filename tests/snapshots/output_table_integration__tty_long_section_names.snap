@@ -4,6 +4,6 @@ expression: result
 ---
 String                                                       | Tags |  Score | Section       
 -------------------------------------------------------------|------|--------|---------------
-string one                                                   |      |      0 | .rodata.str1.1
-string two                                                   |      |      0 | .data.rel.ro  
-string three                                                 |      |      0 | .text
+string one                                                   |      |     10 | .rodata.str1.1
+string two                                                   |      |     20 | .data.rel.ro  
+string three                                                 |      |     30 | .text

@@ -114,16 +114,16 @@ fn flow7_tty_summary_block_contains_required_fields() {
     // TTY summary cannot be tested via assert_cmd (non-TTY). Instead, test
     // via the library-level format_table_with_mode(..., true) with
     // show_summary enabled.
-    let mut fs = FoundString::new(
+    let fs = FoundString::new(
         "http://example.com".to_string(),
         Encoding::Ascii,
         0x1000,
         18,
         StringSource::SectionData,
-    );
-    fs.tags = vec![Tag::Url];
+    )
+    .with_tags(vec![Tag::Url]);
 
-    let top_tags = OutputMetadata::compute_top_tags(&[fs.clone()], 5);
+    let top_tags = OutputMetadata::compute_top_tags(std::slice::from_ref(&fs), 5);
     let metadata = OutputMetadata::new("sample.elf".to_string(), OutputFormat::Table, 42, 10)
         .with_show_summary(true)
         .with_binary_format(BinaryFormat::Elf)

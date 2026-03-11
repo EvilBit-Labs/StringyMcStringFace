@@ -4,6 +4,6 @@ expression: result
 ---
 String                                                       | Tags   |  Score | Section
 -------------------------------------------------------------|--------|--------|--------
-kernel32.dll                                                 | import |      0 |        
-mysterious string                                            |        |      0 | .text  
+kernel32.dll                                                 | import |     50 |        
+mysterious string                                            |        |     10 | .text  
 bare minimum                                                 |        |      0 |

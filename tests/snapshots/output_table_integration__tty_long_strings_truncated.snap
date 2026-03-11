@@ -4,5 +4,5 @@ expression: result
 ---
 String                                                       | Tags     |  Score | Section
 -------------------------------------------------------------|----------|--------|--------
-https://very-long-subdomain.malware-domain.example.com/pa... | url      |      0 | .rdata 
-C:\Users\Administrator\AppData\Local\Temp\aaaaaaaaaaaaaaa... | filepath |      0 | .data
+https://very-long-subdomain.malware-domain.example.com/pa... | url      |    150 | .rdata 
+C:\Users\Administrator\AppData\Local\Temp\aaaaaaaaaaaaaaa... | filepath |    120 | .data

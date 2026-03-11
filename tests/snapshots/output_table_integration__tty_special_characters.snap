@@ -4,6 +4,6 @@ expression: result
 ---
 String                                                       | Tags     |  Score | Section
 -------------------------------------------------------------|----------|--------|--------
-string with\ttab                                             |          |      0 | .data  
-pipe|character                                               |          |      0 | .data  
-backslash\here                                               | filepath |      0 | .rdata
+string with\ttab                                             |          |     10 | .data  
+pipe|character                                               |          |     10 | .data  
+backslash\here                                               | filepath |     20 | .rdata

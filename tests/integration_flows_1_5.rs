@@ -226,7 +226,7 @@ fn flow2_only_tags_url_ipv4_returns_only_those_tags() {
         "expected at least one result for url|ipv4"
     );
 
-    let allowed: &[&str] = &["Url", "ipv4"];
+    let allowed: &[&str] = &["url", "ipv4"];
     for line in &lines {
         let v: Value = serde_json::from_str(line).expect("valid JSON");
         let tags = v["tags"].as_array().expect("tags array present");

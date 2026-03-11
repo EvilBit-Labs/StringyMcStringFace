@@ -4,6 +4,6 @@ expression: result
 ---
 String                                                       | Tags |  Score | Section
 -------------------------------------------------------------|------|--------|--------
-ASCII string                                                 |      |      0 | .rodata
-UTF-8 string                                                 |      |      0 | .rodata
-UTF-16LE string                                              |      |      0 | .data
+ASCII string                                                 |      |     50 | .rodata
+UTF-8 string                                                 |      |     50 | .rodata
+UTF-16LE string                                              |      |     50 | .data

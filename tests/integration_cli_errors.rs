@@ -7,10 +7,10 @@ fn stringy() -> Command {
 
 #[test]
 fn unknown_format_falls_back_to_raw_scan() {
-    // Feed a plain text file -- not ELF/PE/Mach-O.
+    // Feed a non-binary file -- not ELF/PE/Mach-O.
     // The pipeline gracefully falls back to unstructured byte scanning.
     stringy()
-        .arg("Cargo.toml")
+        .arg("tests/fixtures/test_unknown.bin")
         .assert()
         .success()
         .stderr(predicate::str::contains(
