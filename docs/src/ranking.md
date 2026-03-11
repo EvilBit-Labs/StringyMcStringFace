@@ -10,6 +10,8 @@ Final Score = SectionWeight + SemanticBoost - NoisePenalty
 
 Each component contributes to the overall relevance assessment. The resulting internal score is then mapped to a display score (0-100) via band mapping.
 
+> **Note:** Section weights use a 1.0-10.0 scale, and semantic boosts add to the internal score. The pipeline's normalizer then maps the combined internal score to a 0-100 display score using the band table shown in [Display Score Mapping](#display-score-mapping) below.
+
 ## Section Weight
 
 Different sections have varying likelihood of containing meaningful strings. Container parsers assign weights (1.0-10.0) to each section based on its type and name.
