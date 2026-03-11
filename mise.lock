@@ -295,22 +295,6 @@ uvx_args = "--with mdformat-gfm --with mdformat-frontmatter --with mdformat-foot
 version = "4.5.1"
 backend = "pipx:pre-commit"
 
-[[tools.pre-commit]]
-version = "4.5.1"
-backend = "aqua:pre-commit/pre-commit"
-
-[tools.pre-commit."platforms.linux-x64"]
-checksum = "sha256:19d00ba35cbf9c04dc3736cd8bb641e8633f3eddd4cedde71809574ae68a2cd1"
-url = "https://github.com/pre-commit/pre-commit/releases/download/v4.5.1/pre-commit-4.5.1.pyz"
-
-[tools.pre-commit."platforms.macos-arm64"]
-checksum = "sha256:19d00ba35cbf9c04dc3736cd8bb641e8633f3eddd4cedde71809574ae68a2cd1"
-url = "https://github.com/pre-commit/pre-commit/releases/download/v4.5.1/pre-commit-4.5.1.pyz"
-
-[tools.pre-commit."platforms.macos-x64"]
-checksum = "sha256:19d00ba35cbf9c04dc3736cd8bb641e8633f3eddd4cedde71809574ae68a2cd1"
-url = "https://github.com/pre-commit/pre-commit/releases/download/v4.5.1/pre-commit-4.5.1.pyz"
-
 [[tools.prettier]]
 version = "3.8.1"
 backend = "npm:prettier"
