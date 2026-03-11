@@ -22,11 +22,11 @@ Stringy will:
 ```text
 String                                   Tags              Score  Section
 ------                                   ----              -----  -------
-https://api.example.com/v1/users         Url                 95   .rdata
+https://api.example.com/v1/users         url                 95   .rdata
 {12345678-1234-1234-1234-123456789abc}   guid                87   .rdata
 /usr/local/bin/application               filepath            82   __cstring
 Error: %s at line %d                     fmt                 78   .rdata
-MyApplication v1.2.3                     Version             75   .rsrc
+MyApplication v1.2.3                     version             75   .rsrc
 ```
 
 ## Common Use Cases
