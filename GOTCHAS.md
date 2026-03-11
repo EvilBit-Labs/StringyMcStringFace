@@ -59,6 +59,7 @@ Changing default values in `ExtractionConfig::default()` requires updating asser
 
 ## Pipeline
 
+- `load_file` handles empty files via `mmap_guard`'s `InvalidInput` error branch, returning `FileData::Loaded(Vec::new())`. Unit tests for all four branches (happy path, empty, missing, permission-denied) live in `pipeline/mod.rs`'s `#[cfg(test)] mod tests`. The permission-denied test is `#[cfg(unix)]` only.
 - Unknown/unparseable formats (plain text, etc.) do NOT error -- the pipeline falls back to unstructured raw byte scanning and succeeds. Tests should NOT expect failure when feeding non-binary files like `Cargo.toml`.
 - Raw mode extraction order is non-deterministic across runs (HashMap iteration order in dedup/import processing). Do not write tests asserting deterministic row ordering in `--raw` output.
 - Import/export strings have `offset: 0` (no meaningful file offset). Only `SectionData` source has real offsets, and even those are NOT globally monotonic (sections processed by weight priority).
