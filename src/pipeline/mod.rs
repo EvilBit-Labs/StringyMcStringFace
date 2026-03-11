@@ -269,6 +269,11 @@ fn classify_strings(strings: &mut [FoundString], container_info: &ContainerInfo)
         .map(|sec| (sec.name.as_str(), sec.section_type))
         .collect();
 
+    // Suppress panic output from catch_unwind -- the default hook prints to stderr
+    // before we can catch the panic, which pollutes user output.
+    let prev_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+
     for s in strings.iter_mut() {
         // Demangle (wrapping in catch_unwind for safety against third-party crate panics).
         // Only clone text for strings that look like mangled symbols to avoid
@@ -323,6 +328,9 @@ fn classify_strings(strings: &mut [FoundString], container_info: &ContainerInfo)
             }
         }
     }
+
+    // Restore the previous panic hook
+    std::panic::set_hook(prev_hook);
 
     (demangle_failures, classification_failures)
 }

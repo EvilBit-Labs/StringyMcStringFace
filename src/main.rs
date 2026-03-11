@@ -255,6 +255,12 @@ fn resolve_input_path(cli: &Cli) -> Result<(PathBuf, Option<NamedTempFile>), Str
                     format!("failed to write temp file: {e}"),
                 ))
             })?;
+            temp_file.as_file().sync_all().map_err(|e| {
+                StringyError::IoError(std::io::Error::new(
+                    e.kind(),
+                    format!("failed to sync temp file: {e}"),
+                ))
+            })?;
             let path = temp_file.path().to_path_buf();
             Ok((path, Some(temp_file)))
         }
