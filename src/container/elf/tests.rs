@@ -165,37 +165,21 @@ fn test_symbol_filtering_constants() {
 
 #[test]
 fn test_import_export_extraction_methods_exist() {
-    // Test that the import/export extraction methods exist and can be called
-    // Full functionality testing requires integration tests with real ELF binaries
+    // API contract test: verify method signatures haven't changed.
+    // These are compile-time checks, not runtime behavior tests.
     let parser = ElfParser::new();
-
-    // We can't easily create a valid ELF structure for unit testing,
-    // but we can verify the methods exist and have the right signatures
-    // by checking that they compile and can be referenced
     let _extract_imports = ElfParser::extract_imports;
     let _extract_exports = ElfParser::extract_exports;
-
-    // Verify parser can be created (this is a compile-time check)
     let _ = parser;
 }
 
 #[test]
 fn test_library_extraction_behavior() {
-    // Test the documented behavior of library extraction
+    // API contract test: verify method signature for get_symbol_providing_library.
+    // Compile-time only -- runtime testing requires a valid ELF with version info.
     let parser = ElfParser::new();
-
-    // Create a minimal ELF structure for testing
-    // We can't use Elf::default() as it doesn't exist, so we'll test the behavior
-    // by verifying that the method signature is correct and the documented behavior
-
-    // The get_symbol_providing_library method uses version information to map symbols
-    // to libraries, which is a best-effort approach
-
-    // This is a compile-time test to ensure the methods exist with correct signatures
     let _method_ref: fn(&ElfParser, &Elf, usize, &[String]) -> Option<String> =
         ElfParser::get_symbol_providing_library;
-
-    // Verify the parser exists
     let _ = parser;
 }
 
