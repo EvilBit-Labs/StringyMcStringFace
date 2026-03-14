@@ -74,16 +74,8 @@ fn test_no_valid_strings() {
 
 #[test]
 fn test_string_at_section_boundary() {
-    let section = SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 7,
-        size: 12,
-        rva: Some(0x2000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let section = SectionInfo::new(".rodata".to_string(), 7, 12, SectionType::StringData, 1.0)
+        .with_rva(0x2000);
 
     let data = b"prefix\0Hello World\0suffix";
     let config = AsciiExtractionConfig::default();
@@ -125,27 +117,13 @@ fn test_single_character_sequences() {
 
 #[test]
 fn test_different_section_types() {
-    let rodata_section = SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 0,
-        size: 20,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let rodata_section =
+        SectionInfo::new(".rodata".to_string(), 0, 20, SectionType::StringData, 1.0)
+            .with_rva(0x1000);
 
-    let data_section = SectionInfo {
-        name: ".data".to_string(),
-        offset: 0,
-        size: 20,
-        rva: Some(0x2000),
-        section_type: SectionType::WritableData,
-        is_executable: false,
-        is_writable: true,
-        weight: 0.5,
-    };
+    let data_section = SectionInfo::new(".data".to_string(), 0, 20, SectionType::WritableData, 0.5)
+        .with_rva(0x2000)
+        .with_writable(true);
 
     let data = b"Hello World\0Test";
     let config = AsciiExtractionConfig::default();
@@ -167,16 +145,8 @@ fn test_different_section_types() {
 
 #[test]
 fn test_section_metadata_attachment() {
-    let section = SectionInfo {
-        name: ".custom".to_string(),
-        offset: 0,
-        size: 20,
-        rva: Some(0x3000),
-        section_type: SectionType::ReadOnlyData,
-        is_executable: false,
-        is_writable: false,
-        weight: 0.8,
-    };
+    let section = SectionInfo::new(".custom".to_string(), 0, 20, SectionType::ReadOnlyData, 0.8)
+        .with_rva(0x3000);
 
     let data = b"Test String\0Another";
     let config = AsciiExtractionConfig::default();

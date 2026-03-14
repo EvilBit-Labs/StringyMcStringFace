@@ -140,10 +140,7 @@ fn test_linguistic_filter_with_numbers() {
 #[test]
 fn test_length_filter_very_short() {
     let filter = LengthFilter::new(200);
-    let context = FilterContext {
-        section_weight: 0.3,
-        ..Default::default()
-    };
+    let context = FilterContext::default().with_section_weight(0.3);
 
     let score = filter.calculate_confidence("Hi", &context);
     assert!(
@@ -217,12 +214,10 @@ fn test_repetition_filter_some_repetition() {
 #[test]
 fn test_context_filter_string_data_section() {
     let filter = ContextFilter;
-    let context = FilterContext {
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        ..Default::default()
-    };
+    let context = FilterContext::default()
+        .with_section_type(SectionType::StringData)
+        .with_is_executable(false)
+        .with_is_writable(false);
 
     let score = filter.calculate_confidence("test", &context);
     assert!(
@@ -234,11 +229,9 @@ fn test_context_filter_string_data_section() {
 #[test]
 fn test_context_filter_code_section() {
     let filter = ContextFilter;
-    let context = FilterContext {
-        section_type: SectionType::Code,
-        section_weight: 0.1,
-        ..Default::default()
-    };
+    let context = FilterContext::default()
+        .with_section_type(SectionType::Code)
+        .with_section_weight(0.1);
 
     let score = filter.calculate_confidence("test", &context);
     assert!(score < 0.5, "Code section should have lower confidence");
@@ -247,10 +240,7 @@ fn test_context_filter_code_section() {
 #[test]
 fn test_context_filter_resources_section() {
     let filter = ContextFilter;
-    let context = FilterContext {
-        section_type: SectionType::Resources,
-        ..Default::default()
-    };
+    let context = FilterContext::default().with_section_type(SectionType::Resources);
 
     let score = filter.calculate_confidence("test", &context);
     assert_eq!(

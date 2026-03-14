@@ -268,6 +268,7 @@ mod tests {
             section_weight: None,
             semantic_boost: None,
             noise_penalty: None,
+            display_score: None,
             source: StringSource::ImportName,
             confidence: 1.0,
         }

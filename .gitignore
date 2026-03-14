@@ -131,4 +131,13 @@ megalinter-reports/*
 target/*
 stringy-output/*
 tests/fixtures/*
+!tests/fixtures/README.md
+!tests/fixtures/test_binary.c
+!tests/fixtures/test_binary_with_resources.c
+!tests/fixtures/test_binary_with_resources.rc
+!tests/fixtures/test_empty.bin
+!tests/fixtures/test_unknown.bin
 .claude.local.md
+
+# Git worktrees
+.worktrees/

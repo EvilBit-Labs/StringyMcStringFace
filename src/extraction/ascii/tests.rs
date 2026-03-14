@@ -3,15 +3,10 @@ use crate::types::{Encoding, SectionInfo, SectionType, StringSource};
 
 // Helper to create test section
 fn create_test_section(name: &str, offset: u64, size: u64, rva: Option<u64>) -> SectionInfo {
-    SectionInfo {
-        name: name.to_string(),
-        offset,
-        size,
-        rva,
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
+    let section = SectionInfo::new(name.to_string(), offset, size, SectionType::StringData, 1.0);
+    match rva {
+        Some(rva) => section.with_rva(rva),
+        None => section,
     }
 }
 

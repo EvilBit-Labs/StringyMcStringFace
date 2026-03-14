@@ -40,17 +40,31 @@ use super::{
 /// - Section name
 pub(super) fn format_table_tty(
     strings: &[FoundString],
-    _metadata: &OutputMetadata,
+    metadata: &OutputMetadata,
 ) -> Result<String> {
-    if strings.is_empty() {
+    if strings.is_empty() && !metadata.show_summary {
         return Ok(String::new());
+    }
+
+    if strings.is_empty() {
+        return Ok(format_summary_block(metadata)
+            .trim_start_matches('\n')
+            .to_string());
     }
 
     let mut output = String::new();
 
+    // Pre-compute tag display strings once to avoid double format_tags() calls
+    let tag_displays: Vec<String> = strings.iter().map(|s| format_tags(&s.tags)).collect();
+
     // Calculate dynamic column widths based on content
     let section_width = calculate_section_width(strings);
-    let tags_width = calculate_tags_width(strings);
+    let tags_width = tag_displays
+        .iter()
+        .map(|t| t.len())
+        .max()
+        .unwrap_or(0)
+        .clamp("Tags".len(), TAGS_COLUMN_WIDTH);
 
     // Build header
     let header = format!(
@@ -75,18 +89,20 @@ pub(super) fn format_table_tty(
     output.push('\n');
 
     // Build rows
-    for found_string in strings {
+    for (found_string, tags_display) in strings.iter().zip(tag_displays.iter()) {
         let sanitized_text = sanitize_for_display(&found_string.text);
         let truncated_text = truncate_string(&sanitized_text, STRING_COLUMN_WIDTH);
-        let tags_display = format_tags(&found_string.tags);
         let section_display = found_string.section.as_deref().unwrap_or("");
 
         let row = format!(
             "{} | {} | {} | {}",
             pad_string(&truncated_text, STRING_COLUMN_WIDTH, Alignment::Left),
-            pad_string(&tags_display, tags_width, Alignment::Left),
+            pad_string(tags_display, tags_width, Alignment::Left),
             pad_string(
-                &found_string.score.to_string(),
+                &found_string
+                    .display_score
+                    .unwrap_or(found_string.score)
+                    .to_string(),
                 SCORE_COLUMN_WIDTH,
                 Alignment::Right
             ),
@@ -101,7 +117,51 @@ pub(super) fn format_table_tty(
         output.pop();
     }
 
+    if metadata.show_summary {
+        output.push_str(&format_summary_block(metadata));
+    }
+
     Ok(output)
+}
+
+/// Format the summary block appended after table output.
+fn format_summary_block(metadata: &OutputMetadata) -> String {
+    let format_label = match metadata.binary_format {
+        crate::types::BinaryFormat::Elf => "ELF",
+        crate::types::BinaryFormat::Pe => "PE",
+        crate::types::BinaryFormat::MachO => "Mach-O",
+        crate::types::BinaryFormat::Unknown => "unknown",
+    };
+
+    let mut block = format!(
+        "\n\nBinary: {} [{}]\nStrings: {} shown / {} extracted",
+        metadata.binary_name, format_label, metadata.filtered_strings, metadata.total_strings,
+    );
+
+    if !metadata.top_tags.is_empty() {
+        let tag_parts: Vec<String> = metadata
+            .top_tags
+            .iter()
+            .map(|(tag, count)| format!("{tag:?}: {count}"))
+            .collect();
+        block.push_str(&format!("\nTop tags: {}", tag_parts.join(", ")));
+    }
+
+    if let Some(duration) = metadata.analysis_duration {
+        let millis = duration.as_millis();
+        if millis < 1000 {
+            block.push_str(&format!("\nAnalysis time: {millis}ms"));
+        } else if millis < 60_000 {
+            let secs = duration.as_secs_f64();
+            block.push_str(&format!("\nAnalysis time: {secs:.1}s"));
+        } else {
+            let mins = duration.as_secs() / 60;
+            let secs = duration.as_secs() % 60;
+            block.push_str(&format!("\nAnalysis time: {mins}m {secs}s"));
+        }
+    }
+
+    block
 }
 
 /// Calculate the optimal width for the section column based on content.
@@ -115,18 +175,6 @@ fn calculate_section_width(strings: &[FoundString]) -> usize {
 
     // Minimum width is "Section" header length, maximum is SECTION_COLUMN_WIDTH
     max_section_len.clamp("Section".len(), SECTION_COLUMN_WIDTH)
-}
-
-/// Calculate the optimal width for the tags column based on content.
-fn calculate_tags_width(strings: &[FoundString]) -> usize {
-    let max_tags_len = strings
-        .iter()
-        .map(|s| format_tags(&s.tags).len())
-        .max()
-        .unwrap_or(0);
-
-    // Minimum width is "Tags" header length, maximum is TAGS_COLUMN_WIDTH
-    max_tags_len.clamp("Tags".len(), TAGS_COLUMN_WIDTH)
 }
 
 #[cfg(test)]
@@ -177,10 +225,10 @@ mod tests {
 
     #[test]
     fn string_with_score_displayed() {
-        let found = make_test_string("test").with_score(150);
+        let found = make_test_string("test").with_display_score(75);
 
         let result = format_table_with_mode(&[found], &make_metadata(), true).unwrap();
-        assert!(result.contains("150"));
+        assert!(result.contains("75"));
     }
 
     #[test]
@@ -203,6 +251,46 @@ mod tests {
         let result = format_table_with_mode(&[found], &make_metadata(), true).unwrap();
         // Should not crash and should contain the string
         assert!(result.contains("minimal"));
+    }
+
+    #[test]
+    fn display_score_preferred_over_score() {
+        let found = make_test_string("test")
+            .with_score(50)
+            .with_display_score(75);
+        let result = format_table_with_mode(&[found], &make_metadata(), true).unwrap();
+        assert!(result.contains("75"));
+        assert!(!result.contains(" 50"));
+    }
+
+    #[test]
+    fn summary_block_appended_when_enabled() {
+        let strings = vec![make_test_string("hello")];
+        let metadata = make_metadata()
+            .with_show_summary(true)
+            .with_binary_format(crate::types::BinaryFormat::Elf);
+        let result = format_table_with_mode(&strings, &metadata, true).unwrap();
+        assert!(result.contains("Strings:"));
+        assert!(result.contains("ELF"));
+    }
+
+    #[test]
+    fn empty_strings_with_summary_returns_summary_block() {
+        let metadata = make_metadata()
+            .with_show_summary(true)
+            .with_binary_format(crate::types::BinaryFormat::Pe);
+        let result = format_table_with_mode(&[], &metadata, true).unwrap();
+        assert!(result.contains("Strings:"));
+        assert!(result.contains("PE"));
+        assert!(result.contains("shown"));
+        assert!(result.contains("extracted"));
+    }
+
+    #[test]
+    fn summary_block_absent_when_disabled() {
+        let strings = vec![make_test_string("hello")];
+        let result = format_table_with_mode(&strings, &make_metadata(), true).unwrap();
+        assert!(!result.contains("Strings:"));
     }
 
     mod column_width_tests {
@@ -228,21 +316,6 @@ mod tests {
             let strings = vec![make_test_string("test").with_section(long_section)];
             let width = calculate_section_width(&strings);
             assert_eq!(width, SECTION_COLUMN_WIDTH);
-        }
-
-        #[test]
-        fn tags_width_minimum() {
-            let strings = vec![make_test_string("test")];
-            let width = calculate_tags_width(&strings);
-            assert_eq!(width, "Tags".len());
-        }
-
-        #[test]
-        fn tags_width_from_content() {
-            let mut found = make_test_string("test");
-            found.tags = vec![Tag::Url, Tag::Domain];
-            let width = calculate_tags_width(&[found]);
-            assert_eq!(width, "Tags".len());
         }
     }
 }

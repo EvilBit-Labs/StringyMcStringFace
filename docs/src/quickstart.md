@@ -4,49 +4,29 @@ This guide will get you up and running with Stringy in minutes.
 
 ## Basic Usage
 
-**Current Status**: Basic CLI is implemented with advanced features in development. This guide shows both current and planned functionality.
-
 ### Analyze a Binary
 
 ```bash
 stringy /path/to/binary
 ```
 
-**Current Implementation**: Performs binary format detection and section analysis:
+Stringy will:
 
-- Detects ELF, PE, or Mach-O format automatically
-- Classifies sections by string likelihood with weighted scoring
-- Extracts import/export symbol names
-- Shows basic analysis results
-
-**Planned Features**: Full string extraction and classification:
-
+- Detect ELF, PE, or Mach-O format automatically
 - Extract ASCII and UTF-16 strings from prioritized sections
 - Apply semantic classification (URLs, paths, GUIDs, etc.)
-- Show ranked results in human-readable format
+- Rank results by relevance and display them in a table
 
-### Current Output
-
-```text
-Stringy - Binary string extraction tool
-Format: ELF
-Sections found: 12
-High-priority sections: .rodata (weight: 10.0), .comment (weight: 9.0)
-Imports: 45 symbols
-Exports: 12 symbols
-Implementation coming soon...
-```
-
-### Planned Output
+### Example Output (TTY)
 
 ```text
-Score  Offset    Section    Encoding  Tags           String
------  ------    -------    --------  ----           ------
-  95   0x1000    .rdata     utf-8     url,https      https://api.example.com/v1/users
-  87   0x2000    .rdata     utf-8     guid           {12345678-1234-1234-1234-123456789abc}
-  82   0x3000    __cstring  utf-8     filepath       /usr/local/bin/application
-  78   0x4000    .rdata     utf-8     fmt            Error: %s at line %d
-  75   0x5000    .rsrc      utf-16le  version        MyApplication v1.2.3
+String                                   Tags              Score  Section
+------                                   ----              -----  -------
+https://api.example.com/v1/users         url                 95   .rdata
+{12345678-1234-1234-1234-123456789abc}   guid                87   .rdata
+/usr/local/bin/application               filepath            82   __cstring
+Error: %s at line %d                     fmt                 78   .rdata
+MyApplication v1.2.3                     version             75   .rsrc
 ```
 
 ## Common Use Cases
@@ -56,7 +36,7 @@ Score  Offset    Section    Encoding  Tags           String
 Extract network indicators and file paths:
 
 ```bash
-stringy --only url,domain,filepath,regpath malware.exe
+stringy --only-tags url --only-tags domain --only-tags filepath --only-tags regpath malware.exe
 ```
 
 ### YARA Rule Development
@@ -64,48 +44,57 @@ stringy --only url,domain,filepath,regpath malware.exe
 Generate rule candidates:
 
 ```bash
-stringy --yara --min-len 8 target.bin > candidates.txt
+stringy --yara --min-len 8 target.bin > candidates.yar
 ```
 
 ### JSON Output for Automation
 
 ```bash
-stringy --json binary.elf | jq '.[] | select(.score > 80)'
+stringy --json --debug binary.elf | jq 'select(.display_score > 80)'
 ```
 
-### Focus on Specific Sections
+### Extraction-Only Mode
+
+Skip classification and ranking for fast raw extraction:
 
 ```bash
-stringy --sections .rdata,.rsrc windows_binary.exe
+stringy --raw binary
 ```
 
 ## Understanding the Output
 
 ### Score Column
 
-Strings are ranked by relevance:
+Strings are ranked using a display score from 0-100:
 
-- **90-100**: High-confidence indicators (URLs, GUIDs, etc.)
-- **70-89**: Likely meaningful strings (paths, format strings)
-- **50-69**: Possible indicators (long strings, imports)
-- **\<50**: Low confidence (short strings, common words)
+- **90-100**: High-value indicators (URLs, GUIDs in high-priority sections)
+- **70-89**: Meaningful strings (file paths, format strings)
+- **50-69**: Moderate relevance (imports, version info)
+- **0-49**: Low relevance (short or noisy strings)
+
+See [Output Formats](./output-formats.md) for the full band-mapping table.
 
 ### Tags
 
 Semantic classifications help identify string types:
 
-| Tag               | Description     | Example                   |
-| ----------------- | --------------- | ------------------------- |
-| `url`             | Web URLs        | `https://example.com/api` |
-| `domain`          | Domain names    | `api.example.com`         |
-| `ipv4`/`ipv6`     | IP addresses    | `192.168.1.1`             |
-| `filepath`        | File paths      | `/usr/bin/app`            |
-| `regpath`         | Registry paths  | `HKEY_LOCAL_MACHINE\...`  |
-| `guid`            | GUIDs/UUIDs     | `{12345678-1234-...}`     |
-| `email`           | Email addresses | `user@example.com`        |
-| `b64`             | Base64 data     | `SGVsbG8gV29ybGQ=`        |
-| `fmt`             | Format strings  | `Error: %s`               |
-| `import`/`export` | Symbol names    | `CreateFileW`             |
+| Tag               | Description             | Example                   |
+| ----------------- | ----------------------- | ------------------------- |
+| `url`             | Web URLs                | `https://example.com/api` |
+| `domain`          | Domain names            | `api.example.com`         |
+| `ipv4`/`ipv6`     | IP addresses            | `192.168.1.1`             |
+| `filepath`        | File paths              | `/usr/bin/app`            |
+| `regpath`         | Registry paths          | `HKEY_LOCAL_MACHINE\...`  |
+| `guid`            | GUIDs/UUIDs             | `{12345678-1234-...}`     |
+| `email`           | Email addresses         | `user@example.com`        |
+| `b64`             | Base64 data             | `SGVsbG8gV29ybGQ=`        |
+| `fmt`             | Format strings          | `Error: %s`               |
+| `import`/`export` | Symbol names            | `CreateFileW`             |
+| `user-agent-ish`  | User-agent-like strings | `Mozilla/5.0 ...`         |
+| `dylib-path`      | Dynamic library paths   | `/usr/lib/libfoo.dylib`   |
+| `rpath`           | Runtime search paths    | `/usr/local/lib`          |
+| `rpath-var`       | Rpath variables         | `@loader_path/../lib`     |
+| `framework-path`  | Framework paths (macOS) | `/System/Library/...`     |
 
 ### Sections
 
@@ -122,9 +111,6 @@ Shows where strings were found:
 ```bash
 # Minimum 6 characters
 stringy --min-len 6 binary
-
-# Maximum 100 characters  
-stringy --max-len 100 binary
 ```
 
 ### By Encoding
@@ -141,10 +127,10 @@ stringy --enc utf16 binary.exe
 
 ```bash
 # Only network-related strings
-stringy --only url,domain,ipv4,ipv6 binary
+stringy --only-tags url --only-tags domain --only-tags ipv4 --only-tags ipv6 binary
 
 # Exclude Base64 noise
-stringy --exclude b64 binary
+stringy --no-tags b64 binary
 ```
 
 ### Limit Results
@@ -152,14 +138,19 @@ stringy --exclude b64 binary
 ```bash
 # Top 50 results
 stringy --top 50 binary
+```
 
-# All results (no limit)
-stringy --all binary
+### Summary
+
+Append a summary block after table output (TTY only):
+
+```bash
+stringy --summary binary
 ```
 
 ## Output Formats
 
-### Human-Readable (Default)
+### Table (Default)
 
 Best for interactive analysis:
 
@@ -172,7 +163,7 @@ stringy binary
 For programmatic processing:
 
 ```bash
-stringy --json binary | jq '.[] | select(.tags[] == "url")'
+stringy --json binary | jq 'select(.tags[] == "Url")'
 ```
 
 ### YARA Format
@@ -180,42 +171,7 @@ stringy --json binary | jq '.[] | select(.tags[] == "url")'
 For security rule creation:
 
 ```bash
-stringy --yara binary > rule_candidates.txt
-```
-
-## Working with Different Formats
-
-### Linux Binaries (ELF)
-
-```bash
-# Focus on read-only sections
-stringy --sections .rodata,.data.rel.ro /bin/ls
-
-# Include debug information
-stringy --debug /usr/bin/app
-```
-
-### Windows Binaries (PE)
-
-```bash
-# Extract version information
-stringy --pe-version app.exe
-
-# Focus on resources
-stringy --sections .rsrc,.rdata app.exe
-
-# UTF-16 strings only
-stringy --enc utf16 app.exe
-```
-
-### macOS Binaries (Mach-O)
-
-```bash
-# String sections
-stringy --sections __TEXT,__cstring /usr/bin/app
-
-# Load command strings
-stringy --load-commands /Applications/App.app/Contents/MacOS/App
+stringy --yara binary > rule_candidates.yar
 ```
 
 ## Tips and Best Practices
@@ -224,22 +180,22 @@ stringy --load-commands /Applications/App.app/Contents/MacOS/App
 
 1. Run basic analysis first: `stringy binary`
 2. Identify interesting patterns in high-scoring results
-3. Use filters to focus on specific types: `--only url,filepath`
+3. Use filters to focus: `--only-tags url --only-tags filepath`
 
 ### Combine with Other Tools
 
 ```bash
 # Find strings, then search for references
-stringy --json binary | jq -r '.[] | select(.score > 80) | .text' | xargs -I {} grep -r "{}" /path/to/source
+stringy --json binary | jq -r 'select(.score > 80) | .text' | xargs -I {} grep -r "{}" /path/to/source
 
 # Extract URLs for further analysis
-stringy --only url --json binary | jq -r '.[] | .text' | sort -u
+stringy --only-tags url --json binary | jq -r '.text' | sort -u
 ```
 
 ### Performance Considerations
 
 - Use `--top N` to limit output for large binaries
-- Filter by section to reduce processing time
+- Use `--enc` to restrict to a single encoding
 - Consider `--min-len` to reduce noise
 
 ## Next Steps

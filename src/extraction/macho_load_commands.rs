@@ -98,22 +98,16 @@ fn extract_dylib_strings(macho: &MachO) -> Vec<FoundString> {
         let tags = classify_dylib_path(lib);
         let length = lib.len() as u32;
 
-        strings.push(FoundString {
-            text: lib.to_string(),
-            original_text: None,
-            encoding: Encoding::Utf8,
-            source: StringSource::LoadCommand,
-            tags,
-            section: None,
-            offset: 0,
-            rva: None,
-            length,
-            score: 0,
-            section_weight: None,
-            semantic_boost: None,
-            noise_penalty: None,
-            confidence: 1.0,
-        });
+        strings.push(
+            FoundString::new(
+                lib.to_string(),
+                Encoding::Utf8,
+                0,
+                length,
+                StringSource::LoadCommand,
+            )
+            .with_tags(tags),
+        );
     }
 
     strings
@@ -131,22 +125,16 @@ fn extract_rpath_strings(macho: &MachO) -> Vec<FoundString> {
         let tags = classify_rpath(rpath);
         let length = rpath.len() as u32;
 
-        strings.push(FoundString {
-            text: rpath.to_string(),
-            original_text: None,
-            encoding: Encoding::Utf8,
-            source: StringSource::LoadCommand,
-            tags,
-            section: None,
-            offset: 0,
-            rva: None,
-            length,
-            score: 0,
-            section_weight: None,
-            semantic_boost: None,
-            noise_penalty: None,
-            confidence: 1.0,
-        });
+        strings.push(
+            FoundString::new(
+                rpath.to_string(),
+                Encoding::Utf8,
+                0,
+                length,
+                StringSource::LoadCommand,
+            )
+            .with_tags(tags),
+        );
     }
 
     strings

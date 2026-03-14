@@ -12,7 +12,7 @@ use super::ascii;
 use super::config::NoiseFilterConfig;
 use super::dedup::{CanonicalString, deduplicate, found_string_to_occurrence};
 use super::filters::{CompositeNoiseFilter, FilterContext};
-use super::helpers::{apply_semantic_enrichment, extract_ascii_utf8_strings};
+use super::helpers::extract_ascii_utf8_strings;
 use super::traits::{BasicExtractor, ExtractionConfig, StringExtractor};
 use super::utf16::{self, ByteOrder};
 
@@ -67,47 +67,26 @@ fn collect_all_strings(
     if config.include_symbols {
         for import in &container_info.imports {
             let length = import.name.len() as u32;
-            all_strings.push(FoundString {
-                text: import.name.clone(),
-                original_text: None,
-                encoding: Encoding::Utf8,
-                offset: 0,
-                rva: None,
-                section: None,
+            all_strings.push(FoundString::new(
+                import.name.clone(),
+                Encoding::Utf8,
+                0,
                 length,
-                tags: Vec::new(),
-                score: 0,
-                section_weight: None,
-                semantic_boost: None,
-                noise_penalty: None,
-                source: StringSource::ImportName,
-                confidence: 1.0,
-            });
+                StringSource::ImportName,
+            ));
         }
 
         for export in &container_info.exports {
             let length = export.name.len() as u32;
-            all_strings.push(FoundString {
-                text: export.name.clone(),
-                original_text: None,
-                encoding: Encoding::Utf8,
-                offset: 0,
-                rva: None,
-                section: None,
+            all_strings.push(FoundString::new(
+                export.name.clone(),
+                Encoding::Utf8,
+                0,
                 length,
-                tags: Vec::new(),
-                score: 0,
-                section_weight: None,
-                semantic_boost: None,
-                noise_penalty: None,
-                source: StringSource::ExportName,
-                confidence: 1.0,
-            });
+                StringSource::ExportName,
+            ));
         }
     }
-
-    // Apply demangling and semantic classification before deduplication
-    apply_semantic_enrichment(&mut all_strings, container_info);
 
     Ok(all_strings)
 }
@@ -155,13 +134,7 @@ impl StringExtractor for BasicExtractor {
                     let tags = fs.tags.clone();
                     let score = fs.score;
                     let occurrence = found_string_to_occurrence(fs);
-                    CanonicalString {
-                        text,
-                        encoding,
-                        occurrences: vec![occurrence],
-                        merged_tags: tags,
-                        combined_score: score,
-                    }
+                    CanonicalString::new(text, encoding, vec![occurrence], tags, score)
                 })
                 .collect())
         }
@@ -272,22 +245,19 @@ impl StringExtractor for BasicExtractor {
                     .rva
                     .map(|base_rva| base_rva + relative_offset as u64);
 
-                let found_string = FoundString {
+                let mut found_string = FoundString::new(
                     text,
-                    original_text: None,
                     encoding,
-                    offset: absolute_offset,
-                    rva,
-                    section: Some(section.name.clone()),
-                    length: length as u32,
-                    tags: Vec::new(),
-                    score: 0,
-                    section_weight: None,
-                    semantic_boost: None,
-                    noise_penalty: None,
-                    source: StringSource::SectionData,
-                    confidence,
-                };
+                    absolute_offset,
+                    length as u32,
+                    StringSource::SectionData,
+                )
+                .with_section(section.name.clone())
+                .with_confidence(confidence);
+
+                if let Some(rva_val) = rva {
+                    found_string = found_string.with_rva(rva_val);
+                }
 
                 found_strings.push(found_string);
             }

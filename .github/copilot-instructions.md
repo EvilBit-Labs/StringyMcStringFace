@@ -67,8 +67,11 @@ Container parsers assign weights (1.0-10.0) to sections based on string likeliho
 Strings are grouped by `(text, encoding)` tuple in a `HashMap<(String, Encoding), Vec<StringOccurrence>>`:
 
 - **Preserve all occurrences**: Each occurrence captures offset, RVA, section, source, tags, score, confidence
+
 - **Tag merging**: Union all tags via `HashSet`, then sort
+
 - **Combined scoring formula**:
+
   ```text
   base_score = max(occurrence.original_score)
   occurrence_bonus = 5 * (count - 1)

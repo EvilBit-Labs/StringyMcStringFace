@@ -17,10 +17,61 @@ pub use implementations::{
     RepetitionFilter,
 };
 
+/// Pre-computed character statistics shared across filters.
+///
+/// Avoids repeated `chars().collect()` when multiple filters analyze the same string.
+pub(crate) struct CharStats {
+    pub chars: Vec<char>,
+    pub char_counts: std::collections::HashMap<char, usize>,
+    pub punctuation_count: usize,
+    pub alphanumeric_count: usize,
+    pub vowel_count: usize,
+    pub consonant_count: usize,
+}
+
+impl CharStats {
+    pub fn new(text: &str) -> Self {
+        let chars: Vec<char> = text.chars().collect();
+        let mut char_counts = std::collections::HashMap::new();
+        let mut punctuation_count = 0;
+        let mut alphanumeric_count = 0;
+        let mut vowel_count = 0;
+        let mut consonant_count = 0;
+
+        for &ch in &chars {
+            *char_counts.entry(ch).or_insert(0) += 1;
+            if ch.is_ascii_punctuation() {
+                punctuation_count += 1;
+            }
+            if ch.is_alphanumeric() {
+                alphanumeric_count += 1;
+            }
+            let ch_lower = ch.to_ascii_lowercase();
+            match ch_lower {
+                'a' | 'e' | 'i' | 'o' | 'u' => vowel_count += 1,
+                'b'..='d' | 'f'..='h' | 'j'..='n' | 'p'..='t' | 'v'..='z' => {
+                    consonant_count += 1;
+                }
+                _ => {}
+            }
+        }
+
+        Self {
+            chars,
+            char_counts,
+            punctuation_count,
+            alphanumeric_count,
+            vowel_count,
+            consonant_count,
+        }
+    }
+}
+
 /// Context information for noise filtering
 ///
 /// Provides section metadata and surrounding context to help filters make
 /// informed decisions about string legitimacy.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct FilterContext {
     /// Section type where the string was found
@@ -62,6 +113,34 @@ impl FilterContext {
             surrounding_bytes: None,
         }
     }
+
+    /// Sets the section type.
+    #[must_use]
+    pub fn with_section_type(mut self, section_type: SectionType) -> Self {
+        self.section_type = section_type;
+        self
+    }
+
+    /// Sets the section weight.
+    #[must_use]
+    pub fn with_section_weight(mut self, weight: f32) -> Self {
+        self.section_weight = weight;
+        self
+    }
+
+    /// Sets whether the section is executable.
+    #[must_use]
+    pub fn with_is_executable(mut self, is_executable: bool) -> Self {
+        self.is_executable = is_executable;
+        self
+    }
+
+    /// Sets whether the section is writable.
+    #[must_use]
+    pub fn with_is_writable(mut self, is_writable: bool) -> Self {
+        self.is_writable = is_writable;
+        self
+    }
 }
 
 /// Trait for noise filters that calculate confidence scores
@@ -88,6 +167,7 @@ pub trait NoiseFilter {
 ///
 /// Combines multiple filters with configurable weights to produce an overall
 /// confidence score. Allows enabling/disabling individual filters.
+#[non_exhaustive]
 pub struct CompositeNoiseFilter {
     /// Entropy filter
     pub entropy_filter: EntropyFilter,
@@ -141,9 +221,24 @@ impl CompositeNoiseFilter {
     }
 
     /// Calculate overall confidence score by combining all enabled filters
+    ///
+    /// Pre-computes shared `CharStats` once when char-dependent filters are enabled,
+    /// avoiding 3 separate `chars().collect()` allocations.
     pub fn calculate_confidence(&self, text: &str, context: &FilterContext) -> f32 {
         let mut total_weight = 0.0;
         let mut weighted_sum = 0.0;
+
+        // Pre-compute char stats once for filters that need them (only if
+        // the filter is both enabled AND has a non-zero weight).
+        let needs_char_stats = (self.enable_char_distribution
+            && self.weights.char_distribution_weight > 0.0)
+            || (self.enable_linguistic && self.weights.linguistic_weight > 0.0)
+            || (self.enable_repetition && self.weights.repetition_weight > 0.0);
+        let stats = if needs_char_stats && !text.is_empty() {
+            Some(CharStats::new(text))
+        } else {
+            None
+        };
 
         if self.enable_entropy {
             let score = self.entropy_filter.calculate_confidence(text, context);
@@ -152,15 +247,21 @@ impl CompositeNoiseFilter {
         }
 
         if self.enable_char_distribution {
-            let score = self
-                .char_distribution_filter
-                .calculate_confidence(text, context);
+            let score = match &stats {
+                Some(s) => self.char_distribution_filter.confidence_with_stats(text, s),
+                None => self
+                    .char_distribution_filter
+                    .calculate_confidence(text, context),
+            };
             weighted_sum += score * self.weights.char_distribution_weight;
             total_weight += self.weights.char_distribution_weight;
         }
 
         if self.enable_linguistic {
-            let score = self.linguistic_filter.calculate_confidence(text, context);
+            let score = match &stats {
+                Some(s) => self.linguistic_filter.confidence_with_stats(text, s),
+                None => self.linguistic_filter.calculate_confidence(text, context),
+            };
             weighted_sum += score * self.weights.linguistic_weight;
             total_weight += self.weights.linguistic_weight;
         }
@@ -172,7 +273,10 @@ impl CompositeNoiseFilter {
         }
 
         if self.enable_repetition {
-            let score = self.repetition_filter.calculate_confidence(text, context);
+            let score = match &stats {
+                Some(s) => self.repetition_filter.confidence_with_stats(text, s),
+                None => self.repetition_filter.calculate_confidence(text, context),
+            };
             weighted_sum += score * self.weights.repetition_weight;
             total_weight += self.weights.repetition_weight;
         }

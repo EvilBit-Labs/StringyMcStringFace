@@ -13,6 +13,8 @@ The primary data structure representing an extracted string with metadata.
 pub struct FoundString {
     /// The extracted string text
     pub text: String,
+    /// Pre-demangled form (if symbol was demangled)
+    pub original_text: Option<String>,
     /// The encoding used for this string
     pub encoding: Encoding,
     /// File offset where the string was found
@@ -27,8 +29,18 @@ pub struct FoundString {
     pub tags: Vec<Tag>,
     /// Relevance score for ranking
     pub score: i32,
+    /// Section weight component of score (debug only)
+    pub section_weight: Option<i32>,
+    /// Semantic boost component of score (debug only)
+    pub semantic_boost: Option<i32>,
+    /// Noise penalty component of score (debug only)
+    pub noise_penalty: Option<i32>,
+    /// Display score 0-100, populated by ScoreNormalizer in all non-raw executions
+    pub display_score: Option<i32>,
     /// Source of the string (section data, import, etc.)
     pub source: StringSource,
+    /// UTF-16 confidence score
+    pub confidence: f32,
 }
 ```
 
@@ -64,30 +76,85 @@ pub enum Tag {
     Base64,
     FormatString,
     UserAgent,
+    DemangledSymbol,
     Import,
     Export,
     Version,
     Manifest,
     Resource,
+    DylibPath,
+    Rpath,
+    RpathVariable,
+    FrameworkPath,
 }
+```
+
+### EncodingFilter
+
+Filter for restricting output by string encoding, corresponding to the `--enc` CLI flag.
+
+```text
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EncodingFilter {
+    /// Match a specific encoding exactly
+    Exact(Encoding),
+    /// Match any UTF-16 variant (UTF-16LE or UTF-16BE)
+    Utf16Any,
+}
+```
+
+Used with `FilterConfig` to limit results to a specific encoding. `Utf16Any` matches both `Utf16Le` and `Utf16Be`.
+
+### FilterConfig
+
+Post-extraction filtering configuration. All fields have sensible defaults; empty tag vectors are no-ops.
+
+```text
+pub struct FilterConfig {
+    /// Minimum string length to include (default: 4)
+    pub min_length: usize,          // --min-len
+    /// Restrict to a specific encoding
+    pub encoding: Option<EncodingFilter>, // --enc
+    /// Only include strings with these tags (empty = no filter)
+    pub include_tags: Vec<Tag>,     // --only-tags
+    /// Exclude strings with these tags (empty = no filter)
+    pub exclude_tags: Vec<Tag>,     // --no-tags
+    /// Limit output to top N strings by score
+    pub top_n: Option<usize>,      // --top
+}
+```
+
+Builder-style construction:
+
+```text
+let config = FilterConfig::new()
+    .with_min_length(6)
+    .with_encoding(EncodingFilter::Exact(Encoding::Utf8))
+    .with_include_tags(vec![Tag::Url, Tag::Domain])
+    .with_top_n(20);
 ```
 
 ## Main API Functions
 
-### extract_strings
+### BasicExtractor::extract
 
-Extract strings from binary data.
+Extract strings from binary data using the `BasicExtractor`, which implements the `StringExtractor` trait.
 
 ```text
-pub fn extract_strings(
-    data: &[u8], 
-    config: &ExtractionConfig
-) -> Result<Vec<FoundString>>
+pub trait StringExtractor {
+    fn extract(
+        &self,
+        data: &[u8],
+        container_info: &ContainerInfo,
+        config: &ExtractionConfig,
+    ) -> Result<Vec<FoundString>>;
+}
 ```
 
 **Parameters:**
 
 - `data`: Binary data to analyze
+- `container_info`: Parsed container metadata (sections, imports, exports)
 - `config`: Extraction configuration options
 
 **Returns:**
@@ -97,11 +164,17 @@ pub fn extract_strings(
 **Example:**
 
 ```text
-use stringy::{extract_strings, ExtractionConfig};
+use stringy::{BasicExtractor, ExtractionConfig, StringExtractor};
+use stringy::container::{detect_format, create_parser};
 
 let data = std::fs::read("binary.exe")?;
+let format = detect_format(&data);
+let parser = create_parser(format)?;
+let container_info = parser.parse(&data)?;
+
+let extractor = BasicExtractor::new();
 let config = ExtractionConfig::default();
-let strings = extract_strings(&data, &config)?;
+let strings = extractor.extract(&data, &container_info, &config)?;
 
 for string in strings {
     println!("{}: {}", string.score, string.text);
@@ -138,69 +211,122 @@ println!("Detected format: {:?}", format);
 
 ### ExtractionConfig
 
-Configuration options for string extraction.
+Configuration options for string extraction. The struct has 16 fields with sensible defaults.
 
 ```text
 pub struct ExtractionConfig {
-    /// Minimum length for ASCII strings
-    pub min_ascii_len: usize,
-    /// Minimum length for UTF-16 strings
-    pub min_utf16_len: usize,
-    /// Maximum string length
-    pub max_string_len: usize,
-    /// Encodings to extract
-    pub encodings: Vec<Encoding>,
-    /// Sections to include (None = all)
-    pub include_sections: Option<Vec<String>>,
-    /// Sections to exclude
-    pub exclude_sections: Vec<String>,
-    /// Include debug sections
+    /// Minimum string length in bytes (default: 1)
+    pub min_length: usize,
+    /// Maximum string length in bytes (default: 4096)
+    pub max_length: usize,
+    /// Whether to scan executable sections (default: true)
+    pub scan_code_sections: bool,
+    /// Whether to include debug sections (default: false)
     pub include_debug: bool,
-    /// Include import/export names
+    /// Section types to prioritize (default: StringData, ReadOnlyData, Resources)
+    pub section_priority: Vec<SectionType>,
+    /// Whether to include import/export names (default: true)
     pub include_symbols: bool,
+    /// Minimum length for ASCII strings (default: 1)
+    pub min_ascii_length: usize,
+    /// Minimum length for UTF-16 strings (default: 1)
+    pub min_wide_length: usize,
+    /// Which encodings to extract (default: ASCII, UTF-8)
+    pub enabled_encodings: Vec<Encoding>,
+    /// Enable/disable noise filtering (default: true)
+    pub noise_filtering_enabled: bool,
+    /// Minimum confidence threshold (default: 0.5)
+    pub min_confidence_threshold: f32,
+    /// Minimum UTF-16LE confidence threshold (default: 0.7)
+    pub utf16_min_confidence: f32,
+    /// Which UTF-16 byte order(s) to scan (default: Auto)
+    pub utf16_byte_order: ByteOrder,
+    /// Minimum UTF-16-specific confidence threshold (default: 0.5)
+    pub utf16_confidence_threshold: f32,
+    /// Enable/disable deduplication (default: true)
+    pub enable_deduplication: bool,
+    /// Deduplication threshold (default: None)
+    pub dedup_threshold: Option<usize>,
 }
 
 impl Default for ExtractionConfig {
     fn default() -> Self {
         Self {
-            min_ascii_len: 4,
-            min_utf16_len: 3,
-            max_string_len: 1024,
-            encodings: vec![Encoding::Ascii, Encoding::Utf16Le],
-            include_sections: None,
-            exclude_sections: Vec::new(),
+            min_length: 1,
+            max_length: 4096,
+            scan_code_sections: true,
             include_debug: false,
+            section_priority: vec![
+                SectionType::StringData,
+                SectionType::ReadOnlyData,
+                SectionType::Resources,
+            ],
             include_symbols: true,
+            min_ascii_length: 1,
+            min_wide_length: 1,
+            enabled_encodings: vec![Encoding::Ascii, Encoding::Utf8],
+            noise_filtering_enabled: true,
+            min_confidence_threshold: 0.5,
+            utf16_min_confidence: 0.7,
+            utf16_byte_order: ByteOrder::Auto,
+            utf16_confidence_threshold: 0.5,
+            enable_deduplication: true,
+            dedup_threshold: None,
         }
     }
 }
 ```
 
-### ClassificationConfig
+### SemanticClassifier
 
-Configuration for semantic classification.
+The `SemanticClassifier` is constructed via `SemanticClassifier::new()` and currently has no configuration options. Classification patterns are built-in.
+
+## Pipeline Components
+
+### ScoreNormalizer
+
+Maps internal relevance scores to a 0-100 display scale using band mapping.
 
 ```text
-pub struct ClassificationConfig {
-    /// Enable URL detection
-    pub detect_urls: bool,
-    /// Enable domain detection
-    pub detect_domains: bool,
-    /// Enable IP address detection
-    pub detect_ips: bool,
-    /// Enable file path detection
-    pub detect_paths: bool,
-    /// Enable GUID detection
-    pub detect_guids: bool,
-    /// Enable email detection
-    pub detect_emails: bool,
-    /// Enable Base64 detection
-    pub detect_base64: bool,
-    /// Enable format string detection
-    pub detect_format_strings: bool,
-    /// Minimum confidence threshold
-    pub min_confidence: f32,
-}
+let normalizer = ScoreNormalizer::new();
+normalizer.normalize(&mut strings);
+// Each FoundString now has display_score populated
+```
+
+Invoked unconditionally by the pipeline in all non-raw executions. Negative internal scores map to `display_score = 0`. See [Ranking](./ranking.md) for the full band-mapping table.
+
+### FilterEngine
+
+Applies post-extraction filtering and sorting. Consumes the input vector and returns a filtered, sorted result.
+
+```text
+let engine = FilterEngine::new();
+let filtered = engine.apply(strings, &filter_config);
+```
+
+Filter order:
+
+1. Minimum length (`min_length`)
+2. Encoding match (`encoding`)
+3. Include tags (`include_tags` -- keep only strings with at least one matching tag)
+4. Exclude tags (`exclude_tags` -- remove strings with any matching tag)
+5. Stable sort by score (descending), then offset (ascending), then text (ascending)
+6. Top-N truncation (`top_n`)
+
+**Example: FilterConfig + FilterEngine**
+
+```text
+use stringy::{FilterConfig, FilterEngine, EncodingFilter, Encoding, Tag};
+
+let config = FilterConfig::new()
+    .with_min_length(6)
+    .with_include_tags(vec![Tag::Url, Tag::Domain])
+    .with_top_n(10);
+
+let engine = FilterEngine::new();
+let results = engine.apply(strings, &config);
+// results contains at most 10 strings, all >= 6 chars,
+// all tagged Url or Domain, sorted by score descending
 ```
 
 ## Container Parsing
@@ -235,6 +361,8 @@ pub struct ContainerInfo {
     pub imports: Vec<ImportInfo>,
     /// Export information
     pub exports: Vec<ExportInfo>,
+    /// Resource metadata (PE format only)
+    pub resources: Option<Vec<ResourceMetadata>>,
 }
 ```
 
@@ -258,6 +386,8 @@ pub struct SectionInfo {
     pub is_executable: bool,
     /// Whether the section is writable
     pub is_writable: bool,
+    /// Weight indicating likelihood of containing meaningful strings (1.0-10.0)
+    pub weight: f32,
 }
 ```
 
@@ -269,32 +399,30 @@ Trait for implementing output formatters.
 
 ```text
 pub trait OutputFormatter {
+    /// Returns the name of this formatter
+    fn name(&self) -> &'static str;
+
     /// Format the strings for output
-    fn format(&self, strings: &[FoundString], config: &OutputConfig) -> Result<String>;
+    fn format(&self, strings: &[FoundString], metadata: &OutputMetadata) -> Result<String>;
 }
 ```
 
 ### Built-in Formatters
 
-```text
-// Human-readable table format
-pub struct HumanFormatter;
+The library provides free functions rather than formatter structs:
 
-// JSON Lines format
-pub struct JsonFormatter;
-
-// YARA rule format
-pub struct YaraFormatter;
-```
+- `format_table(strings, metadata)` - Human-readable table format (TTY-aware)
+- `format_json(strings, metadata)` - JSONL format
+- `format_yara(strings, metadata)` - YARA rule format
+- `format_output(strings, metadata)` - Dispatches based on `metadata.output_format`
 
 **Example:**
 
 ```text
-use stringy::output::{JsonFormatter, OutputFormatter, OutputConfig};
+use stringy::output::{format_json, OutputMetadata};
 
-let formatter = JsonFormatter::new();
-let config = OutputConfig::default();
-let output = formatter.format(&strings, &config)?;
+let metadata = OutputMetadata::new("binary.exe".to_string());
+let output = format_json(&strings, &metadata)?;
 println!("{}", output);
 ```
 
@@ -307,7 +435,7 @@ Comprehensive error type for the library.
 ```text
 #[derive(Debug, thiserror::Error)]
 pub enum StringyError {
-    #[error("Unsupported file format")]
+    #[error("Unsupported file format (supported: ELF, PE, Mach-O)")]
     UnsupportedFormat,
 
     #[error("File I/O error: {0}")]
@@ -321,6 +449,12 @@ pub enum StringyError {
 
     #[error("Configuration error: {0}")]
     ConfigError(String),
+
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
+
+    #[error("Validation error: {0}")]
+    ValidationError(String),
 
     #[error("Memory mapping error: {0}")]
     MemoryMapError(String),
@@ -358,67 +492,35 @@ impl Classifier for CustomClassifier {
 
 ### Memory-Mapped Files
 
-For large files, use memory mapping:
+For large files, use memory mapping via `mmap-guard`:
 
 ```text
-use memmap2::Mmap;
-use std::fs::File;
-
-let file = File::open("large_binary.exe")?;
-let mmap = unsafe { Mmap::map(&file)? };
-let strings = extract_strings(&mmap[..], &config)?;
+let data = mmap_guard::map_file(path)?;
+// data implements Deref<Target = [u8]>
 ```
+
+Note: The `Pipeline::run` API handles memory mapping automatically. Direct use of `mmap_guard` is only needed when using lower-level APIs.
 
 ### Parallel Processing
 
-Process multiple files in parallel:
-
-```text
-use rayon::prelude::*;
-
-let files = vec!["file1.exe", "file2.dll", "file3.so"];
-let results: Vec<_> = files
-    .par_iter()
-    .map(|path| {
-        let data = std::fs::read(path)?;
-        extract_strings(&data, &config)
-    })
-    .collect();
-```
+Parallel processing is not yet implemented. Stringy currently processes files sequentially. The `Pipeline` API processes one file at a time.
 
 ## Feature Flags
 
-Optional features can be enabled in `Cargo.toml`:
-
-```text
-[dependencies]
-stringy = { version = "0.1", features = ["pe-resources", "dwarf-debug"] }
-```
-
-Available features:
-
-- `pe-resources`: Enhanced PE resource extraction
-- `dwarf-debug`: DWARF debugging information support
-- `capstone`: Disassembly support for reference analysis
-- `parallel`: Parallel processing support
+Stringy currently has no optional feature flags. All functionality is included by default.
 
 ## Examples
 
-### Basic String Extraction
+### Basic String Extraction (Pipeline API)
 
 ```text
-use stringy::{ExtractionConfig, extract_strings};
+use stringy::pipeline::{Pipeline, PipelineConfig};
+use std::path::Path;
 
 fn main() -> stringy::Result<()> {
-    let data = std::fs::read("binary.exe")?;
-    let config = ExtractionConfig::default();
-    let strings = extract_strings(&data, &config)?;
-
-    // Print top 10 strings
-    for string in strings.iter().take(10) {
-        println!("{:3} | {}", string.score, string.text);
-    }
-
+    let config = PipelineConfig::default();
+    let pipeline = Pipeline::new(config);
+    pipeline.run(Path::new("binary.exe"))?;
     Ok(())
 }
 ```
@@ -426,16 +528,17 @@ fn main() -> stringy::Result<()> {
 ### Filtered Extraction
 
 ```text
-use stringy::{Encoding, ExtractionConfig, Tag, extract_strings};
+use stringy::{BasicExtractor, ExtractionConfig, StringExtractor, Tag};
+use stringy::container::{detect_format, create_parser};
 
 fn extract_network_indicators(data: &[u8]) -> stringy::Result<Vec<String>> {
-    let config = ExtractionConfig {
-        min_ascii_len: 6,
-        encodings: vec![Encoding::Ascii, Encoding::Utf8],
-        ..Default::default()
-    };
+    let format = detect_format(data);
+    let parser = create_parser(format)?;
+    let container_info = parser.parse(data)?;
 
-    let strings = extract_strings(data, &config)?;
+    let extractor = BasicExtractor::new();
+    let config = ExtractionConfig::default();
+    let strings = extractor.extract(data, &container_info, &config)?;
 
     let network_strings: Vec<String> = strings
         .into_iter()
@@ -456,12 +559,17 @@ fn extract_network_indicators(data: &[u8]) -> stringy::Result<Vec<String>> {
 
 ```text
 use serde_json::json;
-use stringy::output::{OutputConfig, OutputFormatter};
+use stringy::output::{OutputMetadata, OutputFormatter};
+use stringy::FoundString;
 
 pub struct CustomFormatter;
 
 impl OutputFormatter for CustomFormatter {
-    fn format(&self, strings: &[FoundString], _config: &OutputConfig) -> stringy::Result<String> {
+    fn name(&self) -> &'static str {
+        "custom"
+    }
+
+    fn format(&self, strings: &[FoundString], _metadata: &OutputMetadata) -> stringy::Result<String> {
         let output = json!({
             "total_strings": strings.len(),
             "high_confidence": strings.iter().filter(|s| s.score >= 80).count(),
