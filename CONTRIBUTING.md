@@ -2,6 +2,8 @@
 
 Thanks for your interest in Stringy. This guide explains how to propose changes and what we expect for code quality.
 
+> **Before you start:** check [GOTCHAS.md](GOTCHAS.md) for hard-won lessons and edge cases organized by domain (struct literals, CLI, CI, dependencies, pipeline). It will save you from common pitfalls that have tripped up contributors before.
+
 ## Quick start
 
 1. Search existing issues and pull requests before filing a new one.
@@ -45,6 +47,7 @@ Module layout:
 - `extraction/` handles string extraction, filtering, and deduplication
 - `classification/` handles semantic tagging and ranking
 - `output/` handles output formatters
+- `pipeline/` handles orchestration: config, filtering, normalization, `Pipeline::run`
 - `types/` contains core data structures and error types
 
 Key patterns:

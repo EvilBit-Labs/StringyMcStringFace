@@ -48,15 +48,10 @@ fn create_utf16be_string(text: &str) -> Vec<u8> {
 
 // Helper to create test section
 fn create_test_section(name: &str, offset: u64, size: u64, rva: Option<u64>) -> SectionInfo {
-    SectionInfo {
-        name: name.to_string(),
-        offset,
-        size,
-        rva,
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
+    let section = SectionInfo::new(name.to_string(), offset, size, SectionType::StringData, 1.0);
+    match rva {
+        Some(rva_val) => section.with_rva(rva_val),
+        None => section,
     }
 }
 
@@ -387,27 +382,12 @@ fn test_section_out_of_bounds() {
 
 #[test]
 fn test_different_section_types() {
-    let rdata_section = SectionInfo {
-        name: ".rdata".to_string(),
-        offset: 0,
-        size: 30,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
+    let rdata_section = SectionInfo::new(".rdata".to_string(), 0, 30, SectionType::StringData, 1.0)
+        .with_rva(0x1000);
 
-    let data_section = SectionInfo {
-        name: ".data".to_string(),
-        offset: 0,
-        size: 30,
-        rva: Some(0x2000),
-        section_type: SectionType::WritableData,
-        is_executable: false,
-        is_writable: true,
-        weight: 0.5,
-    };
+    let data_section = SectionInfo::new(".data".to_string(), 0, 30, SectionType::WritableData, 0.5)
+        .with_rva(0x2000)
+        .with_writable(true);
 
     let mut data = create_utf16le_string("Hello World");
     data.extend_from_slice(&[0x00, 0x00]);

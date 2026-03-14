@@ -2,7 +2,7 @@
 source: tests/output_table_integration.rs
 expression: result
 ---
-tab	here
+tab\there
 pipe|here
 quote"here
 line1\nline2

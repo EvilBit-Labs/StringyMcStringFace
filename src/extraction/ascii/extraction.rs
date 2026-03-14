@@ -94,22 +94,13 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                     // Convert bytes to UTF-8 string (ASCII is valid UTF-8)
                     let bytes = std::mem::take(&mut current_string_bytes);
                     let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
-                    strings.push(FoundString {
+                    strings.push(FoundString::new(
                         text,
-                        original_text: None,
-                        encoding: Encoding::Ascii,
-                        offset: start as u64,
-                        rva: None,
-                        section: None,
-                        length: len as u32,
-                        tags: Vec::new(),
-                        score: 0,
-                        section_weight: None,
-                        semantic_boost: None,
-                        noise_penalty: None,
-                        source: StringSource::SectionData,
-                        confidence: 1.0,
-                    });
+                        Encoding::Ascii,
+                        start as u64,
+                        len as u32,
+                        StringSource::SectionData,
+                    ));
                 }
             }
             current_string_start = None;
@@ -128,42 +119,24 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                 } else {
                     let bytes = std::mem::take(&mut current_string_bytes);
                     let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
-                    strings.push(FoundString {
+                    strings.push(FoundString::new(
                         text,
-                        original_text: None,
-                        encoding: Encoding::Ascii,
-                        offset: start as u64,
-                        rva: None,
-                        section: None,
-                        length: len as u32,
-                        tags: Vec::new(),
-                        score: 0,
-                        section_weight: None,
-                        semantic_boost: None,
-                        noise_penalty: None,
-                        source: StringSource::SectionData,
-                        confidence: 1.0,
-                    });
+                        Encoding::Ascii,
+                        start as u64,
+                        len as u32,
+                        StringSource::SectionData,
+                    ));
                 }
             } else {
                 let bytes = std::mem::take(&mut current_string_bytes);
                 let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
-                strings.push(FoundString {
+                strings.push(FoundString::new(
                     text,
-                    original_text: None,
-                    encoding: Encoding::Ascii,
-                    offset: start as u64,
-                    rva: None,
-                    section: None,
-                    length: len as u32,
-                    tags: Vec::new(),
-                    score: 0,
-                    section_weight: None,
-                    semantic_boost: None,
-                    noise_penalty: None,
-                    source: StringSource::SectionData,
-                    confidence: 1.0,
-                });
+                    Encoding::Ascii,
+                    start as u64,
+                    len as u32,
+                    StringSource::SectionData,
+                ));
             }
         }
     }
@@ -219,16 +192,14 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
 /// use stringy::extraction::config::NoiseFilterConfig;
 /// use stringy::types::{SectionInfo, SectionType};
 ///
-/// let section = SectionInfo {
-///     name: ".rodata".to_string(),
-///     offset: 10,
-///     size: 20,
-///     rva: Some(0x1000),
-///     section_type: SectionType::StringData,
-///     is_executable: false,
-///     is_writable: false,
-///     weight: 1.0,
-/// };
+/// let section = SectionInfo::new(
+///     ".rodata".to_string(),
+///     10,
+///     20,
+///     SectionType::StringData,
+///     1.0,
+/// )
+/// .with_rva(0x1000);
 ///
 /// let data = b"prefix\0Hello World\0suffix";
 /// let config = AsciiExtractionConfig::default();

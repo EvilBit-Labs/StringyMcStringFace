@@ -6,7 +6,7 @@
 
 use crate::types::SectionType;
 
-use super::{FilterContext, NoiseFilter};
+use super::{CharStats, FilterContext, NoiseFilter};
 
 /// Character distribution filter
 ///
@@ -21,40 +21,34 @@ impl NoiseFilter for CharDistributionFilter {
         if text.is_empty() {
             return 0.0;
         }
+        self.confidence_with_stats(text, &CharStats::new(text))
+    }
+}
 
-        let chars: Vec<char> = text.chars().collect();
-        let total = chars.len() as f32;
-
-        // Count character types
-        let mut punctuation_count = 0;
-        let mut alphanumeric_count = 0;
-        let mut char_counts = std::collections::HashMap::new();
-
-        for &ch in &chars {
-            if ch.is_ascii_punctuation() {
-                punctuation_count += 1;
-            }
-            if ch.is_alphanumeric() {
-                alphanumeric_count += 1;
-            }
-            *char_counts.entry(ch).or_insert(0) += 1;
+impl CharDistributionFilter {
+    /// Calculate confidence using pre-computed char stats (avoids redundant allocation).
+    pub(crate) fn confidence_with_stats(&self, _text: &str, stats: &CharStats) -> f32 {
+        if stats.chars.is_empty() {
+            return 0.0;
         }
 
+        let total = stats.chars.len() as f32;
+
         // Check for excessive punctuation
-        let punctuation_ratio = punctuation_count as f32 / total;
+        let punctuation_ratio = stats.punctuation_count as f32 / total;
         if punctuation_ratio > 0.8 {
             return 0.2; // Very low confidence
         }
 
         // Check for excessive repetition of same character
-        let max_char_count = char_counts.values().max().copied().unwrap_or(0) as f32;
+        let max_char_count = stats.char_counts.values().max().copied().unwrap_or(0) as f32;
         let max_char_ratio = max_char_count / total;
         if max_char_ratio > 0.9 {
             return 0.1; // Very low confidence (likely padding)
         }
 
         // Check for excessive non-alphanumeric
-        let non_alphanumeric_ratio = 1.0 - (alphanumeric_count as f32 / total);
+        let non_alphanumeric_ratio = 1.0 - (stats.alphanumeric_count as f32 / total);
         if non_alphanumeric_ratio > 0.7 {
             return 0.3; // Low confidence
         }
@@ -147,56 +141,41 @@ impl NoiseFilter for LinguisticFilter {
         if text.is_empty() {
             return 0.0;
         }
+        self.confidence_with_stats(text, &CharStats::new(text))
+    }
+}
 
-        let chars: Vec<char> = text.chars().collect();
-        let total = chars.len() as f32;
-
-        if total == 0.0 {
+impl LinguisticFilter {
+    /// Calculate confidence using pre-computed char stats (avoids redundant allocation).
+    pub(crate) fn confidence_with_stats(&self, text: &str, stats: &CharStats) -> f32 {
+        if stats.chars.is_empty() {
             return 0.0;
         }
 
-        // Count vowels and consonants (case-insensitive)
-        let mut vowel_count = 0;
-        let mut consonant_count = 0;
-
-        for &ch in &chars {
-            let ch_lower = ch.to_ascii_lowercase();
-            match ch_lower {
-                'a' | 'e' | 'i' | 'o' | 'u' => vowel_count += 1,
-                'b' | 'c' | 'd' | 'f' | 'g' | 'h' | 'j' | 'k' | 'l' | 'm' | 'n' | 'p' | 'q'
-                | 'r' | 's' | 't' | 'v' | 'w' | 'x' | 'y' | 'z' => consonant_count += 1,
-                _ => {} // Ignore non-letters
-            }
-        }
-
-        let letter_count = vowel_count + consonant_count;
+        let letter_count = stats.vowel_count + stats.consonant_count;
         if letter_count == 0 {
-            // No letters, check for numbers/symbols
-            // Strings with only numbers/symbols might still be legitimate
+            // No letters -- strings with only numbers/symbols might still be legitimate
             return 0.6;
         }
 
-        let vowel_ratio = vowel_count as f32 / letter_count as f32;
+        let vowel_ratio = stats.vowel_count as f32 / letter_count as f32;
 
-        // Check vowel ratio
+        // Consonant-heavy (might be noise or non-English)
         if vowel_ratio < self.min_vowel_ratio {
-            // Consonant-heavy (might be noise or non-English)
             return 0.5;
         }
+        // Vowel-heavy (likely noise)
         if vowel_ratio > self.max_vowel_ratio {
-            // Vowel-heavy (likely noise)
             return 0.3;
         }
 
         // Check for common English bigrams
         let common_bigrams = ["th", "he", "in", "er", "an", "re", "on", "at", "en", "nd"];
         let text_lower = text.to_ascii_lowercase();
-        let mut bigram_count = 0;
-        for bigram in &common_bigrams {
-            if text_lower.contains(bigram) {
-                bigram_count += 1;
-            }
-        }
+        let bigram_count = common_bigrams
+            .iter()
+            .filter(|bigram| text_lower.contains(*bigram))
+            .count();
 
         // Good vowel ratio and some common bigrams
         if (0.2..=0.8).contains(&vowel_ratio) && bigram_count > 0 {
@@ -273,17 +252,21 @@ impl NoiseFilter for RepetitionFilter {
         if text.is_empty() {
             return 0.0;
         }
+        self.confidence_with_stats(text, &CharStats::new(text))
+    }
+}
 
-        let chars: Vec<char> = text.chars().collect();
-        let total = chars.len() as f32;
-
-        // Check for repeated characters
-        let mut char_counts = std::collections::HashMap::new();
-        for &ch in &chars {
-            *char_counts.entry(ch).or_insert(0) += 1;
+impl RepetitionFilter {
+    /// Calculate confidence using pre-computed char stats (avoids redundant allocation).
+    pub(crate) fn confidence_with_stats(&self, _text: &str, stats: &CharStats) -> f32 {
+        if stats.chars.is_empty() {
+            return 0.0;
         }
 
-        let max_char_count = char_counts.values().max().copied().unwrap_or(0) as f32;
+        let total = stats.chars.len() as f32;
+
+        // Check for repeated characters using pre-computed counts
+        let max_char_count = stats.char_counts.values().max().copied().unwrap_or(0) as f32;
         let max_char_ratio = max_char_count / total;
 
         if max_char_ratio > self.max_repetition_ratio {
@@ -292,31 +275,28 @@ impl NoiseFilter for RepetitionFilter {
 
         // Check for repeated substrings (optimized to avoid O(n^3))
         // Cap pattern_len to a small bound (8-16) to avoid excessive computation
-        let max_pattern_len = (total as usize / 3).min(16).min(chars.len());
+        let max_pattern_len = (total as usize / 3).min(16).min(stats.chars.len());
 
         if total >= 6.0 && max_pattern_len > 0 {
-            // Early exit optimization: if we can't possibly get 3 repetitions, skip
+            // Early exit: if we cannot possibly get 3 repetitions, skip
             let min_pattern_len_for_3_reps = ((total as usize) as f32 / 3.0).ceil() as usize;
             if min_pattern_len_for_3_reps > max_pattern_len {
-                return 1.0; // Can't have 3 repetitions, so no issue
+                return 1.0;
             }
 
-            // Check patterns starting from length 1 up to max_pattern_len
             for pattern_len in 1..=max_pattern_len {
                 // Early exit: if pattern_len is too large to repeat 3 times, skip
-                if pattern_len * 3 > chars.len() {
+                if pattern_len * 3 > stats.chars.len() {
                     break;
                 }
 
                 // Use slice comparison instead of constructing String
-                let pattern_slice = &chars[0..pattern_len];
+                let pattern_slice = &stats.chars[0..pattern_len];
                 let mut count = 1; // First occurrence
                 let mut pos = pattern_len;
 
-                // Check for repetitions
-                while pos + pattern_len <= chars.len() && count < 3 {
-                    let candidate_slice = &chars[pos..pos + pattern_len];
-                    // Compare slices directly (char comparison)
+                while pos + pattern_len <= stats.chars.len() && count < 3 {
+                    let candidate_slice = &stats.chars[pos..pos + pattern_len];
                     if pattern_slice == candidate_slice {
                         count += 1;
                         pos += pattern_len;

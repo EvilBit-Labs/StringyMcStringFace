@@ -30,16 +30,11 @@ Output formatters will use an enum-based approach with a single format() functio
 
 **Trade-off**: Less extensible than trait-based approach, but simpler and more appropriate for the limited number of formatters. Future formats can be added as enum variants.
 
-**3. Memory-Mapped File I/O with Fallback**
+**3. Memory mapping via `mmap-guard`**
 
-File reading will attempt memory mapping first, with automatic fallback to regular file reading on failure. This provides:
+File loading uses `mmap_guard::map_file()` for zero-copy read-only mmap with advisory locking. Empty files (InvalidInput) short-circuit to empty `Loaded(Vec::new())`; other I/O errors produce `StringyError::IoError`. Supersedes original `memmap2 + fs::read` plan; `mmap-guard` wraps `memmap2` equivalently.
 
-- Efficient memory-mapped access for most cases
-- Robustness for edge cases (network filesystems, locked files, platform limitations)
-- Consistent behavior across all file sizes
-- Zero-copy access when possible
-
-**Trade-off**: Slightly more complex than always-on mmap, but handles real-world failure scenarios gracefully.
+**Trade-off**: Adds an indirect dependency on `memmap2` but keeps Stringy's `#![forbid(unsafe_code)]` intact while providing robust file I/O.
 
 **4. Modern Regex Caching**
 
@@ -108,6 +103,7 @@ sequenceDiagram
 
     CLI->>Pipeline: new(config)
     CLI->>Pipeline: run(file_path)
+    Pipeline->>Pipeline: load file (mmap-guard)
     Pipeline->>Container: detect_format() & parse()
     Container-->>Pipeline: ContainerInfo
     Pipeline->>Extractor: extract(data, container_info)
@@ -416,7 +412,7 @@ impl Pipeline {
 **Workflow**:
 
 01. Display "Parsing..." progress indicator
-02. Attempt memory-map file using `memmap2`, fall back to `std::fs::read()` on failure
+02. Load file via `mmap_guard::map_file()` (happy path: mmap, empty file: empty Vec, other IO: StringyError::IoError)
 03. Detect format and parse container (fail fast on error)
 04. Display "Extracting..." progress indicator
 05. Extract strings using `BasicExtractor` (fail fast on critical errors)
@@ -447,7 +443,8 @@ impl Pipeline {
 
 *Recovery Strategy*:
 
-- Memory mapping failure: Automatically fall back to regular file reading
+- Empty file: `mmap_guard` returns `InvalidInput`, pipeline short-circuits to empty buffer and proceeds gracefully
+- Other I/O failures: Wrapped in `StringyError::IoError` with file path context
 - Partial results: If some strings are processed successfully, output them with warning about failures
 - No strings found: Display informational message to stderr, exit 0 (not an error)
 
@@ -464,12 +461,12 @@ impl Pipeline {
 
 ### 6. Performance Optimizations
 
-**Memory Mapping** (file:src/main.rs):
+**Memory Mapping** (file:src/pipeline/mod.rs):
 
-- Attempt `memmap2::Mmap` first for efficient access
-- On mmap failure (network filesystem, locked file, platform limitations), fall back to `std::fs::read()`
-- Pass byte slice to container parsers (works with both mmap and regular read)
-- Log fallback to regular file reading for user awareness
+- Use `mmap_guard::map_file()` for zero-copy read-only access with advisory locking
+- Empty files are short-circuited to an empty buffer (`mmap_guard` rejects zero-byte files with `InvalidInput`)
+- Other I/O errors are wrapped in `StringyError::IoError` with file path context
+- Pass byte slice to container parsers (works via `Deref<Target = [u8]>` on `FileData`)
 
 **Regex Caching** (file:src/classification/semantic.rs):
 
@@ -479,7 +476,7 @@ impl Pipeline {
 
 **Dependency Additions**:
 
-- `memmap2` - Memory-mapped file I/O with fallback
+- `mmap-guard` - Safe mmap (wraps memmap2) with empty-file handling
 - `once_cell` - Modern lazy initialization (migrate from lazy_static)
 - `indicatif` - Progress bars and spinners
 - `rustc-demangle` - Rust symbol demangling
@@ -487,13 +484,13 @@ impl Pipeline {
 
 ### Integration Points Summary
 
-| Component          | Consumes                        | Produces                 | Integration Point                               |
-| ------------------ | ------------------------------- | ------------------------ | ----------------------------------------------- |
-| Pipeline           | CLI args, file path             | Formatted output         | Orchestrates all components + filtering         |
-| RankingEngine      | Vec\<FoundString>, debug flag   | Scored Vec\<FoundString> | Called after classification                     |
-| SymbolDemangler    | &mut FoundString                | ()                       | Called during classification, modifies in-place |
-| SemanticClassifier | FoundString                     | Vec\<Tag>                | Extended with new patterns                      |
-| format_output()    | OutputFormat, Vec\<FoundString> | String                   | Enum-based dispatch to formatters               |
+| Component          | Consumes                        | Produces                 | Integration Point                                                    |
+| ------------------ | ------------------------------- | ------------------------ | -------------------------------------------------------------------- |
+| Pipeline           | CLI args, file path             | Formatted output         | File loading via mmap-guard, orchestrates all components + filtering |
+| RankingEngine      | Vec\<FoundString>, debug flag   | Scored Vec\<FoundString> | Called after classification                                          |
+| SymbolDemangler    | &mut FoundString                | ()                       | Called during classification, modifies in-place                      |
+| SemanticClassifier | FoundString                     | Vec\<Tag>                | Extended with new patterns                                           |
+| format_output()    | OutputFormat, Vec\<FoundString> | String                   | Enum-based dispatch to formatters                                    |
 
 ### Testing Strategy
 

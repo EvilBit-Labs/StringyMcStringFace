@@ -10,11 +10,11 @@ Binary Data → Section Analysis → Encoding Detection → String Scanning → 
 
 ## Encoding Support
 
-### ASCII Extraction ✅
+### ASCII Extraction
 
 The most common encoding in most binaries. ASCII extraction provides foundational string extraction with configurable minimum length thresholds.
 
-### UTF-16LE Extraction ✅
+### UTF-16LE Extraction
 
 UTF-16LE extraction is now implemented and available for Windows PE binary string extraction. It provides UTF-16LE string extraction with confidence scoring and noise filtering integration.
 
@@ -28,7 +28,7 @@ UTF-16LE extraction is now implemented and available for Windows PE binary strin
 #### Basic Extraction
 
 ```text
-use stringy::extraction::ascii::{extract_ascii_strings, AsciiExtractionConfig};
+use stringy::extraction::{extract_ascii_strings, AsciiExtractionConfig};
 
 let data = b"Hello\0World\0Test123";
 let config = AsciiExtractionConfig::default();
@@ -42,7 +42,7 @@ for string in strings {
 #### Configuration
 
 ```text
-use stringy::extraction::ascii::AsciiExtractionConfig;
+use stringy::extraction::AsciiExtractionConfig;
 
 // Default configuration (min_length: 4, no max_length)
 let config = AsciiExtractionConfig::default();
@@ -213,11 +213,11 @@ The confidence score is separate from the `score` field used for final ranking. 
 
 Noise filtering is designed to add minimal overhead (\<10% per acceptance criteria). Individual filters are optimized for performance, and the composite filter allows enabling/disabling specific filters to balance accuracy and speed.
 
-### UTF-16 Extraction ✅
+### UTF-16 Extraction
 
 Critical for Windows binaries and some resources. Supports both UTF-16LE (Little-Endian) and UTF-16BE (Big-Endian) with automatic byte order detection.
 
-#### UTF-16LE (Little-Endian) ✅
+#### UTF-16LE (Little-Endian)
 
 Most common on Windows platforms. Default 3 character minimum.
 
@@ -228,7 +228,7 @@ Most common on Windows platforms. Default 3 character minimum.
 - Null termination patterns (0x00 0x00)
 - Advanced confidence scoring with multiple heuristics
 
-#### UTF-16BE (Big-Endian) ✅
+#### UTF-16BE (Big-Endian)
 
 Found in Java .class files, network protocols, some cross-platform binaries.
 
@@ -239,7 +239,7 @@ Found in Java .class files, network protocols, some cross-platform binaries.
 - Reverse byte order from UTF-16LE
 - Same advanced confidence scoring as UTF-16LE
 
-#### Automatic Byte Order Detection ✅
+#### Automatic Byte Order Detection
 
 The `ByteOrder::Auto` mode automatically detects and extracts both UTF-16LE and UTF-16BE strings from the same data, avoiding duplicates and correctly identifying the encoding of each string.
 
@@ -553,11 +553,12 @@ All weights must sum to 1.0. The configuration validates this automatically.
 ### Encoding Selection
 
 ```text
+#[non_exhaustive]
 pub enum EncodingFilter {
-    All,
-    Specific(Vec<Encoding>),
-    AsciiOnly,
-    Utf16Only,
+    /// Match a specific encoding exactly
+    Exact(Encoding),
+    /// Match any UTF-16 variant (UTF-16LE or UTF-16BE)
+    Utf16Any,
 }
 ```
 
@@ -576,33 +577,21 @@ pub struct SectionFilter {
 
 ### Memory Mapping
 
-Large files use memory mapping for efficient access:
+Large files use memory mapping for efficient access via `mmap-guard`:
 
 ```text
-use memmap2::Mmap;
-
 fn extract_from_large_file(path: &Path) -> Result<Vec<RawString>> {
-    let file = File::open(path)?;
-    let mmap = unsafe { Mmap::map(&file)? };
-
-    extract_strings(&mmap[..])
+    let data = mmap_guard::map_file(path)?;
+    // data implements Deref<Target = [u8]>
+    extract_strings(&data[..])
 }
 ```
+
+Note: The `Pipeline::run` API handles memory mapping automatically.
 
 ### Parallel Processing
 
-Section extraction can be parallelized:
-
-```text
-use rayon::prelude::*;
-
-fn extract_parallel(sections: &[SectionInfo], data: &[u8]) -> Vec<RawString> {
-    sections
-        .par_iter()
-        .flat_map(|section| extract_from_section(section, data))
-        .collect()
-}
-```
+Parallel processing is not yet implemented. Section extraction currently runs sequentially.
 
 ### Regex Caching
 
@@ -650,7 +639,7 @@ Noise filtering is designed for minimal overhead:
 #### Basic Extraction with Filtering
 
 ```text
-use stringy::extraction::ascii::{extract_ascii_strings, AsciiExtractionConfig};
+use stringy::extraction::{extract_ascii_strings, AsciiExtractionConfig};
 use stringy::extraction::config::NoiseFilterConfig;
 use stringy::extraction::filters::{CompositeNoiseFilter, FilterContext};
 

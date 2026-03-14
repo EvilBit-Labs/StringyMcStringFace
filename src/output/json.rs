@@ -11,12 +11,16 @@ pub fn format_json(strings: &[FoundString], _metadata: &OutputMetadata) -> Resul
     let mut lines = Vec::with_capacity(strings.len());
     for item in strings {
         if !item.confidence.is_finite() {
-            return Err(StringyError::ConfigError(
+            return Err(StringyError::SerializationError(
                 "JSON serialization failed: non-finite confidence".to_string(),
             ));
         }
         let line = serde_json::to_string(item).map_err(|err| {
-            StringyError::ConfigError(format!("JSON serialization failed: {}", err))
+            let preview: String = item.text.chars().take(40).collect();
+            StringyError::SerializationError(format!(
+                "JSON serialization failed at offset {:#x} (\"{preview}\"): {err}",
+                item.offset
+            ))
         })?;
         lines.push(line);
     }
@@ -275,8 +279,8 @@ mod tests {
         let strings = vec![make_string("nan").with_confidence(f32::NAN)];
         let result = format_json(&strings, &make_metadata(1));
         match result {
-            Err(StringyError::ConfigError(_)) => {}
-            _ => panic!("Expected ConfigError on invalid JSON serialization"),
+            Err(StringyError::SerializationError(_)) => {}
+            _ => panic!("Expected SerializationError on invalid JSON serialization"),
         }
     }
 }

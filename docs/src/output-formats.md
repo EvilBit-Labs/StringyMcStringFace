@@ -1,78 +1,92 @@
 # Output Formats
 
-Stringy supports multiple output formats optimized for different use cases. Each format presents the same underlying data with different emphasis and structure.
+Stringy supports three output formats optimized for different use cases.
 
-## Human-Readable Format (Default)
+## Table Format (Default)
 
-The default format provides an interactive table view optimized for manual analysis.
+### TTY Mode
 
-### Example Output
+When stdout is a TTY, results are shown as an aligned table. Columns appear in this order:
 
 ```text
-Score  Offset    Section    Encoding  Tags           String
------  ------    -------    --------  ----           ------
-  95   0x1000    .rdata     utf-8     url,https      https://api.example.com/v1/users
-  87   0x2000    .rdata     utf-8     guid           {12345678-1234-1234-1234-123456789abc}
-  82   0x3000    __cstring  utf-8     filepath       /usr/local/bin/application
-  78   0x4000    .rdata     utf-8     fmt            Error: %s at line %d
-  75   0x5000    .rsrc      utf-16le  version        MyApplication v1.2.3
+String                                   Tags              Score  Section
+------                                   ----              -----  -------
+https://api.example.com/v1/users         Url                 95   .rdata
+{12345678-1234-1234-1234-123456789abc}   guid                87   .rdata
+/usr/local/bin/application               filepath            82   __cstring
+Error: %s at line %d                     fmt                 78   .rdata
 ```
 
-### Features
+Features:
 
-- **Color coding**: High scores in green, medium in yellow, low in red
 - **Truncation**: Long strings are truncated with `...` indicator
 - **Sorting**: Results sorted by score (highest first)
 - **Alignment**: Columns properly aligned for readability
 
-### Usage
+### Plain Text (Piped / Non-TTY)
 
-```bash
-stringy binary                    # Default format
-stringy --format human binary     # Explicit format
-```
+When stdout is piped, output switches to plain text with one string per line and no headers or table formatting. This is designed for downstream tool consumption.
+
+### `--summary` Block
+
+When `--summary` is passed (TTY mode only; conflicts with `--json` and `--yara`), a summary block is appended after the table showing aggregate statistics about the extraction.
 
 ## JSON Lines Format
 
-Machine-readable format with one JSON object per line, ideal for automation and pipeline integration.
+Machine-readable format with one JSON object per line (JSONL), ideal for automation and pipeline integration.
+
+```bash
+stringy --json binary
+```
 
 ### Example Output
 
 ```text
-{"text":"https://api.example.com/v1/users","encoding":"utf-8","offset":4096,"rva":4096,"section":".rdata","length":31,"tags":["url"],"score":95,"source":"SectionData"}
-{"text":"{12345678-1234-1234-1234-123456789abc}","encoding":"utf-8","offset":8192,"rva":8192,"section":".rdata","length":38,"tags":["guid"],"score":87,"source":"SectionData"}
+{"text":"https://api.example.com/v1/users","encoding":"Ascii","offset":4096,"rva":4096,"section":".rdata","length":31,"tags":["Url"],"score":95,"confidence":1.0,"source":"SectionData"}
+{"text":"{12345678-1234-1234-1234-123456789abc}","encoding":"Ascii","offset":8192,"rva":8192,"section":".rdata","length":38,"tags":["guid"],"score":87,"confidence":0.95,"source":"SectionData"}
 ```
 
 ### Schema
 
 Each JSON object contains:
 
-| Field      | Type         | Description                                             |
-| ---------- | ------------ | ------------------------------------------------------- |
-| `text`     | string       | The extracted string                                    |
-| `encoding` | string       | Encoding used: `ascii`, `utf-8`, `utf-16le`, `utf-16be` |
-| `offset`   | number       | File offset in bytes                                    |
-| `rva`      | number\|null | Relative Virtual Address (if available)                 |
-| `section`  | string\|null | Section name where found                                |
-| `length`   | number       | String length in bytes                                  |
-| `tags`     | array        | Semantic classification tags                            |
-| `score`    | number       | Relevance score (0-100)                                 |
-| `source`   | string       | Source type: `SectionData`, `ImportName`, etc.          |
+| Field           | Type           | Description                                                    |
+| --------------- | -------------- | -------------------------------------------------------------- |
+| `text`          | string         | The extracted string (demangled if applicable)                 |
+| `original_text` | string or null | Original mangled form (present only when demangled)            |
+| `encoding`      | string         | Encoding: `Ascii`, `Utf8`, `Utf16Le`, `Utf16Be`                |
+| `offset`        | number         | File offset in bytes                                           |
+| `rva`           | number or null | Relative Virtual Address (if available)                        |
+| `section`       | string or null | Section name where found                                       |
+| `length`        | number         | String length in bytes                                         |
+| `tags`          | array          | Semantic classification tags                                   |
+| `score`         | number         | Internal relevance score                                       |
+| `display_score` | number or null | Display score (0-100 band-mapped); only present with `--debug` |
+| `confidence`    | number         | Confidence score from noise filtering (0.0-1.0)                |
+| `source`        | string         | Source type: `SectionData`, `ImportName`, `ExportName`, etc.   |
 
-### Usage
+### Debug Fields
 
-```bash
-stringy --json binary             # JSON Lines format
-stringy --format json binary      # Explicit format
-```
+When `--debug` is passed, four additional fields appear:
+
+| Field            | Type           | Description                          |
+| ---------------- | -------------- | ------------------------------------ |
+| `display_score`  | number or null | Display score (0-100 band-mapped)    |
+| `section_weight` | number or null | Section weight contribution to score |
+| `semantic_boost` | number or null | Semantic classification boost        |
+| `noise_penalty`  | number or null | Noise penalty applied                |
+
+### Raw Mode
+
+With `--raw --json`, output contains extraction-only data: `score` is `0`, `tags` is empty, and `display_score` is absent.
 
 ### Processing Examples
 
 ```bash
 # Extract only URLs
-stringy --json binary | jq 'select(.tags[] == "url") | .text'
+stringy --json binary | jq 'select(.tags[] == "Url") | .text'
 
-# High-confidence strings only
+# High-score strings only
 stringy --json binary | jq 'select(.score > 80)'
 
 # Group by section
@@ -84,86 +98,89 @@ stringy --json binary | jq 'select(.section == ".rdata")'
 
 ## YARA Format
 
-Specialized format for creating YARA detection rules, with proper escaping and metadata.
+Specialized format for creating YARA detection rules with proper escaping and metadata.
+
+```bash
+stringy --yara binary
+```
 
 ### Example Output
 
 ```yara
-/*
- * Stringy extraction from: binary.exe
- * Generated: 2024-01-15 10:30:00 UTC
- * High-confidence strings (score >= 80)
- */
+// YARA rule generated by Stringy
+// Binary: binary
+// Generated: 1234567890
 
-rule binary_exe_strings {
-    meta:
-        description = "Strings extracted from binary.exe"
-        generated_by = "stringy"
-
-    strings:
-        // URLs (score: 95)
-        $url_1 = "https://api.example.com/v1/users" ascii wide
-
-        // GUIDs (score: 87)
-        $guid_1 = "{12345678-1234-1234-1234-123456789abc}" ascii wide
-
-        // File paths (score: 82)
-        $path_1 = "/usr/local/bin/application" ascii
-
-        // Format strings (score: 78)
-        $fmt_1 = "Error: %s at line %d" ascii
-
-    condition:
-        any of them
+rule binary_strings {
+  meta:
+    description = "Strings extracted from binary"
+    generated_by = "stringy"
+    generated_at = "1234567890"
+  strings:
+    // tag: filepath
+    // score: 82
+    $filepath_1 = "/usr/local/bin/application" ascii
+    // tag: fmt
+    // score: 78
+    $fmt_1 = "Error: %s at line %d" ascii
+    // tag: Url
+    // score: 95
+    $Url_1 = "https://api.example.com/v1/users" ascii
+    // skipped (length > 200 chars): 245
+  condition:
+    any of them
 }
 ```
 
 ### Features
 
+- **Rule naming**: Rule name is derived from the filename with non-alphanumeric characters replaced by `_` and a `_strings` suffix added
+- **Tag grouping**: Strings are grouped by their first tag with `// tag: <name>` comments and per-string `// score: <N>` annotations
+- **Variable naming**: Variables use tag-derived names (e.g., `$Url_1`, `$filepath_1`, `$fmt_1`) rather than sequential `$sN`
 - **Proper escaping**: Handles special characters and binary data
-- **Hex encoding**: Binary strings converted to hex format
-- **Metadata**: Includes extraction timestamp and source file
-- **Grouping**: Strings grouped by semantic category
-- **Comments**: Score and classification information in comments
+- **Long string handling**: Strings over 200 characters are replaced with `// skipped (length > 200 chars): N` (where N is the character count)
 - **Modifiers**: Appropriate `ascii`/`wide` modifiers based on encoding
 
-### Usage
+## Score Behavior
 
-```bash
-stringy --yara binary             # YARA format
-stringy --format yara binary      # Explicit format
-stringy --yara --min-len 8 binary # Longer strings only
-```
+Stringy uses a band-mapping system to convert internal scores to display scores (0-100):
+
+| Internal Score | Display Score | Meaning       |
+| -------------- | ------------- | ------------- |
+| \<= 0          | 0             | Low relevance |
+| 1-79           | 1-49          | Low relevance |
+| 80-119         | 50-69         | Moderate      |
+| 120-159        | 70-89         | Meaningful    |
+| 160-220        | 90-100        | High-value    |
+| > 220          | 100 (clamped) | High-value    |
 
 ## Format Comparison
 
-| Feature             | Human | JSON | YARA |
+| Feature             | Table | JSON | YARA |
 | ------------------- | ----- | ---- | ---- |
-| **Interactive use** | ✅    | ❌   | ❌   |
-| **Automation**      | ❌    | ✅   | ⚠️   |
-| **Rule creation**   | ❌    | ⚠️   | ✅   |
-| **Filtering**       | ✅    | ✅   | ✅   |
-| **Metadata**        | ⚠️    | ✅   | ⚠️   |
-| **Readability**     | ✅    | ❌   | ✅   |
+| **Interactive use** | Yes   | No   | No   |
+| **Automation**      | No    | Yes  | No   |
+| **Rule creation**   | No    | No   | Yes  |
+| **Full metadata**   | No    | Yes  | No   |
 
 ## Output Customization
 
-### Filtering Output
+### Filtering
 
 All formats support the same filtering options:
 
 ```bash
 # Limit results
-stringy --top 50 --format json binary
+stringy --top 50 --json binary
 
 # Filter by tags
-stringy --only url,domain --format yara binary
+stringy --only-tags url --only-tags domain --yara binary
 
-# Minimum score threshold
+# Minimum score threshold (post-process)
 stringy --json binary | jq 'select(.score >= 70)'
 ```
 
-### Redirection and Files
+### Redirection
 
 ```bash
 # Save to file
@@ -171,45 +188,5 @@ stringy --json binary > strings.jsonl
 stringy --yara binary > rules.yar
 
 # Pipe to other tools
-stringy --json binary | jq '.[] | select(.tags[] == "url")' | less
+stringy --json binary | jq 'select(.tags[] == "Url")' | less
 ```
-
-## Future Formats
-
-Planned additional output formats:
-
-### CSV Format
-
-```csv
-text,encoding,offset,section,tags,score
-"https://api.example.com",utf-8,4096,.rdata,"url",95
-```
-
-### XML Format
-
-```xml
-<strings>
-  <string offset="4096" section=".rdata" encoding="utf-8" score="95">
-    <text>https://api.example.com</text>
-    <tags>
-      <tag>url</tag>
-    </tags>
-  </string>
-</strings>
-```
-
-### Markdown Format
-
-```markdown
-# String Analysis Report
-
-## High Confidence (Score >= 80)
-
-### URLs
-- `https://api.example.com` (score: 95, offset: 0x1000, section: .rdata)
-
-### GUIDs
-- `{12345678-1234-1234-1234-123456789abc}` (score: 87, offset: 0x2000, section: .rdata)
-```
-
-This variety of output formats ensures Stringy can integrate into any workflow, from interactive analysis to automated security pipelines.

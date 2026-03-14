@@ -2,61 +2,9 @@
 //!
 //! This module contains utility functions used by the extraction framework:
 //!
-//! - [`apply_semantic_enrichment`]: Applies semantic tagging and symbol demangling
 //! - [`extract_ascii_utf8_strings`]: Extracts ASCII/UTF-8 strings from raw bytes
 //! - [`is_printable_text_byte`]: Checks if a byte is printable ASCII text
 //! - [`could_be_utf8_byte`]: Checks if a byte could be part of a UTF-8 sequence
-
-use crate::classification::{SemanticClassifier, SymbolDemangler};
-use crate::types::{ContainerInfo, FoundString, SectionInfo, SectionType, StringContext};
-
-/// Apply semantic enrichment (classification and demangling) to extracted strings
-///
-/// Iterates over the extracted strings, applying symbol demangling and semantic
-/// classification based on the container format and section context.
-pub(super) fn apply_semantic_enrichment(
-    strings: &mut [FoundString],
-    container_info: &ContainerInfo,
-) {
-    let classifier = SemanticClassifier::new();
-    let demangler = SymbolDemangler::new();
-
-    // Build a map from section name to SectionInfo for fast lookup
-    let section_map: std::collections::HashMap<&str, &SectionInfo> = container_info
-        .sections
-        .iter()
-        .map(|s| (s.name.as_str(), s))
-        .collect();
-
-    for string in strings {
-        demangler.demangle(string);
-
-        // Look up section info to get real section_type
-        let section_type = string
-            .section
-            .as_ref()
-            .and_then(|name| section_map.get(name.as_str()))
-            .map(|info| info.section_type)
-            .unwrap_or(SectionType::Other);
-
-        let context = StringContext::new(
-            section_type,
-            container_info.format,
-            string.encoding,
-            string.source,
-        );
-        let context = match &string.section {
-            Some(name) => context.with_section_name(name.clone()),
-            None => context,
-        };
-        let tags = classifier.classify(&string.text, &context);
-        for tag in tags {
-            if !string.tags.contains(&tag) {
-                string.tags.push(tag);
-            }
-        }
-    }
-}
 
 /// Check if a byte is printable text (ASCII or common whitespace)
 ///
@@ -120,52 +68,26 @@ pub(super) fn extract_ascii_utf8_strings(
             current_string_bytes.push(byte);
         } else {
             // End of current string candidate
-            // Check length conditions first, then extract start to avoid borrow checker issues
-            // Separate if blocks needed: collapsing would cause borrow checker errors with std::mem::take
-            #[allow(clippy::collapsible_if)]
-            if current_string_bytes.len() >= min_length && current_string_bytes.len() <= max_length
-            {
-                if let Some(start) = current_string_start {
-                    // Store length before moving
-                    let len = current_string_bytes.len();
-                    // Move buffer out to avoid cloning
+            if let Some(start) = current_string_start.take() {
+                let len = current_string_bytes.len();
+                if len >= min_length && len <= max_length {
                     let bytes = std::mem::take(&mut current_string_bytes);
-                    // Try to convert to UTF-8 string
-                    match String::from_utf8(bytes) {
-                        Ok(text) => {
-                            // Create entry tuple to move text into it explicitly
-                            let entry = (text, start, len);
-                            strings.push(entry);
-                        }
-                        Err(_) => {
-                            // Invalid UTF-8, skip this candidate
-                        }
+                    if let Ok(text) = String::from_utf8(bytes) {
+                        strings.push((text, start, len));
                     }
                 }
             }
-            current_string_start = None;
             current_string_bytes.clear();
         }
     }
 
     // Handle string at end of data
-    // Separate if blocks needed: collapsing would cause borrow checker errors with std::mem::take
-    #[allow(clippy::collapsible_if)]
-    if current_string_bytes.len() >= min_length && current_string_bytes.len() <= max_length {
-        if let Some(start) = current_string_start {
-            // Store length before moving
-            let len = current_string_bytes.len();
-            // Move buffer out to avoid cloning
+    if let Some(start) = current_string_start.take() {
+        let len = current_string_bytes.len();
+        if len >= min_length && len <= max_length {
             let bytes = std::mem::take(&mut current_string_bytes);
-            match String::from_utf8(bytes) {
-                Ok(text) => {
-                    // Create entry tuple to move text into it explicitly
-                    let entry = (text, start, len);
-                    strings.push(entry);
-                }
-                Err(_) => {
-                    // Invalid UTF-8, skip
-                }
+            if let Ok(text) = String::from_utf8(bytes) {
+                strings.push((text, start, len));
             }
         }
     }

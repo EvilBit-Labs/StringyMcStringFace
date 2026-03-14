@@ -1,4 +1,9 @@
-// Container format detection and parsing
+//! Container format detection and parsing
+//!
+//! This module provides binary format detection and container-level metadata
+//! extraction for ELF, PE, and Mach-O binaries. The [`detect_format`] function
+//! identifies the binary format, and [`create_parser`] returns an appropriate
+//! [`ContainerParser`] implementation that extracts sections, imports, and exports.
 
 use crate::types::{BinaryFormat, ContainerInfo, Result, StringyError};
 use goblin::Object;
