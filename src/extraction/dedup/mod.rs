@@ -18,6 +18,7 @@ use std::collections::{HashMap, HashSet};
 ///
 /// Represents a deduplicated string that may appear multiple times in a binary.
 /// All occurrence metadata is preserved, and tags are merged from all occurrences.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CanonicalString {
     /// The deduplicated string content
@@ -36,6 +37,7 @@ pub struct CanonicalString {
 ///
 /// Preserves all location and context information for each instance where
 /// a string appears in the binary.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StringOccurrence {
     /// File offset where string was found
@@ -57,6 +59,86 @@ pub struct StringOccurrence {
     pub confidence: f32,
     /// Length of the string in bytes
     pub length: u32,
+}
+
+impl CanonicalString {
+    /// Create a new `CanonicalString` instance
+    #[must_use]
+    pub fn new(
+        text: String,
+        encoding: Encoding,
+        occurrences: Vec<StringOccurrence>,
+        merged_tags: Vec<Tag>,
+        combined_score: i32,
+    ) -> Self {
+        Self {
+            text,
+            encoding,
+            occurrences,
+            merged_tags,
+            combined_score,
+        }
+    }
+}
+
+impl StringOccurrence {
+    /// Create a new `StringOccurrence` instance
+    #[must_use]
+    pub fn new(offset: u64, source: StringSource, length: u32) -> Self {
+        Self {
+            offset,
+            rva: None,
+            section: None,
+            original_text: None,
+            source,
+            original_tags: Vec::new(),
+            original_score: 0,
+            confidence: 1.0,
+            length,
+        }
+    }
+
+    /// Set the relative virtual address
+    #[must_use]
+    pub fn with_rva(mut self, rva: u64) -> Self {
+        self.rva = Some(rva);
+        self
+    }
+
+    /// Set the section name
+    #[must_use]
+    pub fn with_section(mut self, section: String) -> Self {
+        self.section = Some(section);
+        self
+    }
+
+    /// Set the original text before demangling
+    #[must_use]
+    pub fn with_original_text(mut self, original_text: String) -> Self {
+        self.original_text = Some(original_text);
+        self
+    }
+
+    /// Set the tags from this occurrence
+    #[must_use]
+    pub fn with_original_tags(mut self, tags: Vec<Tag>) -> Self {
+        self.original_tags = tags;
+        self
+    }
+
+    /// Set the score from this occurrence
+    #[must_use]
+    pub fn with_original_score(mut self, score: i32) -> Self {
+        self.original_score = score;
+        self
+    }
+
+    /// Set the confidence score
+    #[must_use]
+    pub fn with_confidence(mut self, confidence: f32) -> Self {
+        self.confidence = confidence;
+        self
+    }
 }
 
 /// Deduplicate a vector of found strings
@@ -130,13 +212,7 @@ pub fn deduplicate(
                     .unwrap_or(0)
             };
 
-            CanonicalString {
-                text,
-                encoding,
-                occurrences,
-                merged_tags,
-                combined_score,
-            }
+            CanonicalString::new(text, encoding, occurrences, merged_tags, combined_score)
         })
         .collect();
 
@@ -181,17 +257,22 @@ fn merge_tags(occurrences: &[StringOccurrence]) -> Vec<Tag> {
 ///
 /// StringOccurrence with all metadata preserved
 pub fn found_string_to_occurrence(fs: FoundString) -> StringOccurrence {
-    StringOccurrence {
-        offset: fs.offset,
-        rva: fs.rva,
-        section: fs.section,
-        original_text: fs.original_text,
-        source: fs.source,
-        original_tags: fs.tags,
-        original_score: fs.score,
-        confidence: fs.confidence,
-        length: fs.length,
+    let mut occurrence = StringOccurrence::new(fs.offset, fs.source, fs.length)
+        .with_original_tags(fs.tags)
+        .with_original_score(fs.score)
+        .with_confidence(fs.confidence);
+
+    if let Some(rva) = fs.rva {
+        occurrence = occurrence.with_rva(rva);
     }
+    if let Some(section) = fs.section {
+        occurrence = occurrence.with_section(section);
+    }
+    if let Some(original_text) = fs.original_text {
+        occurrence = occurrence.with_original_text(original_text);
+    }
+
+    occurrence
 }
 
 impl CanonicalString {
@@ -212,21 +293,27 @@ impl CanonicalString {
             .map(|occ| occ.confidence)
             .fold(0.0f32, f32::max);
 
-        Some(FoundString {
-            text: self.text.clone(),
-            original_text: first_occurrence.original_text.clone(),
-            encoding: self.encoding,
-            offset: first_occurrence.offset,
-            rva: first_occurrence.rva,
-            section: first_occurrence.section.clone(),
-            length: first_occurrence.length,
-            tags: self.merged_tags.clone(),
-            score: self.combined_score,
-            section_weight: None,
-            semantic_boost: None,
-            noise_penalty: None,
-            source: first_occurrence.source,
-            confidence: max_confidence,
-        })
+        let mut fs = FoundString::new(
+            self.text.clone(),
+            self.encoding,
+            first_occurrence.offset,
+            first_occurrence.length,
+            first_occurrence.source,
+        )
+        .with_tags(self.merged_tags.clone())
+        .with_score(self.combined_score)
+        .with_confidence(max_confidence);
+
+        if let Some(rva) = first_occurrence.rva {
+            fs = fs.with_rva(rva);
+        }
+        if let Some(ref section) = first_occurrence.section {
+            fs = fs.with_section(section.clone());
+        }
+        if let Some(ref original_text) = first_occurrence.original_text {
+            fs = fs.with_original_text(original_text.clone());
+        }
+
+        Some(fs)
     }
 }

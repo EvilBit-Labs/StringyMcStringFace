@@ -78,4 +78,8 @@ LICENSE text
 *.so binary
 *.dylib binary
 
+# Test fixture binaries
+tests/fixtures/test_empty.bin binary
+tests/fixtures/test_unknown.bin binary
+
 .env text=utf-8 eol=lf

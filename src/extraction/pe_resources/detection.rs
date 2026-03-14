@@ -72,12 +72,11 @@ pub(super) fn detect_version_info(
             let data_size = data_entry.size();
 
             // Use the language from the directory entry for per-entry language fidelity
-            version_infos.push(ResourceMetadata {
-                resource_type: ResourceType::VersionInfo,
-                language: language_id,
+            version_infos.push(ResourceMetadata::new(
+                ResourceType::VersionInfo,
+                language_id,
                 data_size,
-                offset: None, // Offset not easily available from pelite API
-            });
+            ));
         }
     }
 
@@ -134,12 +133,11 @@ pub(super) fn detect_string_tables(
             // Get the actual data size from the data entry
             let data_size = data_entry.size();
 
-            string_tables.push(ResourceMetadata {
-                resource_type: ResourceType::StringTable,
-                language: language_id,
+            string_tables.push(ResourceMetadata::new(
+                ResourceType::StringTable,
+                language_id,
                 data_size,
-                offset: None, // Offset not easily available from pelite API
-            });
+            ));
         }
     }
 
@@ -195,12 +193,11 @@ pub(super) fn detect_manifests(
             // Get the actual data size from the data entry
             let data_size = data_entry.size();
 
-            manifests.push(ResourceMetadata {
-                resource_type: ResourceType::Manifest,
-                language: language_id,
+            manifests.push(ResourceMetadata::new(
+                ResourceType::Manifest,
+                language_id,
                 data_size,
-                offset: None, // Offset not easily available from pelite API
-            });
+            ));
         }
     }
 

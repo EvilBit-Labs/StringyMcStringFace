@@ -18,36 +18,13 @@ fn test_deduplication_with_basic_extractor() {
 
     // Create test data with duplicate strings in multiple sections
     let data = b"Hello\0World\0Hello\0Test\0World\0Hello\0";
-    let section1 = SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 0,
-        size: 12, // "Hello\0World\0"
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
-    let section2 = SectionInfo {
-        name: ".data".to_string(),
-        offset: 12,
-        size: 10, // "Hello\0Test\0"
-        rva: Some(0x2000),
-        section_type: SectionType::ReadOnlyData,
-        is_executable: false,
-        is_writable: false,
-        weight: 0.7,
-    };
-    let section3 = SectionInfo {
-        name: ".text".to_string(),
-        offset: 22,
-        size: 6, // "World\0"
-        rva: Some(0x3000),
-        section_type: SectionType::Code,
-        is_executable: true,
-        is_writable: false,
-        weight: 0.1,
-    };
+    let section1 = SectionInfo::new(".rodata".to_string(), 0, 12, SectionType::StringData, 1.0)
+        .with_rva(0x1000);
+    let section2 = SectionInfo::new(".data".to_string(), 12, 10, SectionType::ReadOnlyData, 0.7)
+        .with_rva(0x2000);
+    let section3 = SectionInfo::new(".text".to_string(), 22, 6, SectionType::Code, 0.1)
+        .with_rva(0x3000)
+        .with_executable(true);
 
     let container_info = stringy::types::ContainerInfo::new(
         BinaryFormat::Elf,
@@ -58,10 +35,7 @@ fn test_deduplication_with_basic_extractor() {
     );
 
     // Disable deduplication in extractor to test manual deduplication
-    let config_no_dedup = ExtractionConfig {
-        enable_deduplication: false,
-        ..config.clone()
-    };
+    let config_no_dedup = config.clone().with_deduplication(false);
 
     let strings = extractor
         .extract(data, &container_info, &config_no_dedup)
@@ -123,26 +97,10 @@ fn test_deduplication_metadata_preservation() {
 
     // Create test data with same string in different sections
     let data = b"TestString\0TestString\0";
-    let section1 = SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 0,
-        size: 11,
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
-    let section2 = SectionInfo {
-        name: ".data".to_string(),
-        offset: 11,
-        size: 11,
-        rva: Some(0x2000),
-        section_type: SectionType::ReadOnlyData,
-        is_executable: false,
-        is_writable: false,
-        weight: 0.7,
-    };
+    let section1 = SectionInfo::new(".rodata".to_string(), 0, 11, SectionType::StringData, 1.0)
+        .with_rva(0x1000);
+    let section2 = SectionInfo::new(".data".to_string(), 11, 11, SectionType::ReadOnlyData, 0.7)
+        .with_rva(0x2000);
 
     let container_info = stringy::types::ContainerInfo::new(
         BinaryFormat::Elf,
@@ -153,10 +111,7 @@ fn test_deduplication_metadata_preservation() {
     );
 
     // Disable deduplication in extractor to test manual deduplication
-    let config_no_dedup = ExtractionConfig {
-        enable_deduplication: false,
-        ..config.clone()
-    };
+    let config_no_dedup = config.clone().with_deduplication(false);
 
     let strings = extractor
         .extract(data, &container_info, &config_no_dedup)
@@ -205,10 +160,7 @@ fn test_deduplication_with_real_fixture() {
     let extractor = BasicExtractor::new();
 
     // Test with deduplication disabled to get baseline count
-    let config_no_dedup = ExtractionConfig {
-        enable_deduplication: false,
-        ..Default::default()
-    };
+    let config_no_dedup = ExtractionConfig::default().with_deduplication(false);
     let strings_no_dedup = extractor
         .extract(&data, &container_info, &config_no_dedup)
         .unwrap();
@@ -318,26 +270,10 @@ fn test_extract_canonical_preserves_occurrences() {
 
     // Create test data with duplicate strings in multiple sections
     let data = b"Hello\0World\0Hello\0Test\0";
-    let section1 = SectionInfo {
-        name: ".rodata".to_string(),
-        offset: 0,
-        size: 12, // "Hello\0World\0"
-        rva: Some(0x1000),
-        section_type: SectionType::StringData,
-        is_executable: false,
-        is_writable: false,
-        weight: 1.0,
-    };
-    let section2 = SectionInfo {
-        name: ".data".to_string(),
-        offset: 12,
-        size: 10, // "Hello\0Test\0"
-        rva: Some(0x2000),
-        section_type: SectionType::ReadOnlyData,
-        is_executable: false,
-        is_writable: false,
-        weight: 0.7,
-    };
+    let section1 = SectionInfo::new(".rodata".to_string(), 0, 12, SectionType::StringData, 1.0)
+        .with_rva(0x1000);
+    let section2 = SectionInfo::new(".data".to_string(), 12, 10, SectionType::ReadOnlyData, 0.7)
+        .with_rva(0x2000);
 
     let container_info = stringy::types::ContainerInfo::new(
         BinaryFormat::Elf,

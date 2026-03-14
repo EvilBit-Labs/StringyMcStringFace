@@ -3,60 +3,66 @@ source: tests/integration_elf.rs
 expression: output
 ---
 === IMPORTS ===
-Total: 9
+Total: 30
 
-Import 1: free
+Import 1: __libc_start_main
   Library: libc.so.6
 
-Import 2: __libc_start_main
+Import 2: printf
   Library: libc.so.6
 
-Import 3: puts
+Import 3: malloc
   Library: libc.so.6
 
-Import 4: __gmon_start__
+Import 4: free
   Library: libc.so.6
 
-Import 5: malloc
+Import 5: __tls_get_addr
+  Library: ld-linux-x86-64.so.2
+
+Import 6: isatty
   Library: libc.so.6
 
-Import 6: free@GLIBC_2.2.5
+Import 7: getenv
+  Library: libc.so.6
 
-Import 7: __libc_start_main@GLIBC_2.34
+Import 8: getcontext
+  Library: libc.so.6
 
-Import 8: puts@GLIBC_2.2.5
+Import 9: dl_iterate_phdr
+  Library: libc.so.6
 
-Import 9: malloc@GLIBC_2.2.5
+Import 10: close
+  Library: libpthread.so.0
+
+... and 20 more imports
 
 === EXPORTS ===
-Total: 10
+Total: 9
 
-Export 1: data_start
-  Address: 0x404018
+Export 1: _start
+  Address: 0x1013bb0
 
-Export 2: _edata
-  Address: 0x404028
+Export 2: __libc_csu_fini
+  Address: 0x1046ba0
 
-Export 3: exported_function
-  Address: 0x401146
+Export 3: __libc_csu_init
+  Address: 0x1046b30
 
-Export 4: helper_function
-  Address: 0x401154
+Export 4: main
+  Address: 0x1013c50
 
 Export 5: __data_start
-  Address: 0x404018
+  Address: 0x1069ce0
 
-Export 6: _IO_stdin_used
-  Address: 0x402000
+Export 6: data_start
+  Address: 0x1069ce0
 
-Export 7: _end
-  Address: 0x404030
+Export 7: _IO_stdin_used
+  Address: 0x1000c30
 
-Export 8: _start
-  Address: 0x401060
+Export 8: exported_function
+  Address: 0x1013be0
 
-Export 9: __bss_start
-  Address: 0x404028
-
-Export 10: main
-  Address: 0x401165
+Export 9: helper_function
+  Address: 0x1013c30
