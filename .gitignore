@@ -141,3 +141,8 @@ tests/fixtures/*
 
 # Git worktrees
 .worktrees/
+
+
+# tessl-generated files
+**/tessl__*
+.tessl/tiles/
