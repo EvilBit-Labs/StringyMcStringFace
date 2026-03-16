@@ -29,8 +29,9 @@ Changing default values in `ExtractionConfig::default()` requires updating asser
 - `--raw` mode performs extraction only and then early-exits: ranking, normalization, and pipeline-level classification are skipped. `tags` are cleared, `score` is forced to 0, and `display_score` is set to `Some(0)`. `assert_cmd` tests run piped (non-TTY); use `format_table_with_mode(&strings, &metadata, true)` to test TTY table rendering
 - Exit codes are typed: 0=success, 2=config/validation error, 3=file not found, 4=permission denied, 1=other. Tests asserting exit codes must match `StringyError::exit_code()` in `types/error.rs`
 - `--no-tags` is the canonical flag name (kebab-case). Previously was `--notags` -- update all references when touching CLI flag names
-- Short flags: `-j` (json), `-m` (min-len), `-t` (top), `-e` (enc). Do not add short flags for infrequent flags (--yara, --raw, --summary, --debug)
+- Short flags: `-j` (json), `-m` (min-len), `-t` (top). Do not add short flags for infrequent flags (--enc, --yara, --raw, --summary, --debug)
 - `NO_COLOR` env var disables progress spinner. The spinner is also hidden when stderr is not a TTY
+- Clap derive attributes (`long_help`, `about`, etc.) require string literals -- `const` values and `concat!` with consts do not work. The `cli_help_lists_all_canonical_tags` test in `integration_cli.rs` verifies help text stays in sync with `Tag::from_str()`
 
 ## Dependencies
 

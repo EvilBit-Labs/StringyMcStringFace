@@ -137,7 +137,8 @@ fn flow8_filters_match_nothing_info_stderr_exit_0() {
         .assert()
         .success()
         .stdout(predicate::str::is_empty().trim())
-        .stderr(predicate::str::contains("Info:"));
+        .stderr(predicate::str::contains("Info:"))
+        .stderr(predicate::str::contains("Try adjusting"));
 }
 
 // ---------------------------------------------------------------------------
