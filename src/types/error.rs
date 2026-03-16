@@ -9,9 +9,7 @@ pub enum StringyError {
     #[error("File I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
-    #[error(
-        "Binary parsing error: {0}\n  Ensure the file is a valid binary (ELF, PE, or Mach-O), or try --raw for raw extraction"
-    )]
+    #[error("Binary parsing error: {0}")]
     ParseError(String),
 
     #[error("Invalid encoding in string at offset {offset}")]
@@ -26,9 +24,7 @@ pub enum StringyError {
     #[error("Validation error: {0}")]
     ValidationError(String),
 
-    #[error(
-        "Memory mapping error: {0}\n  Check available memory and ensure the file is not locked by another process"
-    )]
+    #[error("Memory mapping error: {0}")]
     MemoryMapError(String),
 }
 

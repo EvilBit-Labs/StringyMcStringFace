@@ -110,7 +110,7 @@ impl Pipeline {
             eprintln!(
                 "Info: No strings matched the current filters \
                  ({total_count} extracted, 0 shown)\n  \
-                 Try removing --only-tags, --no-tags, or --enc filters to see more results"
+                 Try adjusting --min-len, --only-tags, --no-tags, or --enc to see more results"
             );
         }
 
