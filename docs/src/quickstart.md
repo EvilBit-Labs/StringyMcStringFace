@@ -78,23 +78,27 @@ See [Output Formats](./output-formats.md) for the full band-mapping table.
 
 Semantic classifications help identify string types:
 
-| Tag               | Description             | Example                   |
-| ----------------- | ----------------------- | ------------------------- |
-| `url`             | Web URLs                | `https://example.com/api` |
-| `domain`          | Domain names            | `api.example.com`         |
-| `ipv4`/`ipv6`     | IP addresses            | `192.168.1.1`             |
-| `filepath`        | File paths              | `/usr/bin/app`            |
-| `regpath`         | Registry paths          | `HKEY_LOCAL_MACHINE\...`  |
-| `guid`            | GUIDs/UUIDs             | `{12345678-1234-...}`     |
-| `email`           | Email addresses         | `user@example.com`        |
-| `b64`             | Base64 data             | `SGVsbG8gV29ybGQ=`        |
-| `fmt`             | Format strings          | `Error: %s`               |
-| `import`/`export` | Symbol names            | `CreateFileW`             |
-| `user-agent-ish`  | User-agent-like strings | `Mozilla/5.0 ...`         |
-| `dylib-path`      | Dynamic library paths   | `/usr/lib/libfoo.dylib`   |
-| `rpath`           | Runtime search paths    | `/usr/local/lib`          |
-| `rpath-var`       | Rpath variables         | `@loader_path/../lib`     |
-| `framework-path`  | Framework paths (macOS) | `/System/Library/...`     |
+| Tag               | Description             | Example                    |
+| ----------------- | ----------------------- | -------------------------- |
+| `url`             | Web URLs                | `https://example.com/api`  |
+| `domain`          | Domain names            | `api.example.com`          |
+| `ipv4`/`ipv6`     | IP addresses            | `192.168.1.1`              |
+| `filepath`        | File paths              | `/usr/bin/app`             |
+| `regpath`         | Registry paths          | `HKEY_LOCAL_MACHINE\...`   |
+| `guid`            | GUIDs/UUIDs             | `{12345678-1234-...}`      |
+| `email`           | Email addresses         | `user@example.com`         |
+| `b64`             | Base64 data             | `SGVsbG8gV29ybGQ=`         |
+| `fmt`             | Format strings          | `Error: %s`                |
+| `import`/`export` | Symbol names            | `CreateFileW`              |
+| `demangled`       | Demangled symbols       | `std::io::Read::read`      |
+| `user-agent-ish`  | User-agent-like strings | `Mozilla/5.0 ...`          |
+| `version`         | Version strings         | `v1.2.3`                   |
+| `manifest`        | Manifest data           | PE/Mach-O embedded XML     |
+| `resource`        | Resource strings        | PE VERSIONINFO/STRINGTABLE |
+| `dylib-path`      | Dynamic library paths   | `/usr/lib/libfoo.dylib`    |
+| `rpath`           | Runtime search paths    | `/usr/local/lib`           |
+| `rpath-var`       | Rpath variables         | `@loader_path/../lib`      |
+| `framework-path`  | Framework paths (macOS) | `/System/Library/...`      |
 
 ### Sections
 
