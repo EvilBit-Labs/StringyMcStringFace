@@ -189,6 +189,15 @@ fn cli_long_help_has_examples() {
 }
 
 #[test]
+fn cli_help_shows_exit_codes() {
+    stringy()
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("EXIT CODES:"));
+}
+
+#[test]
 fn cli_top_flag() {
     let top_output = stringy()
         .args(["tests/fixtures/test_binary_elf", "--top", "1", "--json"])

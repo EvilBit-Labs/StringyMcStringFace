@@ -101,15 +101,16 @@ fn test_short_flag_top_equivalence() {
 }
 
 #[test]
-fn test_short_flag_encoding_equivalence() {
+fn test_enc_long_flag_only() {
     let elf_path = "tests/fixtures/test_binary_elf";
 
-    let long_result = stringy().arg(elf_path).arg("--enc").arg("ascii").assert();
-
-    let short_result = stringy().arg(elf_path).arg("-e").arg("ascii").assert();
-
-    long_result.success();
-    short_result.success();
+    // --enc has no short form (infrequent flag)
+    stringy()
+        .arg(elf_path)
+        .arg("--enc")
+        .arg("ascii")
+        .assert()
+        .success();
 }
 
 #[test]
@@ -123,7 +124,7 @@ fn test_short_flag_combination() {
         .arg("10")
         .arg("-t")
         .arg("5")
-        .arg("-e")
+        .arg("--enc")
         .arg("ascii")
         .assert()
         .success();
