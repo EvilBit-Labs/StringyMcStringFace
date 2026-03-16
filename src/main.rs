@@ -14,7 +14,9 @@ use stringy::output::OutputFormat;
 use stringy::types::{StringyError, Tag};
 use stringy::{Encoding, EncodingFilter, FilterConfig, Pipeline, PipelineConfig};
 
-/// Encoding filter for string extraction
+/// CLI-specific encoding enum that maps to `EncodingFilter`.
+///
+/// Variant doc comments are shown in `--help` output.
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum CliEncoding {
     /// ASCII-encoded strings only
@@ -42,16 +44,22 @@ fn parse_positive_usize(s: &str) -> Result<usize, String> {
     Ok(value)
 }
 
-/// Map CLI encoding variant to pipeline `EncodingFilter`.
-fn cli_encoding_to_filter(enc: CliEncoding) -> EncodingFilter {
-    match enc {
-        CliEncoding::Ascii => EncodingFilter::Exact(Encoding::Ascii),
-        CliEncoding::Utf8 => EncodingFilter::Exact(Encoding::Utf8),
-        CliEncoding::Utf16 => EncodingFilter::Utf16Any,
-        CliEncoding::Utf16Le => EncodingFilter::Exact(Encoding::Utf16Le),
-        CliEncoding::Utf16Be => EncodingFilter::Exact(Encoding::Utf16Be),
+impl From<CliEncoding> for EncodingFilter {
+    fn from(enc: CliEncoding) -> Self {
+        match enc {
+            CliEncoding::Ascii => EncodingFilter::Exact(Encoding::Ascii),
+            CliEncoding::Utf8 => EncodingFilter::Exact(Encoding::Utf8),
+            CliEncoding::Utf16 => EncodingFilter::Utf16Any,
+            CliEncoding::Utf16Le => EncodingFilter::Exact(Encoding::Utf16Le),
+            CliEncoding::Utf16Be => EncodingFilter::Exact(Encoding::Utf16Be),
+        }
     }
 }
+
+// The tag list in --only-tags and --no-tags long_help must stay in sync with
+// Tag::from_str() in src/types/mod.rs. A compile-time const can't be used in
+// Clap derive attributes, so tests/integration_cli.rs verifies the help text
+// contains all known tags.
 
 /// A smarter alternative to the strings command that leverages format-specific knowledge
 #[derive(Parser)]
@@ -71,6 +79,12 @@ fn cli_encoding_to_filter(enc: CliEncoding) -> EncodingFilter {
     cat binary.exe | stringy -\n  \
     stringy -m 8 --only-tags url --only-tags domain binary.exe\n  \
     stringy -t 50 -j binary.elf\n\n\
+    EXIT CODES:\n  \
+    0  Success\n  \
+    1  General runtime error\n  \
+    2  Configuration or validation error\n  \
+    3  File not found\n  \
+    4  Permission denied\n\n\
     More info: https://github.com/EvilBit-Labs/Stringy")]
 struct Cli {
     /// Input binary file to analyze (use "-" for stdin)
@@ -91,9 +105,9 @@ struct Cli {
         action = ArgAction::Append,
         value_parser = Tag::from_str,
         value_name = "TAG",
-        long_help = "Include only strings with this tag. Repeat the flag for multiple tags (OR logic).\n\
-            Valid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, b64, fmt,\n\
-            user-agent-ish, demangled, import, export, version, manifest, resource,\n\
+        long_help = "Include only strings with this tag. Repeat the flag for multiple tags \
+            (OR logic).\nValid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, \
+            b64, fmt, user-agent-ish, demangled, import, export, version, manifest, resource, \
             dylib-path, rpath, rpath-var, framework-path"
     )]
     only_tags: Vec<Tag>,
@@ -104,9 +118,9 @@ struct Cli {
         action = ArgAction::Append,
         value_parser = Tag::from_str,
         value_name = "TAG",
-        long_help = "Exclude strings with this tag. Repeat the flag for multiple tags (OR logic).\n\
-            Valid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, b64, fmt,\n\
-            user-agent-ish, demangled, import, export, version, manifest, resource,\n\
+        long_help = "Exclude strings with this tag. Repeat the flag for multiple tags \
+            (OR logic).\nValid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, \
+            b64, fmt, user-agent-ish, demangled, import, export, version, manifest, resource, \
             dylib-path, rpath, rpath-var, framework-path"
     )]
     no_tags: Vec<Tag>,
@@ -120,7 +134,7 @@ struct Cli {
     top: Option<usize>,
 
     /// Filter by encoding [possible values: ascii, utf8, utf16, utf16le, utf16be]
-    #[arg(short = 'e', long, value_enum, value_name = "ENCODING")]
+    #[arg(long, value_enum, value_name = "ENCODING")]
     enc: Option<CliEncoding>,
 
     /// Raw output: no tags, no scores, no headers
@@ -189,7 +203,7 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
         filter_config = filter_config.with_min_length(n);
     }
     if let Some(enc) = cli.enc {
-        filter_config = filter_config.with_encoding(cli_encoding_to_filter(enc));
+        filter_config = filter_config.with_encoding(enc.into());
     }
     if !cli.only_tags.is_empty() {
         filter_config = filter_config.with_include_tags(cli.only_tags.clone());
