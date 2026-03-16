@@ -67,7 +67,7 @@ Use idiomatic `clap` derive API patterns. Push validation into clap wherever pos
 | `--no-tags`   |       | `Vec<Tag>`            | Repeatable, runtime overlap check with `--only-tags`                    |
 | `--min-len`   | `-m`  | `Option<usize>`       | Custom parser enforces >= 1                                             |
 | `--top`       | `-t`  | `Option<usize>`       | Custom parser enforces >= 1                                             |
-| `--enc`       | `-e`  | `Option<CliEncoding>` | ascii, utf8, utf16, utf16le, utf16be                                    |
+| `--enc`       |       | `Option<CliEncoding>` | ascii, utf8, utf16, utf16le, utf16be                                    |
 | `--raw`       |       | bool                  | Conflicts with `--only-tags`, `--no-tags`, `--top`, `--debug`, `--yara` |
 | `--summary`   |       | bool                  | Conflicts with `--json`, `--yara`; runtime TTY check                    |
 | `--debug`     |       | bool                  | Conflicts with `--raw`                                                  |
