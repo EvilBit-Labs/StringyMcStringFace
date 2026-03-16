@@ -109,7 +109,7 @@ stringy --only-tags filepath --only-tags regpath app.exe
 
 When stdout is a TTY, results are shown as a table with columns:
 
-```
+```text
 String | Tags | Score | Section
 ```
 
@@ -128,8 +128,12 @@ Generates a YARA rule template. See [Output Formats](./output-formats.md) for de
 | Code | Meaning                                                                    |
 | ---- | -------------------------------------------------------------------------- |
 | 0    | Success (including unknown binary format, empty binary, no filter matches) |
-| 1    | Runtime error (file not found, tag overlap, `--summary` in non-TTY)        |
-| 2    | Argument parsing error (invalid flag, flag conflict, invalid tag name)     |
+| 1    | General runtime error                                                      |
+| 2    | Configuration or validation error (tag overlap, `--summary` in non-TTY)    |
+| 3    | File not found                                                             |
+| 4    | Permission denied                                                          |
+
+Clap argument parsing errors (invalid flag, flag conflict, invalid tag name) use clap's own exit code (typically 2).
 
 ## Advanced Usage
 
