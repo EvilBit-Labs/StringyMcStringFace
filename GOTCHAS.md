@@ -31,6 +31,7 @@ Changing default values in `ExtractionConfig::default()` requires updating asser
 - `--no-tags` is the canonical flag name (kebab-case). Previously was `--notags` -- update all references when touching CLI flag names
 - Short flags: `-j` (json), `-m` (min-len), `-t` (top). Do not add short flags for infrequent flags (--enc, --yara, --raw, --summary, --debug)
 - `NO_COLOR` env var disables progress spinner. The spinner is also hidden when stderr is not a TTY
+- Clap derive attributes (`long_help`, `about`, etc.) require string literals -- `const` values and `concat!` with consts do not work. The `cli_help_lists_all_canonical_tags` test in `integration_cli.rs` verifies help text stays in sync with `Tag::from_str()`
 
 ## Dependencies
 
