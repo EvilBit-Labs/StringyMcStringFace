@@ -108,7 +108,9 @@ impl Pipeline {
         // -- Informational diagnostic when filters match nothing --
         if filtered.is_empty() && total_count > 0 {
             eprintln!(
-                "Info: No strings matched the current filters ({total_count} extracted, 0 shown)"
+                "Info: No strings matched the current filters \
+                 ({total_count} extracted, 0 shown)\n  \
+                 Try removing --only-tags, --no-tags, or --enc filters to see more results"
             );
         }
 
