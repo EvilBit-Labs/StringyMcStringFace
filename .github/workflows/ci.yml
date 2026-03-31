@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
         with:
           components: rustfmt, clippy
           toolchain: 1.93.0
@@ -59,7 +59,7 @@ jobs:
           - toolchain: stable minus 4 releases
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
         with:
           components: rustfmt, clippy
           toolchain: ${{ matrix.toolchain }}
