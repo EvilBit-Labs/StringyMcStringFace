@@ -15,7 +15,7 @@
 		"ghcr.io/eitsupi/devcontainer-features/mdbook:1": {
 			"version": "latest"
 		},
-		"ghcr.io/devcontainers-extra/features/claude-code:1": {
+		"ghcr.io/devcontainers-extra/features/claude-code:2": {
 			"version": "latest"
 		},
 		"ghcr.io/devcontainers-extra/features/mise:1": {
