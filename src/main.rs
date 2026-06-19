@@ -108,7 +108,7 @@ struct Cli {
         long_help = "Include only strings with this tag. Repeat the flag for multiple tags \
             (OR logic).\nValid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, \
             b64, fmt, user-agent-ish, demangled, import, export, version, manifest, resource, \
-            dylib-path, rpath, rpath-var, framework-path"
+            dylib-path, rpath, rpath-var, framework-path, crypto, network, fileio, entry-point"
     )]
     only_tags: Vec<Tag>,
 
@@ -121,7 +121,7 @@ struct Cli {
         long_help = "Exclude strings with this tag. Repeat the flag for multiple tags \
             (OR logic).\nValid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, \
             b64, fmt, user-agent-ish, demangled, import, export, version, manifest, resource, \
-            dylib-path, rpath, rpath-var, framework-path"
+            dylib-path, rpath, rpath-var, framework-path, crypto, network, fileio, entry-point"
     )]
     no_tags: Vec<Tag>,
 
