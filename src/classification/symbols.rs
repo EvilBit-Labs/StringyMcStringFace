@@ -40,6 +40,17 @@ use crate::types::{FoundString, Tag};
 use cpp_demangle::Symbol as CppSymbol;
 use msvc_demangler::DemangleFlags;
 
+/// Maximum length of an MSVC symbol we will attempt to demangle.
+///
+/// `msvc-demangler` uses recursive-descent parsing with no depth limit, so a
+/// crafted `?`-prefixed string with deeply nested type modifiers (pointers,
+/// arrays, function pointers) can overflow the stack and abort the process --
+/// and a stack overflow aborts rather than unwinds, so `catch_unwind` in the
+/// pipeline cannot contain it. Real MSVC symbols are far shorter than this
+/// bound even when heavily templated; rejecting anything longer is cheap
+/// defense-in-depth against malicious binaries (see issue #19 review).
+const MSVC_MAX_SYMBOL_LEN: usize = 4096;
+
 /// Symbol demangler for Rust, C++, and MSVC symbols
 ///
 /// Uses the `rustc-demangle` crate for Rust symbols, the `cpp_demangle` crate
@@ -170,7 +181,7 @@ impl SymbolDemangler {
         }
     }
 
-    /// Internal demangling logic that tries Rust then C++
+    /// Internal demangling logic that tries Rust, C++, then MSVC
     fn try_demangle_internal(&self, symbol: &str) -> Option<String> {
         // For Rust v0 symbols (_R prefix), only try Rust demangling
         if symbol.starts_with("_R") {
@@ -226,7 +237,14 @@ impl SymbolDemangler {
 
     /// Try to demangle as an MSVC symbol
     fn try_msvc_demangle(&self, symbol: &str) -> Option<String> {
-        // Demangle using the msvc-demangler crate with LLVM-style output
+        // Reject pathologically long symbols before parsing: the demangler
+        // recurses without a depth limit, and a crafted symbol can overflow the
+        // stack (which aborts, uncaught by catch_unwind). See MSVC_MAX_SYMBOL_LEN.
+        if symbol.len() > MSVC_MAX_SYMBOL_LEN {
+            return None;
+        }
+
+        // LLVM-style flags keep demangled output consistent with the C++/Itanium path
         let demangled_str = msvc_demangler::demangle(symbol, DemangleFlags::llvm()).ok()?;
 
         // Check if demangling actually produced a different result
@@ -620,6 +638,25 @@ mod tests {
 
         // A bare "?" is detected as mangled but cannot be demangled
         assert!(demangler.try_demangle("?").is_none());
+    }
+
+    #[test]
+    fn test_demangle_msvc_oversized_symbol_rejected() {
+        let demangler = SymbolDemangler::new();
+        // A crafted ?-symbol with deeply nested pointer modifiers would overflow
+        // the demangler's recursive parser; the length guard must reject it
+        // before parsing, leaving the FoundString untouched.
+        let oversized = format!("?x@@3{}HA", "PEA".repeat(20_000));
+        assert!(oversized.len() > MSVC_MAX_SYMBOL_LEN);
+        let mut found_string = create_test_string(&oversized);
+
+        demangler.demangle(&mut found_string);
+
+        assert_eq!(found_string.text, oversized);
+        assert!(found_string.original_text.is_none());
+        assert!(!found_string.tags.contains(&Tag::DemangledSymbol));
+        // try_demangle must also short-circuit without invoking the parser
+        assert!(demangler.try_demangle(&oversized).is_none());
     }
 
     #[test]
