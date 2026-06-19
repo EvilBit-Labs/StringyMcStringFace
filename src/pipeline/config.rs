@@ -17,8 +17,9 @@ pub enum EncodingFilter {
     Utf16Any,
     /// Match narrow strings whose text content is pure-ASCII.
     ///
-    /// Extraction no longer labels rows `Encoding::Ascii` (ASCII content is
-    /// emitted as `Encoding::Utf8`), so `--enc ascii` filters by content:
+    /// The ASCII extraction path no longer labels rows `Encoding::Ascii`
+    /// (ASCII content is emitted as `Encoding::Utf8`), so `--enc ascii`
+    /// filters by content:
     /// the text is pure-ASCII and the stored encoding is not UTF-16. This
     /// preserves the flag's pre-existing meaning of "narrow ASCII strings".
     AsciiContent,

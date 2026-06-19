@@ -46,9 +46,11 @@ impl FilterEngine {
                     s.encoding == Encoding::Utf16Le || s.encoding == Encoding::Utf16Be
                 }
                 Some(EncodingFilter::AsciiContent) => {
-                    s.text.is_ascii()
-                        && s.encoding != Encoding::Utf16Le
+                    // Cheap O(1) encoding guards short-circuit before the O(n)
+                    // is_ascii() scan, so UTF-16 rows skip the content check.
+                    s.encoding != Encoding::Utf16Le
                         && s.encoding != Encoding::Utf16Be
+                        && s.text.is_ascii()
                 }
             })
             // 3. include-tags
