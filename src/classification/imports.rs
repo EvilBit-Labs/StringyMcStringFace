@@ -11,7 +11,8 @@
 //! Demangling is deliberately left to the pipeline's `classify_strings` (which
 //! runs under `catch_unwind` and is skipped in raw mode); the classifier only
 //! tags. Exports that are mangled symbols receive [`Tag::DemangledSymbol`] and
-//! their demangled text there.
+//! their demangled text there when demangling succeeds; names that fail to
+//! demangle are left unchanged.
 //!
 //! Symbol strings are emitted with [`Encoding::Utf8`] so that a byte-scanned
 //! occurrence of the same name (e.g. from a PE `.idata` section) shares the

@@ -37,12 +37,12 @@ The pieces to fix this already exist in isolation - the demangler, the tag enum 
 
 - R1. Import names emit as `FoundString`s with `source: StringSource::ImportName`, always carrying `Tag::Import`, at `confidence: 1.0`.
 - R2. Imports whose name matches the crypto, network, or file-I/O API sets additionally carry `Tag::Crypto`, `Tag::Network`, or `Tag::FileIO`; imports that match none carry only `Tag::Import`.
-- R3. An import's originating library populates the `section` field when present; when absent, a format-appropriate default is used (`.idata` for PE, `.dynsym` for ELF).
+- R3. An import's originating library populates the `section` field when present; when absent, a format-appropriate default is used (`.idata` for PE, `.dynsym` for ELF, `__LINKEDIT` for Mach-O -- Mach-O imports never carry a library, so they always use the default).
 - R4. An import's RVA populates from `ImportInfo::address` when present (it is optional).
 - R5. Export names emit as `FoundString`s with `source: StringSource::ExportName`, always carrying `Tag::Export`, with RVA from `ExportInfo::address` (always available).
-- R6. Exports are run through the existing `SymbolDemangler`; successfully demangled exports additionally carry `Tag::DemangledSymbol`.
+- R6. Exports are run through the existing `SymbolDemangler`; successfully demangled exports additionally carry `Tag::DemangledSymbol`. (Implementation note: demangling runs in the pipeline's `classify_strings` -- under `catch_unwind` and skipped in raw mode -- not in the classifier, so a third-party demangler panic never aborts extraction.)
 - R7. Exports whose name is a known entry point (`main`, `_start`, `DllMain`, `WinMain`, `wWinMain`) additionally carry `Tag::EntryPoint`.
-- R8. Section names emit as standalone `FoundString`s with `source: StringSource::SectionData` at `confidence: 1.0`, ranked alongside other output.
+- R8. Section names emit as standalone `FoundString`s with `source: StringSource::SectionName` (a dedicated variant, distinct from `SectionData`, so section-name rows are distinguishable from byte-scanned section content) at `confidence: 1.0`, ranked alongside other output.
 
 **Type system and ranking**
 

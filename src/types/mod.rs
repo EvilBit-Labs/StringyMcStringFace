@@ -120,6 +120,7 @@ pub enum SectionType {
 }
 
 /// Source of a string within the binary
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum StringSource {
     /// String found in section data

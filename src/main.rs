@@ -133,7 +133,7 @@ struct Cli {
     #[arg(short = 't', long, value_name = "N", value_parser = parse_positive_usize)]
     top: Option<usize>,
 
-    /// Filter by encoding [possible values: ascii, utf8, utf16, utf16le, utf16be]
+    /// Filter by encoding/content [possible values: ascii (narrow ASCII content), utf8, utf16, utf16le, utf16be]
     #[arg(long, value_enum, value_name = "ENCODING")]
     enc: Option<CliEncoding>,
 
