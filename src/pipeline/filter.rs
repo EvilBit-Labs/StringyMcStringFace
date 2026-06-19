@@ -45,6 +45,13 @@ impl FilterEngine {
                 Some(EncodingFilter::Utf16Any) => {
                     s.encoding == Encoding::Utf16Le || s.encoding == Encoding::Utf16Be
                 }
+                Some(EncodingFilter::AsciiContent) => {
+                    // Cheap O(1) encoding guards short-circuit before the O(n)
+                    // is_ascii() scan, so UTF-16 rows skip the content check.
+                    s.encoding != Encoding::Utf16Le
+                        && s.encoding != Encoding::Utf16Be
+                        && s.text.is_ascii()
+                }
             })
             // 3. include-tags
             .filter(|s| include_set.is_empty() || s.tags.iter().any(|t| include_set.contains(t)))
@@ -118,6 +125,28 @@ mod tests {
         let result = FilterEngine::new().apply(vec![s_utf16, s_ascii], &config);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].text, "wide");
+    }
+
+    #[test]
+    fn test_ascii_content_filter_matches_narrow_ascii_text() {
+        // Narrow ASCII content (now labeled Utf8 per KTD7) passes.
+        let mut narrow = make_string("CreateFileW", 10, 0);
+        narrow.encoding = Encoding::Utf8;
+        // UTF-8 content with non-ASCII characters is excluded.
+        let mut wide_utf8 = make_string("caf\u{e9}", 10, 10);
+        wide_utf8.encoding = Encoding::Utf8;
+        // A UTF-16 row that happens to decode to ASCII is still excluded,
+        // preserving the flag's pre-existing "narrow strings only" meaning.
+        let mut utf16_ascii = make_string("hello", 10, 20);
+        utf16_ascii.encoding = Encoding::Utf16Le;
+
+        let config = FilterConfig::new()
+            .with_min_length(1)
+            .with_encoding(EncodingFilter::AsciiContent);
+        let result = FilterEngine::new().apply(vec![narrow, wide_utf8, utf16_ascii], &config);
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].text, "CreateFileW");
     }
 
     #[test]

@@ -1,3 +1,15 @@
 {
-  "enabledPlugins": {}
+  "enabledPlugins": {
+    "compound-engineering@compound-engineering-plugin": true,
+    "ecc@ecc": true,
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "rust-cli-developer@geoffjay-claude-plugins": true,
+    "systems-programming@claude-code-workflows": true,
+    "agents-quality-security@buildwithclaude": true,
+    "security-guidance@claude-plugins-official": true,
+    "pr-review-toolkit@claude-plugins-official": true,
+    "comprehensive-review@claude-code-workflows": true,
+    "superpowers@claude-plugins-official": true,
+    "github@claude-plugins-official": true
+  }
 }

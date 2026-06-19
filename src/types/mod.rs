@@ -55,6 +55,14 @@ pub enum Tag {
     RpathVariable,
     #[serde(rename = "framework-path")]
     FrameworkPath,
+    #[serde(rename = "crypto")]
+    Crypto,
+    #[serde(rename = "network")]
+    Network,
+    #[serde(rename = "fileio")]
+    FileIO,
+    #[serde(rename = "entry-point")]
+    EntryPoint,
 }
 
 impl std::str::FromStr for Tag {
@@ -83,6 +91,10 @@ impl std::str::FromStr for Tag {
             "rpath" => Ok(Tag::Rpath),
             "rpath-var" => Ok(Tag::RpathVariable),
             "framework-path" => Ok(Tag::FrameworkPath),
+            "crypto" => Ok(Tag::Crypto),
+            "network" => Ok(Tag::Network),
+            "fileio" => Ok(Tag::FileIO),
+            "entry-point" => Ok(Tag::EntryPoint),
             _ => Err(format!("unknown tag: {s}")),
         }
     }
@@ -108,10 +120,13 @@ pub enum SectionType {
 }
 
 /// Source of a string within the binary
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum StringSource {
     /// String found in section data
     SectionData,
+    /// Section name emitted as a standalone string
+    SectionName,
     /// String from import table
     ImportName,
     /// String from export table

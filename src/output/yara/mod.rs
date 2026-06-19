@@ -184,6 +184,10 @@ fn tag_name(tag: &Tag) -> &'static str {
         Tag::Rpath => "rpath",
         Tag::RpathVariable => "rpath-var",
         Tag::FrameworkPath => "framework-path",
+        Tag::Crypto => "crypto",
+        Tag::Network => "network",
+        Tag::FileIO => "fileio",
+        Tag::EntryPoint => "entry-point",
     }
 }
 
