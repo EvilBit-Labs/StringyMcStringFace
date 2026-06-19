@@ -146,3 +146,4 @@ tests/fixtures/*
 # tessl-generated files
 **/tessl__*
 .tessl/tiles/
+.tessl/plugins/
