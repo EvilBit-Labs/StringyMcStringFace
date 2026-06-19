@@ -287,7 +287,11 @@ fn cli_help_lists_all_canonical_tags() {
         .stdout(predicate::str::contains("dylib-path"))
         .stdout(predicate::str::contains("rpath"))
         .stdout(predicate::str::contains("rpath-var"))
-        .stdout(predicate::str::contains("framework-path"));
+        .stdout(predicate::str::contains("framework-path"))
+        .stdout(predicate::str::contains("crypto"))
+        .stdout(predicate::str::contains("network"))
+        .stdout(predicate::str::contains("fileio"))
+        .stdout(predicate::str::contains("entry-point"));
 }
 
 #[test]

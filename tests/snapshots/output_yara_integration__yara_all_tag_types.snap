@@ -39,12 +39,21 @@ rule tags_exe_strings {
     // tag: b64
     // score: 0
     $b64_1 = "b64" ascii
+    // tag: crypto
+    // score: 0
+    $crypto_1 = "crypto" ascii
     // tag: demangled
     // score: 0
     $demangled_1 = "demangled" ascii
     // tag: dylib-path
     // score: 0
     $dylib_path_1 = "dylib" ascii
+    // tag: entry-point
+    // score: 0
+    $entry_point_1 = "entrypoint" ascii
+    // tag: fileio
+    // score: 0
+    $fileio_1 = "fileio" ascii
     // tag: filepath
     // score: 0
     $filepath_1 = "path" ascii
@@ -63,6 +72,9 @@ rule tags_exe_strings {
     // tag: ipv6
     // score: 0
     $ipv6_1 = "ipv6" ascii
+    // tag: network
+    // score: 0
+    $network_1 = "network" ascii
     // tag: regpath
     // score: 0
     $regpath_1 = "reg" ascii

@@ -145,6 +145,10 @@ fn test_tag_from_str_all_variants() {
         ("rpath", Tag::Rpath),
         ("rpath-var", Tag::RpathVariable),
         ("framework-path", Tag::FrameworkPath),
+        ("crypto", Tag::Crypto),
+        ("network", Tag::Network),
+        ("fileio", Tag::FileIO),
+        ("entry-point", Tag::EntryPoint),
     ];
 
     for (input, expected) in cases {

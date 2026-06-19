@@ -42,10 +42,12 @@ use std::sync::LazyLock;
 
 use crate::types::{BinaryFormat, SectionType, StringContext, StringSource, Tag};
 
+pub mod imports;
 pub mod patterns;
 pub mod ranking;
 pub mod symbols;
 
+pub use imports::{ImportClassifier, extract_symbol_strings};
 pub use ranking::{RankingConfig, RankingEngine};
 pub use symbols::SymbolDemangler;
 

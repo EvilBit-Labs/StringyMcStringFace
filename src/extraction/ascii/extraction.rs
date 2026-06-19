@@ -33,7 +33,7 @@ use super::{AsciiExtractionConfig, is_printable_ascii};
 ///
 /// Vector of FoundString entries with the following metadata:
 /// - `text`: UTF-8 string from accumulated bytes
-/// - `encoding`: `Encoding::Ascii`
+/// - `encoding`: `Encoding::Utf8` (ASCII is a UTF-8 subset; see KTD7)
 /// - `offset`: Start position in the data slice
 /// - `length`: Byte count
 /// - `source`: `StringSource::SectionData`
@@ -96,7 +96,7 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                     let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
                     strings.push(FoundString::new(
                         text,
-                        Encoding::Ascii,
+                        Encoding::Utf8,
                         start as u64,
                         len as u32,
                         StringSource::SectionData,
@@ -121,7 +121,7 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                     let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
                     strings.push(FoundString::new(
                         text,
-                        Encoding::Ascii,
+                        Encoding::Utf8,
                         start as u64,
                         len as u32,
                         StringSource::SectionData,
@@ -132,7 +132,7 @@ pub fn extract_ascii_strings(data: &[u8], config: &AsciiExtractionConfig) -> Vec
                 let text = String::from_utf8(bytes).expect("ASCII bytes should be valid UTF-8");
                 strings.push(FoundString::new(
                     text,
-                    Encoding::Ascii,
+                    Encoding::Utf8,
                     start as u64,
                     len as u32,
                     StringSource::SectionData,

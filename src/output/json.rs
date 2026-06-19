@@ -178,6 +178,10 @@ mod tests {
             Tag::Rpath,
             Tag::RpathVariable,
             Tag::FrameworkPath,
+            Tag::Crypto,
+            Tag::Network,
+            Tag::FileIO,
+            Tag::EntryPoint,
         ];
         let strings = vec![make_string("tagged").with_tags(tags)];
         let output = format_json(&strings, &make_metadata(1)).expect("Formatting should succeed");
@@ -211,6 +215,10 @@ mod tests {
             "rpath",
             "rpath-var",
             "framework-path",
+            "crypto",
+            "network",
+            "fileio",
+            "entry-point",
         ];
 
         for name in expected {
@@ -263,8 +271,15 @@ mod tests {
                 1,
                 StringSource::DebugInfo,
             ),
+            FoundString::new(
+                "g".to_string(),
+                Encoding::Ascii,
+                6,
+                1,
+                StringSource::SectionName,
+            ),
         ];
-        let output = format_json(&strings, &make_metadata(6)).expect("Formatting should succeed");
+        let output = format_json(&strings, &make_metadata(7)).expect("Formatting should succeed");
         let lines: Vec<&str> = output.lines().collect();
         assert_eq!(parse_line(lines[0])["source"], "SectionData");
         assert_eq!(parse_line(lines[1])["source"], "ImportName");
@@ -272,6 +287,7 @@ mod tests {
         assert_eq!(parse_line(lines[3])["source"], "ResourceString");
         assert_eq!(parse_line(lines[4])["source"], "LoadCommand");
         assert_eq!(parse_line(lines[5])["source"], "DebugInfo");
+        assert_eq!(parse_line(lines[6])["source"], "SectionName");
     }
 
     #[test]

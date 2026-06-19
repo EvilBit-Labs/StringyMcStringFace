@@ -40,7 +40,8 @@ fn test_extract_ascii_strings_basic() {
     assert_eq!(strings.len(), 3);
     assert_eq!(strings[0].text, "Hello");
     assert_eq!(strings[0].offset, 0);
-    assert_eq!(strings[0].encoding, Encoding::Ascii);
+    // ASCII content is emitted as UTF-8 (KTD7); ASCII is a UTF-8 subset.
+    assert_eq!(strings[0].encoding, Encoding::Utf8);
     assert_eq!(strings[0].source, StringSource::SectionData);
     assert_eq!(strings[1].text, "World");
     assert_eq!(strings[1].offset, 6);
