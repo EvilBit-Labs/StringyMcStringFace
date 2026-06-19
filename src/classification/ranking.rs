@@ -140,6 +140,10 @@ impl Default for RankingConfig {
         tag_boosts.insert(Tag::Base64, 10);
         tag_boosts.insert(Tag::FormatString, 15);
         tag_boosts.insert(Tag::UserAgent, 20);
+        tag_boosts.insert(Tag::Crypto, 50);
+        tag_boosts.insert(Tag::Network, 45);
+        tag_boosts.insert(Tag::FileIO, 35);
+        tag_boosts.insert(Tag::EntryPoint, 40);
 
         Self {
             section_weights,
@@ -345,8 +349,27 @@ mod tests {
         assert_eq!(config.tag_boosts.get(&Tag::Base64), Some(&10));
         assert_eq!(config.tag_boosts.get(&Tag::FormatString), Some(&15));
         assert_eq!(config.tag_boosts.get(&Tag::UserAgent), Some(&20));
+        assert_eq!(config.tag_boosts.get(&Tag::Crypto), Some(&50));
+        assert_eq!(config.tag_boosts.get(&Tag::Network), Some(&45));
+        assert_eq!(config.tag_boosts.get(&Tag::FileIO), Some(&35));
+        assert_eq!(config.tag_boosts.get(&Tag::EntryPoint), Some(&40));
 
         assert_eq!(config.noise_penalty_multiplier, 100);
+    }
+
+    #[test]
+    fn test_crypto_tag_outranks_untagged_peer() {
+        let engine = RankingEngine::new(false);
+        let section_info = make_section_info(SectionType::StringData);
+
+        let mut crypto = make_found_string(vec![Tag::Crypto], 1.0);
+        let mut untagged = make_found_string(vec![], 1.0);
+        engine.calculate_score(&mut crypto, Some(&section_info));
+        engine.calculate_score(&mut untagged, Some(&section_info));
+
+        // The Crypto boost (+50) lifts the score at least 50 above an
+        // otherwise identical untagged string.
+        assert!(crypto.score >= untagged.score + 50);
     }
 
     #[test]
