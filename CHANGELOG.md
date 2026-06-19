@@ -2,12 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
 ### Added
+
 - Pipeline orchestrator (`Pipeline::run`) with configurable stages: parse, extract, classify, rank, normalize, filter, output
 - `PipelineConfig`, `FilterConfig`, and `EncodingFilter` for pipeline configuration
 - `FilterEngine` for post-extraction string filtering (min-len, encoding, tags, top-N)
@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Debug-build env var injection for e2e warning-path testing
 
 ### Changed
+
 - Container parsers refactored from single files to module directories (elf/, pe/, macho/)
 - Repository renamed from StringyMcStringFace to Stringy
 - Improved YARA formatter code quality and test coverage
@@ -46,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced `once_cell::sync::Lazy` with `std::sync::LazyLock` (stabilized in Rust 1.80)
 
 ### Fixed
+
 - Rustdoc warning for IPv6 address example in documentation
 - ELF section name fallback no longer eagerly allocates on every iteration
 - Pipeline section lookups use HashMap for O(1) access instead of O(n) linear scans
@@ -55,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Demangler text clone now conditional (only for mangled-looking symbols)
 
 ### Dependencies
+
 - Added `mmap-guard` for safe memory-mapped file I/O
 - Added `indicatif` for progress bars and spinners
 - Added `tempfile` for stdin-to-pipeline bridging
@@ -72,6 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Initial release with core functionality:
 
 ### Added
+
 - ELF, PE, and Mach-O binary format detection and parsing
 - ASCII and UTF-8 string extraction from binary sections
 - Section-aware extraction with weight-based prioritization

@@ -47,7 +47,7 @@ fn parse_positive_usize(s: &str) -> Result<usize, String> {
 impl From<CliEncoding> for EncodingFilter {
     fn from(enc: CliEncoding) -> Self {
         match enc {
-            CliEncoding::Ascii => EncodingFilter::Exact(Encoding::Ascii),
+            CliEncoding::Ascii => EncodingFilter::AsciiContent,
             CliEncoding::Utf8 => EncodingFilter::Exact(Encoding::Utf8),
             CliEncoding::Utf16 => EncodingFilter::Utf16Any,
             CliEncoding::Utf16Le => EncodingFilter::Exact(Encoding::Utf16Le),
@@ -108,7 +108,7 @@ struct Cli {
         long_help = "Include only strings with this tag. Repeat the flag for multiple tags \
             (OR logic).\nValid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, \
             b64, fmt, user-agent-ish, demangled, import, export, version, manifest, resource, \
-            dylib-path, rpath, rpath-var, framework-path"
+            dylib-path, rpath, rpath-var, framework-path, crypto, network, fileio, entry-point"
     )]
     only_tags: Vec<Tag>,
 
@@ -121,7 +121,7 @@ struct Cli {
         long_help = "Exclude strings with this tag. Repeat the flag for multiple tags \
             (OR logic).\nValid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, \
             b64, fmt, user-agent-ish, demangled, import, export, version, manifest, resource, \
-            dylib-path, rpath, rpath-var, framework-path"
+            dylib-path, rpath, rpath-var, framework-path, crypto, network, fileio, entry-point"
     )]
     no_tags: Vec<Tag>,
 
@@ -133,7 +133,7 @@ struct Cli {
     #[arg(short = 't', long, value_name = "N", value_parser = parse_positive_usize)]
     top: Option<usize>,
 
-    /// Filter by encoding [possible values: ascii, utf8, utf16, utf16le, utf16be]
+    /// Filter by encoding/content [possible values: ascii (narrow ASCII content), utf8, utf16, utf16le, utf16be]
     #[arg(long, value_enum, value_name = "ENCODING")]
     enc: Option<CliEncoding>,
 

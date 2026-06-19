@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Display the top 20 strings by score
     let mut sorted_strings = strings.clone();
-    sorted_strings.sort_by(|a, b| b.score.cmp(&a.score));
+    sorted_strings.sort_by_key(|b| std::cmp::Reverse(b.score));
 
     println!("Top strings by score:");
     println!("{:-<60}", "");
