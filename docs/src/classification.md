@@ -74,13 +74,13 @@ Raw String -> Pattern Matching -> Validation -> Tag Assignment
 
 ## Pattern Matching Engine
 
-The semantic classifier uses cached regex patterns via `once_cell::sync::Lazy` and applies validation checks to reduce false positives.
+The semantic classifier uses cached regex patterns via `std::sync::LazyLock` and applies validation checks to reduce false positives.
 
 ```rust
-use once_cell::sync::Lazy;
 use regex::Regex;
+use std::sync::LazyLock;
 
-static GUID_REGEX: Lazy<Regex> = Lazy::new(|| {
+static GUID_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^\{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\}$")
         .expect("Invalid GUID regex")
 });
@@ -117,7 +117,7 @@ if tags.contains(&Tag::Guid) {
 
 ## Performance Notes
 
-- Regexes are compiled once via `once_cell::sync::Lazy` and reused across calls.
+- Regexes are compiled once via `std::sync::LazyLock` and reused across calls.
 - Minimum length checks avoid unnecessary regex work on short inputs.
 - The classifier is stateless and thread-safe.
 
