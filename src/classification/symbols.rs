@@ -1,15 +1,17 @@
-//! Symbol demangling for Rust and C++ symbols
+//! Symbol demangling for Rust, C++, and MSVC symbols
 //!
 //! This module provides functionality to detect and demangle mangled symbols
-//! from compiled Rust and C++ binaries. When a mangled symbol is detected, the
-//! original mangled form is preserved in `FoundString.original_text` while the
-//! demangled human-readable form replaces `FoundString.text`.
+//! from compiled Rust, C++, and MSVC binaries. When a mangled symbol is
+//! detected, the original mangled form is preserved in
+//! `FoundString.original_text` while the demangled human-readable form replaces
+//! `FoundString.text`.
 //!
 //! # Supported Symbol Formats
 //!
 //! - **Rust legacy mangling**: Symbols starting with `_ZN` (uses Itanium ABI-like encoding)
 //! - **Rust v0 mangling**: Symbols starting with `_R` (new Rust-specific encoding)
 //! - **C++ Itanium ABI**: Symbols starting with `_Z` (used by GCC, Clang, and others)
+//! - **MSVC mangling**: Symbols starting with `?` (used by MSVC on Windows PE binaries)
 //!
 //! # Usage
 //!
@@ -36,12 +38,14 @@
 
 use crate::types::{FoundString, Tag};
 use cpp_demangle::Symbol as CppSymbol;
+use msvc_demangler::DemangleFlags;
 
-/// Symbol demangler for Rust and C++ symbols
+/// Symbol demangler for Rust, C++, and MSVC symbols
 ///
-/// Uses the `rustc-demangle` crate for Rust symbols and the `cpp_demangle`
-/// crate for C++ symbols. Converts mangled symbols into human-readable form
-/// while preserving the original mangled text.
+/// Uses the `rustc-demangle` crate for Rust symbols, the `cpp_demangle` crate
+/// for C++ Itanium ABI symbols, and the `msvc-demangler` crate for MSVC
+/// symbols. Converts mangled symbols into human-readable form while preserving
+/// the original mangled text.
 #[derive(Debug, Default, Clone)]
 pub struct SymbolDemangler;
 
@@ -52,12 +56,13 @@ impl SymbolDemangler {
         Self
     }
 
-    /// Check if a symbol appears to be a mangled Rust or C++ symbol
+    /// Check if a symbol appears to be a mangled Rust, C++, or MSVC symbol
     ///
     /// Returns `true` if the symbol starts with known mangling prefixes:
     /// - `_ZN` - Rust legacy mangling or C++ nested names (Itanium ABI)
     /// - `_R` - Rust v0 mangling scheme
     /// - `_Z` - C++ Itanium ABI mangling (used by GCC, Clang)
+    /// - `?` - MSVC mangling (used by MSVC on Windows)
     ///
     /// # Arguments
     ///
@@ -79,6 +84,8 @@ impl SymbolDemangler {
     /// // C++ symbols
     /// assert!(demangler.is_mangled("_ZN3foo3barEv"));
     /// assert!(demangler.is_mangled("_Z3foov"));
+    /// // MSVC symbols
+    /// assert!(demangler.is_mangled("?printf@@YAHPEBDZZ"));
     /// assert!(!demangler.is_mangled("printf"));
     /// ```
     #[must_use]
@@ -94,19 +101,25 @@ impl SymbolDemangler {
             return true;
         }
 
+        // MSVC mangling (used by MSVC on Windows PE binaries)
+        if symbol.starts_with('?') {
+            return true;
+        }
+
         false
     }
 
     /// Attempt to demangle a symbol in a `FoundString`
     ///
-    /// If the string appears to be a mangled Rust or C++ symbol and can be
-    /// successfully demangled:
+    /// If the string appears to be a mangled Rust, C++, or MSVC symbol and can
+    /// be successfully demangled:
     /// - The original mangled form is stored in `original_text`
     /// - The demangled form replaces `text`
     /// - `Tag::DemangledSymbol` is added to the tags
     ///
     /// The demangler tries Rust demangling first (for `_R` and `_ZN` prefixes),
-    /// then falls back to C++ demangling for `_Z` prefixes.
+    /// falls back to C++ demangling for `_Z` prefixes, and uses MSVC demangling
+    /// for `?` prefixes.
     ///
     /// If demangling fails or the symbol is not mangled, the `FoundString` is
     /// left unchanged.
@@ -176,6 +189,11 @@ impl SymbolDemangler {
             return self.try_cpp_demangle(symbol);
         }
 
+        // For ?-prefixed symbols, use MSVC demangling
+        if symbol.starts_with('?') {
+            return self.try_msvc_demangle(symbol);
+        }
+
         None
     }
 
@@ -206,10 +224,23 @@ impl SymbolDemangler {
         }
     }
 
+    /// Try to demangle as an MSVC symbol
+    fn try_msvc_demangle(&self, symbol: &str) -> Option<String> {
+        // Demangle using the msvc-demangler crate with LLVM-style output
+        let demangled_str = msvc_demangler::demangle(symbol, DemangleFlags::llvm()).ok()?;
+
+        // Check if demangling actually produced a different result
+        if demangled_str != symbol {
+            Some(demangled_str)
+        } else {
+            None
+        }
+    }
+
     /// Try to demangle a symbol string directly
     ///
     /// This is a convenience method for demangling without a `FoundString`.
-    /// Supports both Rust and C++ mangled symbols.
+    /// Supports Rust, C++, and MSVC mangled symbols.
     ///
     /// # Arguments
     ///
@@ -233,6 +264,10 @@ impl SymbolDemangler {
     ///
     /// // C++ symbol
     /// let result = demangler.try_demangle("_ZN3foo3barEv");
+    /// assert!(result.is_some());
+    ///
+    /// // MSVC symbol
+    /// let result = demangler.try_demangle("?printf@@YAHPEBDZZ");
     /// assert!(result.is_some());
     ///
     /// // Not mangled
@@ -490,5 +525,113 @@ mod tests {
         assert!(found_string.tags.contains(&Tag::Export));
         assert!(found_string.tags.contains(&Tag::DemangledSymbol));
         assert!(found_string.text.contains("foo"));
+    }
+
+    // MSVC demangling tests
+
+    #[test]
+    fn test_is_mangled_msvc_symbols() {
+        let demangler = SymbolDemangler::new();
+
+        // MSVC-mangled symbols (?-prefixed)
+        assert!(demangler.is_mangled("?printf@@YAHPEBDZZ")); // int __cdecl printf(...)
+        assert!(demangler.is_mangled("??0MyClass@@QEAA@XZ")); // MyClass::MyClass(void)
+        assert!(demangler.is_mangled("??HMyClass@@QEAAHH@Z")); // MyClass::operator+(int)
+    }
+
+    #[test]
+    fn test_is_mangled_msvc_not_triggered_for_plain() {
+        let demangler = SymbolDemangler::new();
+
+        // Plain Windows API names and empty input must not be treated as MSVC mangled
+        assert!(!demangler.is_mangled("printf"));
+        assert!(!demangler.is_mangled("CreateFileW"));
+        assert!(!demangler.is_mangled(""));
+    }
+
+    #[test]
+    fn test_demangle_msvc_plain_function() {
+        let demangler = SymbolDemangler::new();
+        let mut found_string = create_test_string("?printf@@YAHPEBDZZ");
+
+        demangler.demangle(&mut found_string);
+
+        // Should have been demangled with original preserved and tag applied
+        assert_eq!(
+            found_string.original_text.as_ref().unwrap(),
+            "?printf@@YAHPEBDZZ"
+        );
+        assert!(found_string.tags.contains(&Tag::DemangledSymbol));
+        assert!(found_string.text.contains("printf"));
+        assert_ne!(found_string.text, "?printf@@YAHPEBDZZ");
+    }
+
+    #[test]
+    fn test_demangle_msvc_constructor() {
+        let demangler = SymbolDemangler::new();
+        let mut found_string = create_test_string("??0MyClass@@QEAA@XZ");
+
+        demangler.demangle(&mut found_string);
+
+        // Constructor symbol should demangle and reference the class name
+        assert!(found_string.original_text.is_some());
+        assert!(found_string.tags.contains(&Tag::DemangledSymbol));
+        assert!(found_string.text.contains("MyClass"));
+    }
+
+    #[test]
+    fn test_demangle_msvc_operator() {
+        let demangler = SymbolDemangler::new();
+        let mut found_string = create_test_string("??HMyClass@@QEAAHH@Z");
+
+        demangler.demangle(&mut found_string);
+
+        // Operator-overload symbol should demangle to a readable operator form
+        assert!(found_string.original_text.is_some());
+        assert!(found_string.tags.contains(&Tag::DemangledSymbol));
+        assert!(found_string.text.contains("operator+"));
+    }
+
+    #[test]
+    fn test_demangle_msvc_invalid_fallback() {
+        let demangler = SymbolDemangler::new();
+        let mut found_string = create_test_string("?notvalid");
+
+        demangler.demangle(&mut found_string);
+
+        // Invalid MSVC input should leave the FoundString unchanged
+        assert_eq!(found_string.text, "?notvalid");
+        assert!(found_string.original_text.is_none());
+        assert!(!found_string.tags.contains(&Tag::DemangledSymbol));
+    }
+
+    #[test]
+    fn test_try_demangle_msvc_success() {
+        let demangler = SymbolDemangler::new();
+
+        let result = demangler.try_demangle("?printf@@YAHPEBDZZ");
+        assert!(result.is_some());
+        assert!(result.unwrap().contains("printf"));
+    }
+
+    #[test]
+    fn test_try_demangle_msvc_failure() {
+        let demangler = SymbolDemangler::new();
+
+        // A bare "?" is detected as mangled but cannot be demangled
+        assert!(demangler.try_demangle("?").is_none());
+    }
+
+    #[test]
+    fn test_msvc_symbol_preserves_existing_tags() {
+        let demangler = SymbolDemangler::new();
+        let mut found_string = create_test_string("?printf@@YAHPEBDZZ");
+        found_string.tags.push(Tag::Import);
+
+        demangler.demangle(&mut found_string);
+
+        // Existing tags should survive alongside the new demangled tag
+        assert!(found_string.tags.contains(&Tag::Import));
+        assert!(found_string.tags.contains(&Tag::DemangledSymbol));
     }
 }
