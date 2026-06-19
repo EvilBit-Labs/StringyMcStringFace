@@ -45,13 +45,15 @@ fn test_deduplication_with_basic_extractor() {
     assert!(strings.len() >= 3);
     let hello_count = strings.iter().filter(|s| s.text == "Hello").count();
     assert!(hello_count >= 2, "Should have at least 2 'Hello' strings");
+    let raw_count = strings.len();
 
     // Apply deduplication
     let canonical = deduplicate(strings, None);
 
-    // Verify deduplication reduced count
+    // Verify deduplication reduced the count (duplicate content collapses;
+    // section-name rows are unique and remain).
     assert!(
-        canonical.len() < 6,
+        canonical.len() < raw_count,
         "Deduplication should reduce string count"
     );
 

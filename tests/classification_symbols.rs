@@ -210,6 +210,33 @@ fn section_names_emit_as_section_name_source() {
     assert!(strings.iter().any(|s| s.text == ".rodata"));
 }
 
+#[test]
+fn unknown_format_skips_section_name_rows() {
+    // The unknown/raw fallback uses a synthetic "raw-bytes" section; its name
+    // carries no analytic value and must not be emitted as a standalone row.
+    let info = stringy::types::ContainerInfo::new(
+        BinaryFormat::Unknown,
+        vec![SectionInfo::new(
+            "raw-bytes".to_string(),
+            0,
+            10,
+            SectionType::Other,
+            1.0,
+        )],
+        vec![],
+        vec![],
+        None,
+    );
+
+    let strings = extract_symbol_strings(&info);
+    assert!(
+        !strings
+            .iter()
+            .any(|s| s.source == StringSource::SectionName),
+        "Unknown format must not emit section-name rows"
+    );
+}
+
 // --- End-to-end against fixtures (R13) ---------------------------------------
 
 fn assert_symbol_contract(strings: &[FoundString]) {

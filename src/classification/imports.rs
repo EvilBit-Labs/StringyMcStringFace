@@ -244,6 +244,12 @@ pub fn extract_symbol_strings(container_info: &ContainerInfo) -> Vec<FoundString
     let classifier = ImportClassifier::new();
     let mut strings = classifier.process_imports(&container_info.imports, container_info.format);
     strings.extend(classifier.process_exports(&container_info.exports));
-    strings.extend(classifier.process_section_names(&container_info.sections));
+    // Section names are only meaningful for recognized container formats. The
+    // unknown/raw fallback uses a synthetic "raw-bytes" section that carries no
+    // analytic value (and would pollute empty-file output), so skip
+    // section-name rows for Unknown format.
+    if container_info.format != BinaryFormat::Unknown {
+        strings.extend(classifier.process_section_names(&container_info.sections));
+    }
     strings
 }
