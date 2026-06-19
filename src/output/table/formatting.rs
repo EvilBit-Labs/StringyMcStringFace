@@ -100,6 +100,10 @@ pub(crate) fn tag_to_display_string(tag: &Tag) -> String {
         Tag::Rpath => "rpath".to_string(),
         Tag::RpathVariable => "rpath-var".to_string(),
         Tag::FrameworkPath => "framework-path".to_string(),
+        Tag::Crypto => "crypto".to_string(),
+        Tag::Network => "network".to_string(),
+        Tag::FileIO => "fileio".to_string(),
+        Tag::EntryPoint => "entry-point".to_string(),
     }
 }
 
@@ -243,6 +247,10 @@ mod tests {
                 Tag::Rpath,
                 Tag::RpathVariable,
                 Tag::FrameworkPath,
+                Tag::Crypto,
+                Tag::Network,
+                Tag::FileIO,
+                Tag::EntryPoint,
             ];
 
             for tag in all_tags {

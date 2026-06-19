@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Limit to top 50 strings for demonstration
     let mut sorted_strings = strings;
-    sorted_strings.sort_by(|a, b| b.score.cmp(&a.score));
+    sorted_strings.sort_by_key(|b| std::cmp::Reverse(b.score));
     let top_strings: Vec<_> = sorted_strings.into_iter().take(50).collect();
 
     // Create output metadata

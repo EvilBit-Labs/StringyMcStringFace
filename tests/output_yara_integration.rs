@@ -174,6 +174,10 @@ fn test_yara_all_tag_types() {
         make_string("rpath").with_tags(vec![Tag::Rpath]),
         make_string("rpathvar").with_tags(vec![Tag::RpathVariable]),
         make_string("framework").with_tags(vec![Tag::FrameworkPath]),
+        make_string("crypto").with_tags(vec![Tag::Crypto]),
+        make_string("network").with_tags(vec![Tag::Network]),
+        make_string("fileio").with_tags(vec![Tag::FileIO]),
+        make_string("entrypoint").with_tags(vec![Tag::EntryPoint]),
     ];
     let output = format_yara(&strings, &make_metadata("tags.exe", strings.len())).unwrap();
     assert_snapshot!(output);

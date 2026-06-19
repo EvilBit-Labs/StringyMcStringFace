@@ -1,7 +1,7 @@
 use super::*;
 use crate::types::{
     BinaryFormat, ContainerInfo, Encoding, ExportInfo, ImportInfo, SectionInfo, SectionType,
-    StringSource,
+    StringSource, Tag,
 };
 
 #[test]
@@ -36,7 +36,8 @@ fn test_basic_extractor_extract_from_section() {
     assert_eq!(strings[0].offset, 0);
     assert_eq!(strings[0].rva, Some(0x1000));
     assert_eq!(strings[0].section, Some(".rodata".to_string()));
-    assert_eq!(strings[0].encoding, Encoding::Ascii);
+    // ASCII content is now labeled UTF-8 (KTD7); the variant is no longer emitted.
+    assert_eq!(strings[0].encoding, Encoding::Utf8);
     assert_eq!(strings[1].text, "Test");
     assert_eq!(strings[1].offset, 12);
     assert_eq!(strings[1].rva, Some(0x100C));
@@ -162,13 +163,14 @@ fn test_basic_extractor_encoding_filtering() {
         .extract_from_section(data, &section, &config)
         .unwrap();
 
-    // Should only find ASCII strings, not UTF-8
-    // Note: "Hello" and "Test" are ASCII, "\u{4e16}\u{754c}" is UTF-8 and should be filtered
+    // Should only find narrow strings, not the wide UTF-8 content.
+    // "Hello" and "Test" are ASCII (emitted as UTF-8 per KTD7); the multibyte
+    // "\u{4e16}\u{754c}" is not scanned because only ASCII scanning is enabled.
     let ascii_strings: Vec<_> = strings
         .iter()
-        .filter(|s| s.encoding == Encoding::Ascii)
+        .filter(|s| s.encoding == Encoding::Utf8)
         .collect();
-    assert_eq!(ascii_strings.len(), 2, "Should find 2 ASCII strings");
+    assert_eq!(ascii_strings.len(), 2, "Should find 2 narrow strings");
     assert!(ascii_strings.iter().any(|s| s.text == "Hello"));
     assert!(ascii_strings.iter().any(|s| s.text == "Test"));
     // UTF-8 string "\u{4e16}\u{754c}" should be filtered out
@@ -271,21 +273,26 @@ fn test_basic_extractor_include_symbols() {
     assert!(export_strings.iter().any(|s| s.text == "main"));
     assert!(export_strings.iter().any(|s| s.text == "exported_function"));
 
-    // Verify import string properties
+    // Verify import string properties: the classifier tags imports, populates
+    // the RVA from the import address, and sets section to the library name.
     let printf_str = import_strings.iter().find(|s| s.text == "printf").unwrap();
     assert_eq!(printf_str.encoding, Encoding::Utf8);
     assert_eq!(printf_str.offset, 0);
-    assert_eq!(printf_str.rva, None);
-    assert_eq!(printf_str.section, None);
+    assert_eq!(printf_str.rva, Some(0x1000));
+    assert_eq!(printf_str.section, Some("libc.so.6".to_string()));
     assert_eq!(printf_str.length, 6);
+    assert!(printf_str.tags.contains(&Tag::Import));
 
-    // Verify export string properties
+    // Verify export string properties: RVA from the export address, and `main`
+    // is recognized as an entry point. Exports carry no section.
     let main_str = export_strings.iter().find(|s| s.text == "main").unwrap();
     assert_eq!(main_str.encoding, Encoding::Utf8);
     assert_eq!(main_str.offset, 0);
-    assert_eq!(main_str.rva, None);
+    assert_eq!(main_str.rva, Some(0x3000));
     assert_eq!(main_str.section, None);
     assert_eq!(main_str.length, 4);
+    assert!(main_str.tags.contains(&Tag::Export));
+    assert!(main_str.tags.contains(&Tag::EntryPoint));
 }
 
 #[test]
@@ -347,7 +354,12 @@ fn test_basic_extractor_section_filtering() {
 
     let strings = extractor.extract(data, &container_info, &config).unwrap();
 
-    // Should only extract from data section, not code or debug
-    assert_eq!(strings.len(), 1);
-    assert_eq!(strings[0].text, "RoDataTest");
+    // Section-name rows are emitted for every section (KTD6); section *content*
+    // is only scanned for the data section, not code or debug.
+    let content: Vec<_> = strings
+        .iter()
+        .filter(|s| s.source == StringSource::SectionData)
+        .collect();
+    assert_eq!(content.len(), 1);
+    assert_eq!(content[0].text, "RoDataTest");
 }

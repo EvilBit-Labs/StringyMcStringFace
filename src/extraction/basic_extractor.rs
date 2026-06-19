@@ -4,6 +4,7 @@
 //! and UTF-16 string extraction across binary sections, applying noise filtering,
 //! deduplication, and semantic enrichment.
 
+use crate::classification::extract_symbol_strings;
 use crate::types::{
     ContainerInfo, Encoding, FoundString, Result, SectionInfo, SectionType, StringSource,
 };
@@ -63,29 +64,14 @@ fn collect_all_strings(
         all_strings.extend(section_strings);
     }
 
-    // Include import/export symbols if configured
+    // Include import/export symbols and section names if configured. The
+    // classifier is the single emission point: it tags each symbol (Import/
+    // Export plus semantic and entry-point tags) and emits section-name rows,
+    // so the ranking boosts fire on live output. Symbol names are emitted as
+    // UTF-8, so a byte-scanned occurrence of the same name (e.g. from PE
+    // .idata) shares the dedup key and merges into the single tagged row.
     if config.include_symbols {
-        for import in &container_info.imports {
-            let length = import.name.len() as u32;
-            all_strings.push(FoundString::new(
-                import.name.clone(),
-                Encoding::Utf8,
-                0,
-                length,
-                StringSource::ImportName,
-            ));
-        }
-
-        for export in &container_info.exports {
-            let length = export.name.len() as u32;
-            all_strings.push(FoundString::new(
-                export.name.clone(),
-                Encoding::Utf8,
-                0,
-                length,
-                StringSource::ExportName,
-            ));
-        }
+        all_strings.extend(extract_symbol_strings(container_info));
     }
 
     Ok(all_strings)

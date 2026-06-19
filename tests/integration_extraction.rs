@@ -1,7 +1,7 @@
 use std::fs;
 use stringy::container::{ContainerParser, ElfParser, PeParser};
 use stringy::extraction::{BasicExtractor, ExtractionConfig, StringExtractor};
-use stringy::types::{Encoding, SectionType, StringSource};
+use stringy::types::{Encoding, SectionType, StringSource, Tag};
 
 fn get_fixture_path(name: &str) -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -32,7 +32,8 @@ fn test_basic_extractor_ascii_strings() {
 
     assert_eq!(strings.len(), 3);
     assert_eq!(strings[0].text, "Hello");
-    assert_eq!(strings[0].encoding, Encoding::Ascii);
+    // ASCII content is now labeled UTF-8 (KTD7); the variant is no longer emitted.
+    assert_eq!(strings[0].encoding, Encoding::Utf8);
     assert_eq!(strings[0].source, StringSource::SectionData);
     assert_eq!(strings[1].text, "World");
     assert_eq!(strings[2].text, "Test123");
@@ -384,12 +385,12 @@ fn test_basic_extractor_encoding_filtering() {
         .extract_from_section(data, &section, &config)
         .unwrap();
 
-    // Should only find ASCII strings, not UTF-8
+    // Should only find narrow strings; ASCII content is labeled UTF-8 (KTD7).
     assert_eq!(strings.len(), 2);
     assert_eq!(strings[0].text, "Hello");
-    assert_eq!(strings[0].encoding, Encoding::Ascii);
+    assert_eq!(strings[0].encoding, Encoding::Utf8);
     assert_eq!(strings[1].text, "Test");
-    assert_eq!(strings[1].encoding, Encoding::Ascii);
+    assert_eq!(strings[1].encoding, Encoding::Utf8);
     // UTF-8 string "世界" should be filtered out
     assert!(!strings.iter().any(|s| s.text.contains("世界")));
 }
@@ -423,22 +424,23 @@ fn test_basic_extractor_include_symbols() {
     // Verify we found some imports/exports
     assert!(!import_strings.is_empty() || !export_strings.is_empty());
 
-    // Verify import string properties
+    // Imports are tagged and carry a section (library name or format default).
     for import_str in &import_strings {
         assert_eq!(import_str.encoding, Encoding::Utf8);
         assert_eq!(import_str.offset, 0);
-        assert_eq!(import_str.rva, None);
-        assert_eq!(import_str.section, None);
+        assert!(import_str.section.is_some());
         assert!(import_str.length > 0);
+        assert!(import_str.tags.contains(&Tag::Import));
     }
 
-    // Verify export string properties
+    // Exports are tagged, always carry an RVA (address is required), no section.
     for export_str in &export_strings {
         assert_eq!(export_str.encoding, Encoding::Utf8);
         assert_eq!(export_str.offset, 0);
-        assert_eq!(export_str.rva, None);
+        assert!(export_str.rva.is_some());
         assert_eq!(export_str.section, None);
         assert!(export_str.length > 0);
+        assert!(export_str.tags.contains(&Tag::Export));
     }
 }
 

@@ -58,19 +58,19 @@ Use idiomatic `clap` derive API patterns. Push validation into clap wherever pos
 
 ### Current CLI Flags (main.rs)
 
-| Flag          | Short | Type                  | Notes                                                                   |
-| ------------- | ----- | --------------------- | ----------------------------------------------------------------------- |
-| `FILE`        |       | positional            | Input binary (use `-` for stdin)                                        |
-| `--json`      | `-j`  | bool                  | Conflicts with `--yara`                                                 |
-| `--yara`      |       | bool                  | Conflicts with `--json`                                                 |
-| `--only-tags` |       | `Vec<Tag>`            | Repeatable, `value_parser = Tag::from_str`                              |
-| `--no-tags`   |       | `Vec<Tag>`            | Repeatable, runtime overlap check with `--only-tags`                    |
-| `--min-len`   | `-m`  | `Option<usize>`       | Custom parser enforces >= 1                                             |
-| `--top`       | `-t`  | `Option<usize>`       | Custom parser enforces >= 1                                             |
-| `--enc`       |       | `Option<CliEncoding>` | ascii, utf8, utf16, utf16le, utf16be                                    |
-| `--raw`       |       | bool                  | Conflicts with `--only-tags`, `--no-tags`, `--top`, `--debug`, `--yara` |
-| `--summary`   |       | bool                  | Conflicts with `--json`, `--yara`; runtime TTY check                    |
-| `--debug`     |       | bool                  | Conflicts with `--raw`                                                  |
+| Flag          | Short | Type                  | Notes                                                                                                                                                                          |
+| ------------- | ----- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `FILE`        |       | positional            | Input binary (use `-` for stdin)                                                                                                                                               |
+| `--json`      | `-j`  | bool                  | Conflicts with `--yara`                                                                                                                                                        |
+| `--yara`      |       | bool                  | Conflicts with `--json`                                                                                                                                                        |
+| `--only-tags` |       | `Vec<Tag>`            | Repeatable, `value_parser = Tag::from_str`                                                                                                                                     |
+| `--no-tags`   |       | `Vec<Tag>`            | Repeatable, runtime overlap check with `--only-tags`                                                                                                                           |
+| `--min-len`   | `-m`  | `Option<usize>`       | Custom parser enforces >= 1                                                                                                                                                    |
+| `--top`       | `-t`  | `Option<usize>`       | Custom parser enforces >= 1                                                                                                                                                    |
+| `--enc`       |       | `Option<CliEncoding>` | utf8, utf16, utf16le, utf16be filter by stored encoding; `ascii` is content-based (matches pure-ASCII text that is not UTF-16, since extraction labels ASCII content as UTF-8) |
+| `--raw`       |       | bool                  | Conflicts with `--only-tags`, `--no-tags`, `--top`, `--debug`, `--yara`                                                                                                        |
+| `--summary`   |       | bool                  | Conflicts with `--json`, `--yara`; runtime TTY check                                                                                                                           |
+| `--debug`     |       | bool                  | Conflicts with `--raw`                                                                                                                                                         |
 
 ### Regex Patterns
 
