@@ -62,6 +62,29 @@ fn encoding_filter_ascii() {
 }
 
 #[test]
+fn encoding_filter_ascii_is_content_based() {
+    // --enc ascii is a content filter (R16): every emitted row's text must be
+    // pure-ASCII, regardless of stored encoding. Extraction labels ASCII
+    // content as Utf8, so this asserts content, not the encoding field.
+    let assert = stringy()
+        .args(["tests/fixtures/test_binary_elf", "--enc", "ascii", "--json"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+    let mut rows = 0;
+    for line in stdout.lines().filter(|l| !l.is_empty()) {
+        let v: serde_json::Value = serde_json::from_str(line).expect("valid JSON line");
+        let text = v["text"].as_str().expect("text field");
+        assert!(
+            text.is_ascii(),
+            "--enc ascii must only emit pure-ASCII text, got: {text:?}"
+        );
+        rows += 1;
+    }
+    assert!(rows > 0, "ELF fixture should yield some ASCII rows");
+}
+
+#[test]
 fn encoding_filter_invalid() {
     stringy()
         .args(["tests/fixtures/test_binary_elf", "--enc", "invalid_enc"])

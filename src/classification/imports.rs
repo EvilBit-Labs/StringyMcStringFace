@@ -4,10 +4,14 @@
 //! tagged, scored [`FoundString`]s. This is the single emission point for
 //! symbol strings in the extraction path: every import carries [`Tag::Import`]
 //! (plus a semantic tag when its name matches a known crypto, network, or
-//! file-I/O API), every export carries [`Tag::Export`] (plus
-//! [`Tag::DemangledSymbol`] when demangling succeeds and [`Tag::EntryPoint`]
+//! file-I/O API), every export carries [`Tag::Export`] (plus [`Tag::EntryPoint`]
 //! for known entry points), and each section name is emitted as a standalone
 //! row with [`StringSource::SectionName`].
+//!
+//! Demangling is deliberately left to the pipeline's `classify_strings` (which
+//! runs under `catch_unwind` and is skipped in raw mode); the classifier only
+//! tags. Exports that are mangled symbols receive [`Tag::DemangledSymbol`] and
+//! their demangled text there.
 //!
 //! Symbol strings are emitted with [`Encoding::Utf8`] so that a byte-scanned
 //! occurrence of the same name (e.g. from a PE `.idata` section) shares the
@@ -16,7 +20,6 @@
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
-use crate::classification::SymbolDemangler;
 use crate::types::{
     BinaryFormat, ContainerInfo, Encoding, ExportInfo, FoundString, ImportInfo, SectionInfo,
     StringSource, Tag,
@@ -86,18 +89,18 @@ static ENTRY_POINTS: LazyLock<HashSet<&'static str>> =
     LazyLock::new(|| HashSet::from(["main", "_start", "DllMain", "WinMain", "wWinMain"]));
 
 /// Classifies import/export symbols and section names into tagged strings.
+///
+/// Stateless: tagging is the classifier's job. Demangling is performed once by
+/// the pipeline's `classify_strings` (under `catch_unwind`, and skipped in raw
+/// mode), so it is intentionally not done here.
 #[derive(Debug, Default, Clone)]
-pub struct ImportClassifier {
-    demangler: SymbolDemangler,
-}
+pub struct ImportClassifier;
 
 impl ImportClassifier {
     /// Create a new `ImportClassifier`.
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            demangler: SymbolDemangler::new(),
-        }
+        Self
     }
 
     /// Convert import symbols into tagged `FoundString`s.
@@ -149,9 +152,13 @@ impl ImportClassifier {
     /// Convert export symbols into tagged `FoundString`s.
     ///
     /// Each export carries [`Tag::Export`] and an RVA from the always-present
-    /// `ExportInfo::address`. Exports are demangled (adding
-    /// [`Tag::DemangledSymbol`] on success), then checked against the known
-    /// entry-point names (adding [`Tag::EntryPoint`] on a match).
+    /// `ExportInfo::address`, plus [`Tag::EntryPoint`] when the name is a known
+    /// entry point. Demangling (and the resulting [`Tag::DemangledSymbol`]) is
+    /// performed downstream by the pipeline's `classify_strings`, which runs
+    /// under `catch_unwind` and is skipped in raw mode -- so a panic in a
+    /// third-party demangler never aborts extraction, and raw mode shows the
+    /// untouched symbol name. Entry-point names are never mangled, so the check
+    /// runs correctly on the raw export name.
     #[must_use]
     pub fn process_exports(&self, exports: &[ExportInfo]) -> Vec<FoundString> {
         exports
@@ -168,11 +175,6 @@ impl ImportClassifier {
                 .with_tags(vec![Tag::Export])
                 .with_rva(export.address);
 
-                // Demangle first; this may add Tag::DemangledSymbol and replace
-                // `text` with the demangled form (preserving existing tags).
-                self.demangler.demangle(&mut found);
-
-                // Entry-point check runs against the resulting text.
                 if ENTRY_POINTS.contains(found.text.as_str()) {
                     found.tags.push(Tag::EntryPoint);
                 }
@@ -185,11 +187,14 @@ impl ImportClassifier {
     /// Convert section names into standalone `FoundString`s.
     ///
     /// Each section name is emitted with [`StringSource::SectionName`] so it is
-    /// distinguishable from byte-scanned section content downstream.
+    /// distinguishable from byte-scanned section content downstream. Empty
+    /// section names (e.g. PE sections with an all-null name field) are skipped
+    /// so no zero-length row reaches output.
     #[must_use]
     pub fn process_section_names(&self, sections: &[SectionInfo]) -> Vec<FoundString> {
         sections
             .iter()
+            .filter(|section| !section.name.is_empty())
             .map(|section| {
                 let length = section.name.len() as u32;
                 FoundString::new(

@@ -31,6 +31,7 @@ Changing default values in `ExtractionConfig::default()` requires updating asser
 - `--no-tags` is the canonical flag name (kebab-case). Previously was `--notags` -- update all references when touching CLI flag names
 - Short flags: `-j` (json), `-m` (min-len), `-t` (top). Do not add short flags for infrequent flags (--enc, --yara, --raw, --summary, --debug)
 - `NO_COLOR` env var disables progress spinner. The spinner is also hidden when stderr is not a TTY
+- `--enc ascii` is a CONTENT filter (`EncodingFilter::AsciiContent`), not a stored-encoding match. Extraction labels ASCII content as `Encoding::Utf8` (ASCII is a UTF-8 subset), so no row is ever `Encoding::Ascii`; `--enc ascii` matches rows whose `text.is_ascii()` and whose encoding is not UTF-16. `--enc utf8`/`--enc utf16*` still match the stored encoding. JSON output no longer emits `"encoding":"Ascii"` for narrow strings -- it emits `"Utf8"`
 - Clap derive attributes (`long_help`, `about`, etc.) require string literals -- `const` values and `concat!` with consts do not work. The `cli_help_lists_all_canonical_tags` test in `integration_cli.rs` verifies help text stays in sync with `Tag::from_str()`
 
 ## Dependencies

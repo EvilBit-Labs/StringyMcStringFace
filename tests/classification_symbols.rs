@@ -7,7 +7,7 @@
 
 use std::fs;
 
-use stringy::classification::{ImportClassifier, extract_symbol_strings};
+use stringy::classification::{ImportClassifier, SymbolDemangler, extract_symbol_strings};
 use stringy::container::{ContainerParser, ElfParser, MachoParser, PeParser};
 use stringy::types::{
     BinaryFormat, ExportInfo, FoundString, ImportInfo, SectionInfo, SectionType, StringSource, Tag,
@@ -141,18 +141,29 @@ fn every_export_carries_export_tag_source_and_rva() {
 }
 
 #[test]
-fn mangled_export_is_demangled_and_tagged() {
+fn mangled_export_emitted_raw_for_pipeline_demangling() {
+    // The classifier tags exports but does NOT demangle. Demangling is the
+    // pipeline's job (classify_strings: under catch_unwind, skipped in raw
+    // mode), so a third-party demangler panic never aborts extraction and raw
+    // mode shows the untouched symbol name.
     let classifier = ImportClassifier::new();
     let exports = vec![ExportInfo::new("_ZN3foo3barEv".to_string(), 0x3000)];
 
     let strings = classifier.process_exports(&exports);
-    let demangled = &strings[0];
+    let export = &strings[0];
 
-    assert!(demangled.tags.contains(&Tag::Export));
-    assert!(demangled.tags.contains(&Tag::DemangledSymbol));
-    assert_eq!(demangled.original_text.as_deref(), Some("_ZN3foo3barEv"));
-    assert!(demangled.text.contains("foo"));
-    assert!(demangled.text.contains("bar"));
+    assert!(export.tags.contains(&Tag::Export));
+    assert!(!export.tags.contains(&Tag::DemangledSymbol));
+    assert_eq!(export.text, "_ZN3foo3barEv");
+    assert_eq!(export.original_text, None);
+
+    // The emitted string is in a demangleable state: the pipeline's
+    // SymbolDemangler produces Export + DemangledSymbol + demangled text (AE2).
+    let mut downstream = strings[0].clone();
+    SymbolDemangler::new().demangle(&mut downstream);
+    assert!(downstream.tags.contains(&Tag::Export));
+    assert!(downstream.tags.contains(&Tag::DemangledSymbol));
+    assert!(downstream.text.contains("foo") && downstream.text.contains("bar"));
 }
 
 #[test]
@@ -197,6 +208,8 @@ fn section_names_emit_as_section_name_source() {
             SectionType::StringData,
             1.0,
         ),
+        // Empty-named section (e.g. PE all-null name) must be skipped.
+        SectionInfo::new(String::new(), 200, 10, SectionType::Other, 1.0),
     ];
 
     let strings = classifier.process_section_names(&sections);
@@ -205,6 +218,7 @@ fn section_names_emit_as_section_name_source() {
     for s in &strings {
         assert_eq!(s.source, StringSource::SectionName);
         assert_eq!(s.confidence, 1.0);
+        assert!(!s.text.is_empty());
     }
     assert!(strings.iter().any(|s| s.text == ".text"));
     assert!(strings.iter().any(|s| s.text == ".rodata"));
