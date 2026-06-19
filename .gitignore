@@ -147,3 +147,4 @@ tests/fixtures/*
 **/tessl__*
 .tessl/tiles/
 .tessl/plugins/
+.vscode/settings.json
