@@ -32,7 +32,8 @@ fn test_basic_extractor_ascii_strings() {
 
     assert_eq!(strings.len(), 3);
     assert_eq!(strings[0].text, "Hello");
-    assert_eq!(strings[0].encoding, Encoding::Ascii);
+    // ASCII content is now labeled UTF-8 (KTD7); the variant is no longer emitted.
+    assert_eq!(strings[0].encoding, Encoding::Utf8);
     assert_eq!(strings[0].source, StringSource::SectionData);
     assert_eq!(strings[1].text, "World");
     assert_eq!(strings[2].text, "Test123");
@@ -384,12 +385,12 @@ fn test_basic_extractor_encoding_filtering() {
         .extract_from_section(data, &section, &config)
         .unwrap();
 
-    // Should only find ASCII strings, not UTF-8
+    // Should only find narrow strings; ASCII content is labeled UTF-8 (KTD7).
     assert_eq!(strings.len(), 2);
     assert_eq!(strings[0].text, "Hello");
-    assert_eq!(strings[0].encoding, Encoding::Ascii);
+    assert_eq!(strings[0].encoding, Encoding::Utf8);
     assert_eq!(strings[1].text, "Test");
-    assert_eq!(strings[1].encoding, Encoding::Ascii);
+    assert_eq!(strings[1].encoding, Encoding::Utf8);
     // UTF-8 string "世界" should be filtered out
     assert!(!strings.iter().any(|s| s.text.contains("世界")));
 }

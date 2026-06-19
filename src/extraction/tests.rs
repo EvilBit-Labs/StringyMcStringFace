@@ -36,7 +36,8 @@ fn test_basic_extractor_extract_from_section() {
     assert_eq!(strings[0].offset, 0);
     assert_eq!(strings[0].rva, Some(0x1000));
     assert_eq!(strings[0].section, Some(".rodata".to_string()));
-    assert_eq!(strings[0].encoding, Encoding::Ascii);
+    // ASCII content is now labeled UTF-8 (KTD7); the variant is no longer emitted.
+    assert_eq!(strings[0].encoding, Encoding::Utf8);
     assert_eq!(strings[1].text, "Test");
     assert_eq!(strings[1].offset, 12);
     assert_eq!(strings[1].rva, Some(0x100C));
@@ -162,13 +163,14 @@ fn test_basic_extractor_encoding_filtering() {
         .extract_from_section(data, &section, &config)
         .unwrap();
 
-    // Should only find ASCII strings, not UTF-8
-    // Note: "Hello" and "Test" are ASCII, "\u{4e16}\u{754c}" is UTF-8 and should be filtered
+    // Should only find narrow strings, not the wide UTF-8 content.
+    // "Hello" and "Test" are ASCII (emitted as UTF-8 per KTD7); the multibyte
+    // "\u{4e16}\u{754c}" is not scanned because only ASCII scanning is enabled.
     let ascii_strings: Vec<_> = strings
         .iter()
-        .filter(|s| s.encoding == Encoding::Ascii)
+        .filter(|s| s.encoding == Encoding::Utf8)
         .collect();
-    assert_eq!(ascii_strings.len(), 2, "Should find 2 ASCII strings");
+    assert_eq!(ascii_strings.len(), 2, "Should find 2 narrow strings");
     assert!(ascii_strings.iter().any(|s| s.text == "Hello"));
     assert!(ascii_strings.iter().any(|s| s.text == "Test"));
     // UTF-8 string "\u{4e16}\u{754c}" should be filtered out

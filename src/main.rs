@@ -47,7 +47,7 @@ fn parse_positive_usize(s: &str) -> Result<usize, String> {
 impl From<CliEncoding> for EncodingFilter {
     fn from(enc: CliEncoding) -> Self {
         match enc {
-            CliEncoding::Ascii => EncodingFilter::Exact(Encoding::Ascii),
+            CliEncoding::Ascii => EncodingFilter::AsciiContent,
             CliEncoding::Utf8 => EncodingFilter::Exact(Encoding::Utf8),
             CliEncoding::Utf16 => EncodingFilter::Utf16Any,
             CliEncoding::Utf16Le => EncodingFilter::Exact(Encoding::Utf16Le),
