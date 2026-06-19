@@ -275,7 +275,7 @@ impl RankingEngine {
     /// otherwise ordering will reflect uninitialized or stale scores. This uses
     /// a stable sort, so the relative order of equal scores is preserved.
     pub fn rank_strings(&self, strings: &mut [FoundString]) {
-        strings.sort_by(|a, b| b.score.cmp(&a.score));
+        strings.sort_by_key(|b| std::cmp::Reverse(b.score));
     }
 }
 

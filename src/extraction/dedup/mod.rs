@@ -217,7 +217,7 @@ pub fn deduplicate(
         .collect();
 
     // Sort by combined_score descending
-    canonical_strings.sort_by(|a, b| b.combined_score.cmp(&a.combined_score));
+    canonical_strings.sort_by_key(|b| std::cmp::Reverse(b.combined_score));
 
     canonical_strings
 }
