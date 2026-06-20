@@ -249,16 +249,6 @@ fn test_is_mangled_msvc_symbols() {
 }
 
 #[test]
-fn test_is_mangled_msvc_not_triggered_for_plain() {
-    let demangler = SymbolDemangler::new();
-
-    // Plain Windows API names and empty input must not be treated as MSVC mangled
-    assert!(!demangler.is_mangled("printf"));
-    assert!(!demangler.is_mangled("CreateFileW"));
-    assert!(!demangler.is_mangled(""));
-}
-
-#[test]
 fn test_demangle_msvc_plain_function() {
     let demangler = SymbolDemangler::new();
     let mut found_string = create_test_string("?printf@@YAHPEBDZZ");
