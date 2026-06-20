@@ -1,42 +1,31 @@
-# Cross-platform justfile using OS annotations
-# Windows uses PowerShell, Unix uses bash
+# Stringy justfile -- run `just` or `just --list` to see available recipes.
+#
+# Windows uses PowerShell, Unix uses bash. mise manages every dev tool
+# (Rust toolchain + components, cargo subcommands, mdbook plugins, mdformat,
+# zig, etc.) -- see mise.toml. There are no per-tool install recipes; `setup`
+# just runs `mise install`.
 
 set shell := ["bash", "-cu"]
 set windows-shell := ["powershell", "-NoProfile", "-Command"]
-set dotenv-load := true
-set ignore-comments := true
-
-# Use mise to manage all dev tools (cargo, node, pre-commit, etc.)
-# See mise.toml for tool versions
+set dotenv-load
+set ignore-comments
+set quiet
 
 mise_exec := "mise exec --"
 root := justfile_dir()
 
-# =============================================================================
-# GENERAL COMMANDS
-# =============================================================================
+# General
 
+[private]
 default:
-    @just --choose
+    just --choose
 
+[group('general')]
 help:
-    @just --list
+    just --list
 
-# =============================================================================
-# CROSS-PLATFORM HELPERS
-# =============================================================================
-# Cross-platform helpers using OS annotations
-# Each helper has Windows and Unix variants
-
-[private]
-[windows]
-cd-root:
-    Set-Location "{{ root }}"
-
-[private]
-[unix]
-cd-root:
-    cd "{{ root }}"
+# Cross-platform helpers. Each keeps Windows and Unix variants only because
+# the underlying shell command genuinely differs.
 
 [private]
 [windows]
@@ -58,208 +47,135 @@ rmrf path:
 rmrf path:
     /bin/rm -rf "{{ path }}"
 
-# =============================================================================
-# SETUP AND INITIALIZATION
-# =============================================================================
+# Setup
 
-# Development setup
-[windows]
+# Development setup. mise installs every tool from mise.toml, including the
+# Rust toolchain + components, all cargo subcommands, the mdbook plugins,
+# and mdformat -- so there are no separate per-tool install recipes.
+[group('setup')]
 setup:
-    @just mise-install
-    rustup component add rustfmt clippy llvm-tools-preview
-    @just mdformat-install
-    Write-Host "Note: You may need to restart your shell for pipx PATH changes to take effect"
-
-[unix]
-setup:
-    @just mise-install
-    rustup component add rustfmt clippy llvm-tools-preview
-    @just mdformat-install
-    echo "Note: You may need to restart your shell for pipx PATH changes to take effect"
-
-# Install tool versions defined in mise.toml
-[windows]
-mise-install:
     mise trust
     mise install
 
-[unix]
-mise-install:
-    mise trust
-    mise install
+# Update dependencies
+[group('setup')]
+update-deps:
+    mise upgrade --bump --local
+    {{ mise_exec }} cargo update --workspace
+    {{ mise_exec }} pre-commit autoupdate
 
-# Install development tools not managed by mise
-[windows]
-install-tools:
-    @just mise-install
-    @{{ mise_exec }} cargo binstall --disable-telemetry cargo-llvm-cov cargo-audit cargo-deny cargo-dist cargo-release cargo-cyclonedx cargo-auditable cargo-nextest --locked
-
-[unix]
-install-tools:
-    @just mise-install
-    @{{ mise_exec }} cargo binstall --disable-telemetry cargo-llvm-cov cargo-audit cargo-deny cargo-dist cargo-release cargo-cyclonedx cargo-auditable cargo-nextest --locked
-
-# Install mdBook plugins for documentation
-[windows]
-docs-install:
-    @just mise-install
-    @{{ mise_exec }} cargo binstall mdbook-admonish mdbook-mermaid mdbook-linkcheck mdbook-toc mdbook-open-on-gh mdbook-tabs mdbook-i18n-helpers
-
-[unix]
-docs-install:
-    @just mise-install
-    @{{ mise_exec }} cargo binstall mdbook-admonish mdbook-mermaid mdbook-linkcheck mdbook-toc mdbook-open-on-gh mdbook-tabs mdbook-i18n-helpers
-
-# Install pipx for Python tool management
-[windows]
-pipx-install:
-    python -m pip install --user pipx
-    python -m pipx ensurepath
-
-[unix]
-pipx-install:
-    #!/bin/bash
-    set -e
-    set -u
-    set -o pipefail
-
-    if command -v pipx >/dev/null 2>&1; then
-        echo "pipx already installed"
-    else
-        echo "Installing pipx..."
-        python3 -m pip install --user pipx
-        python3 -m pipx ensurepath
-    fi
-
-# Install mdformat and extensions for markdown formatting
-[windows]
-mdformat-install: pipx-install
-    pipx install mdformat
-    pipx inject mdformat mdformat-gfm mdformat-frontmatter mdformat-footnote mdformat-simple-breaks mdformat-gfm-alerts mdformat-toc mdformat-wikilink mdformat-tables
-
-[unix]
-mdformat-install:
-    @just pipx-install
-    pipx install mdformat
-    pipx inject mdformat mdformat-gfm mdformat-frontmatter mdformat-footnote mdformat-simple-breaks mdformat-gfm-alerts mdformat-toc mdformat-wikilink mdformat-tables
-
-# =============================================================================
-# FORMATTING AND LINTING
-# =============================================================================
+# Formatting and Linting
 
 alias format-rust := fmt
 alias format-md := format-docs
 alias format-just := fmt-justfile
 
-# Main format recipe - calls all formatters
+# Run every formatter
+[group('quality')]
 format: fmt format-json-yaml format-docs fmt-justfile
 
-# Individual format recipes
-
+[group('quality')]
 format-json-yaml:
-    @{{ mise_exec }} prettier --write "**/*.{json,yaml,yml}"
+    {{ mise_exec }} prettier --write "**/*.{json,yaml,yml}"
 
+[group('quality')]
 [windows]
 format-docs:
-    @if (Get-Command mdformat -ErrorAction SilentlyContinue) { Get-ChildItem -Recurse -Filter "*.md" | Where-Object { $_.FullName -notmatch "\\target\\" -and $_.FullName -notmatch "\\node_modules\\" } | ForEach-Object { mdformat $_.FullName } } else { Write-Host "mdformat not found. Run 'just mdformat-install' first." }
+    Get-ChildItem -Recurse -Filter "*.md" | Where-Object { $_.FullName -notmatch "\\target\\" -and $_.FullName -notmatch "\\node_modules\\" } | ForEach-Object { {{ mise_exec }} mdformat $_.FullName }
 
+[group('quality')]
 [unix]
 format-docs:
-    @if command -v mdformat >/dev/null 2>&1; then find . -type f -name "*.md" -not -path "./target/*" -not -path "./node_modules/*" -exec mdformat {} + ; else echo "mdformat not found. Run 'just mdformat-install' first."; fi
+    find . -type f -name "*.md" -not -path "./target/*" -not -path "./node_modules/*" -exec {{ mise_exec }} mdformat {} +
 
+[group('quality')]
 fmt:
-    @{{ mise_exec }} cargo fmt --all
+    {{ mise_exec }} cargo fmt --all
 
+[group('quality')]
 fmt-check:
-    @{{ mise_exec }} cargo fmt --all --check
+    {{ mise_exec }} cargo fmt --all --check
 
+[group('quality')]
 lint-rust: fmt-check
-    @{{ mise_exec }} cargo clippy --workspace --all-targets --all-features -- -D warnings
+    {{ mise_exec }} cargo clippy --workspace --all-targets --all-features -- -D warnings
 
+[group('quality')]
 lint-rust-min:
-    @{{ mise_exec }} cargo clippy --workspace --all-targets --no-default-features -- -D warnings
+    {{ mise_exec }} cargo clippy --workspace --all-targets --no-default-features -- -D warnings
 
 # Format justfile
+[group('quality')]
 fmt-justfile:
-    @just --fmt --unstable
+    just --fmt --unstable
 
 # Lint justfile formatting
+[group('quality')]
 lint-justfile:
-    @just --fmt --check --unstable
+    just --fmt --check --unstable
 
-# Main lint recipe - calls all sub-linters
+# Run every linter
+[group('quality')]
 lint: lint-rust lint-actions lint-docs lint-justfile
 
-# Individual lint recipes
+[group('quality')]
 lint-actions:
-    @{{ mise_exec }} actionlint .github/workflows/*.yml
+    {{ mise_exec }} actionlint .github/workflows/*.yml
 
+[group('quality')]
 lint-docs:
-    @{{ mise_exec }} markdownlint-cli2 docs/**/*.md README.md
-    @{{ mise_exec }} lychee docs/**/*.md README.md
+    {{ mise_exec }} markdownlint-cli2 docs/**/*.md README.md
+    {{ mise_exec }} lychee docs/**/*.md README.md
 
 alias lint-just := lint-justfile
 
 # Run clippy with fixes
+[group('quality')]
 fix:
-    @{{ mise_exec }} cargo clippy --fix --allow-dirty --allow-staged
+    {{ mise_exec }} cargo clippy --fix --allow-dirty --allow-staged
 
 # Quick development check
+[group('quality')]
 check: pre-commit-run lint
 
+[private]
 pre-commit-run:
-    @{{ mise_exec }} pre-commit run -a
+    {{ mise_exec }} pre-commit run -a
 
 # Format a single file (for pre-commit hooks)
+[group('quality')]
 format-files +FILES:
-    @{{ mise_exec }} prettier --write --config .prettierrc.json {{ FILES }}
+    {{ mise_exec }} prettier --write --config .prettierrc.json {{ FILES }}
 
-# =============================================================================
-# BUILDING AND TESTING
-# =============================================================================
+# Building and Testing
 
+[group('build')]
 build:
-    @{{ mise_exec }} cargo build --workspace
+    {{ mise_exec }} cargo build --workspace
 
+[group('build')]
 build-release:
-    @{{ mise_exec }} cargo build --workspace --release --all-features
+    {{ mise_exec }} cargo build --workspace --release --all-features
 
+[group('test')]
 test:
-    @{{ mise_exec }} cargo nextest run --workspace --no-capture
+    {{ mise_exec }} cargo nextest run --workspace --no-capture
 
-# Test justfile cross-platform functionality
-[windows]
-test-justfile:
-    $p = (Get-Location).Path; Write-Host "Current directory: $p"; Write-Host "Expected directory: {{ root }}"
-
-[unix]
-test-justfile:
-    /bin/echo "Current directory: $(pwd -P)"
-    /bin/echo "Expected directory: {{ root }}"
-
-# Test cross-platform file system helpers
-[windows]
-test-fs:
-    @just rmrf tmp/xfstest
-    @just ensure-dir tmp/xfstest/sub
-    @just rmrf tmp/xfstest
-
-[unix]
-test-fs:
-    @just rmrf tmp/xfstest
-    @just ensure-dir tmp/xfstest/sub
-    @just rmrf tmp/xfstest
-
+[group('test')]
 test-ci:
-    @{{ mise_exec }} cargo nextest run --workspace --all-features --no-capture
+    {{ mise_exec }} cargo nextest run --workspace --all-features --no-capture
 
 # Run all tests including ignored/slow tests across workspace
+[group('test')]
 test-all:
-    @{{ mise_exec }} cargo nextest run --workspace --no-capture -- --ignored
+    {{ mise_exec }} cargo nextest run --workspace --no-capture -- --ignored
 
-# =============================================================================
-# TEST FIXTURES
-# =============================================================================
+# Run all benchmarks
+[group('test')]
+bench:
+    {{ mise_exec }} cargo bench --workspace
+
+# Test Fixtures
 
 # Zig cross-compiles test fixtures for all targets from any host.
 # Changing the Zig version in mise.toml may alter compiled layouts,
@@ -269,119 +185,96 @@ test-all:
 #   cargo insta accept          # review & commit updated snapshots
 
 # Generate all test fixtures via Zig cross-compilation
-[unix]
+[group('test')]
 gen-fixtures:
-    #!/usr/bin/env bash
-    set -euo pipefail
     just ensure-dir tests/fixtures
     {{ mise_exec }} zig cc -target x86_64-linux-gnu -o tests/fixtures/test_binary_elf tests/fixtures/test_binary.c
-    echo "  ELF   tests/fixtures/test_binary_elf"
     {{ mise_exec }} zig cc -target x86_64-windows-gnu -o tests/fixtures/test_binary_pe.exe tests/fixtures/test_binary.c
-    echo "  PE    tests/fixtures/test_binary_pe.exe"
     {{ mise_exec }} zig rc /fo tests/fixtures/test_binary_with_resources.res -- tests/fixtures/test_binary_with_resources.rc
     {{ mise_exec }} zig cc -target x86_64-windows-gnu -o tests/fixtures/test_binary_with_resources.exe tests/fixtures/test_binary_with_resources.c tests/fixtures/test_binary_with_resources.res
-    echo "  PE+RC tests/fixtures/test_binary_with_resources.exe"
     just rmrf tests/fixtures/test_binary_with_resources.res
     # Zig bundles macOS libc stubs, so this works from any host without an Apple SDK.
     # The fixture only needs to be a valid Mach-O container for parser tests, not a runnable binary.
     {{ mise_exec }} zig cc -target x86_64-macos -o tests/fixtures/test_binary_macho tests/fixtures/test_binary.c
-    echo "  MACHO tests/fixtures/test_binary_macho"
+    just gen-static-fixtures
+
+# Write the committed, platform-independent fixtures (empty file + unknown
+# blob). Only the byte-writing primitive differs per OS; keep the two in sync.
+[private]
+[unix]
+gen-static-fixtures:
     truncate -s 0 tests/fixtures/test_empty.bin
-    echo "  EMPTY tests/fixtures/test_empty.bin"
     printf '\xde\xad\xbe\xef\x00\x00\x00\x00NOT_A_BINARY\nhttp://example.com/test\n' > tests/fixtures/test_unknown.bin
-    echo "  BLOB  tests/fixtures/test_unknown.bin"
 
+[private]
 [windows]
-gen-fixtures:
-    $ErrorActionPreference = "Stop"
-    @just ensure-dir tests/fixtures
-    {{ mise_exec }} zig cc -target x86_64-linux-gnu -o tests/fixtures/test_binary_elf tests/fixtures/test_binary.c
-    Write-Host "  ELF   tests/fixtures/test_binary_elf"
-    {{ mise_exec }} zig cc -target x86_64-windows-gnu -o tests/fixtures/test_binary_pe.exe tests/fixtures/test_binary.c
-    Write-Host "  PE    tests/fixtures/test_binary_pe.exe"
-    {{ mise_exec }} zig rc /fo tests/fixtures/test_binary_with_resources.res -- tests/fixtures/test_binary_with_resources.rc
-    {{ mise_exec }} zig cc -target x86_64-windows-gnu -o tests/fixtures/test_binary_with_resources.exe tests/fixtures/test_binary_with_resources.c tests/fixtures/test_binary_with_resources.res
-    Write-Host "  PE+RC tests/fixtures/test_binary_with_resources.exe"
-    just rmrf tests/fixtures/test_binary_with_resources.res
-    # Zig bundles macOS libc stubs, so this works from any host without an Apple SDK.
-    # The fixture only needs to be a valid Mach-O container for parser tests, not a runnable binary.
-    {{ mise_exec }} zig cc -target x86_64-macos -o tests/fixtures/test_binary_macho tests/fixtures/test_binary.c
-    Write-Host "  MACHO tests/fixtures/test_binary_macho"
+gen-static-fixtures:
     New-Item -ItemType File -Force -Path "tests/fixtures/test_empty.bin" | Out-Null
-    Write-Host "  EMPTY tests/fixtures/test_empty.bin"
     [System.IO.File]::WriteAllBytes("tests/fixtures/test_unknown.bin", [byte[]]@(0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x00, 0x00, 0x00) + [System.Text.Encoding]::ASCII.GetBytes("NOT_A_BINARY`nhttp://example.com/test`n"))
-    Write-Host "  BLOB  tests/fixtures/test_unknown.bin"
 
-# =============================================================================
-# BENCHMARKING
-# =============================================================================
+# Security and Auditing
 
-# Run all benchmarks
-bench:
-    @{{ mise_exec }} cargo bench --workspace
-
-# =============================================================================
-# SECURITY AND AUDITING
-# =============================================================================
-
+[group('security')]
 audit:
-    @{{ mise_exec }} cargo audit
+    {{ mise_exec }} cargo audit
 
+[group('security')]
 deny:
-    @{{ mise_exec }} cargo deny check
+    {{ mise_exec }} cargo deny check
 
+[group('security')]
 outdated:
-    @{{ mise_exec }} cargo outdated --depth=1 --exit-code=1
+    {{ mise_exec }} cargo outdated --depth=1 --exit-code=1
 
-# =============================================================================
-# CI AND QUALITY ASSURANCE
-# =============================================================================
+# CI and Quality Assurance
 
 # Generate coverage report
+[group('ci')]
 coverage:
-    @{{ mise_exec }} cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
+    {{ mise_exec }} cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
 
 # Check coverage thresholds
+[group('ci')]
 coverage-check:
-    @{{ mise_exec }} cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info --fail-under-lines 9.7
+    {{ mise_exec }} cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info --fail-under-lines 9.7
 
 # Full local CI parity check (gen-fixtures ensures compiled test binaries exist)
-ci-check: pre-commit-run fmt-check lint-rust lint-rust-min gen-fixtures test-ci build-release audit coverage-check dist-plan
+[group('ci')]
+ci-check: pre-commit-run fmt-check lint-rust lint-rust-min gen-fixtures test-ci build-release audit coverage-check dist-check
 
-# =============================================================================
-# DEVELOPMENT AND EXECUTION
-# =============================================================================
+# Development and Execution
 
+[group('dev')]
 run *args:
-    @{{ mise_exec }} cargo run -p stringy -- {{ args }}
+    {{ mise_exec }} cargo run -p stringy -- {{ args }}
 
-# =============================================================================
-# DISTRIBUTION AND PACKAGING
-# =============================================================================
+# Distribution and Packaging
 
+[group('dist')]
 dist:
-    @{{ mise_exec }} dist build
+    {{ mise_exec }} dist build
 
+[group('dist')]
 dist-check:
-    @{{ mise_exec }} dist plan
+    {{ mise_exec }} dist plan
 
-dist-plan:
-    @{{ mise_exec }} dist plan
+alias dist-plan := dist-check
 
 # Regenerate cargo-dist CI workflow safely
+[group('dist')]
 dist-generate-ci:
-    @{{ mise_exec }} dist generate --ci github
-    @echo "Generated CI workflow. Remember to fix any expression errors if they exist."
-    @echo "Run 'just lint:actions' to validate the generated workflow."
+    {{ mise_exec }} dist generate --ci github
+    echo "Generated CI workflow. Remember to fix any expression errors if they exist."
+    echo "Run 'just lint-actions' to validate the generated workflow."
 
+[group('dist')]
 install:
-    @{{ mise_exec }} cargo install --path .
+    {{ mise_exec }} cargo install --path .
 
-# =============================================================================
-# DOCUMENTATION
-# =============================================================================
+# Documentation
 
 # Build complete documentation (mdBook + rustdoc)
+[group('docs')]
 [unix]
 docs-build:
     #!/usr/bin/env bash
@@ -396,69 +289,80 @@ docs-build:
     cd docs && {{ mise_exec }} mdbook build
 
 # Serve documentation locally with live reload
+[group('docs')]
 [unix]
 docs-serve:
     cd docs && {{ mise_exec }} mdbook serve --open
 
 # Clean documentation artifacts
+[group('docs')]
 [unix]
 docs-clean:
     rm -rf docs/book target/doc
 
 # Check documentation (build + link validation + formatting)
+[group('docs')]
 [unix]
 docs-check:
     cd docs && {{ mise_exec }} mdbook build
-    @just fmt-check
+    just fmt-check
 
 # Generate and serve documentation
+[group('docs')]
 [unix]
 docs: docs-build docs-serve
 
+[group('docs')]
 [windows]
 docs:
-    @echo "mdbook requires a Unix-like environment to serve"
+    echo "mdbook requires a Unix-like environment to serve"
 
-# =============================================================================
-# GORELEASER TESTING
-# =============================================================================
+# GoReleaser Testing
 
 # Test GoReleaser configuration
+[group('dist')]
 goreleaser-check:
-    @{{ mise_exec }} goreleaser check
+    {{ mise_exec }} goreleaser check
 
 # Build binaries locally with GoReleaser (test build process)
+[group('dist')]
 goreleaser-build:
-    @{{ mise_exec }} goreleaser build --clean
+    {{ mise_exec }} goreleaser build --clean
 
 # Run snapshot release (test full pipeline without publishing)
+[group('dist')]
 goreleaser-snapshot:
-    @{{ mise_exec }} goreleaser release --snapshot --clean
+    {{ mise_exec }} goreleaser release --snapshot --clean
 
 # Test GoReleaser with specific target
 [arg("target", help="Target triple to build for (e.g., x86_64-unknown-linux-gnu)")]
+[group('dist')]
 goreleaser-build-target target:
-    @{{ mise_exec }} goreleaser build --clean --single-target {{ target }}
+    {{ mise_exec }} goreleaser build --clean --single-target {{ target }}
 
 # Clean GoReleaser artifacts
+[group('dist')]
 goreleaser-clean:
-    @just rmrf dist
+    just rmrf dist
 
-# =============================================================================
-# RELEASE MANAGEMENT
-# =============================================================================
+# Release Management
 
+[group('release')]
 release:
-    @{{ mise_exec }} cargo release
+    {{ mise_exec }} cargo release
 
+[group('release')]
 release-dry-run:
-    @{{ mise_exec }} cargo release --dry-run
+    {{ mise_exec }} cargo release --dry-run
 
+[group('release')]
 release-patch:
-    @{{ mise_exec }} cargo release patch
+    {{ mise_exec }} cargo release patch
 
+[group('release')]
 release-minor:
-    @{{ mise_exec }} cargo release minor
+    {{ mise_exec }} cargo release minor
 
+[group('release')]
 release-major:
-    @{{ mise_exec }} cargo release major
+    {{ mise_exec }} cargo release major
