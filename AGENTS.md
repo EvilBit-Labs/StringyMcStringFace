@@ -118,6 +118,7 @@ Import from `stringy::extraction` or `stringy::types`, not deeply nested paths. 
 - `goblin` - Binary format parsing (ELF, PE, Mach-O)
 - `mmap-guard` - Safe memory-mapped file I/O (wraps `memmap2`)
 - `pelite` - PE resource extraction
+- `msvc-demangler` - MSVC symbol demangling for PE binaries (Windows `?`-prefixed symbols)
 - `thiserror` - Error type definitions
 - `indicatif` - Progress bars and spinners for CLI output
 - `tempfile` - Temporary file creation for stdin-to-Pipeline bridging in `main.rs`

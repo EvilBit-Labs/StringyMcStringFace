@@ -4,7 +4,7 @@ members = [ "cargo:." ]
 # Config for 'dist'
 [dist]
 # The preferred dist version to use in CI (Cargo.toml SemVer syntax)
-cargo-dist-version = "0.31.0"
+cargo-dist-version = "0.32.0"
 # CI backends to support
 ci = "github"
 # The installers to generate for each app
@@ -13,6 +13,7 @@ installers = [ "shell", "powershell", "homebrew" ]
 targets = [
     "aarch64-apple-darwin",
     "aarch64-unknown-linux-gnu",
+    "aarch64-pc-windows-msvc",
     "x86_64-unknown-linux-gnu",
     "x86_64-unknown-linux-musl",
     "x86_64-pc-windows-msvc",
@@ -54,7 +55,7 @@ install-success-msg = "Successfully installed Stringy! Ready to start looking at
 [dist.github]
 repository = "EvilBit-Labs/Stringy"
 [dist.github-action-commits]
-"actions/checkout"                = "v6"
-"actions/download-artifact"       = "v8"
-"actions/upload-artifact"         = "v7"
-"actions/attest-build-provenance" = "v4"
+"actions/checkout"          = "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+"actions/download-artifact" = "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
+"actions/upload-artifact"   = "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+"actions/attest"            = "59d89421af93a897026c735860bf21b6eb4f7b26"

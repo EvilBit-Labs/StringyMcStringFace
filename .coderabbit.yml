@@ -19,565 +19,565 @@ inheritance: false
 # REVIEWS CONFIGURATION
 # =============================================================================
 reviews:
-    profile: "assertive"
-    request_changes_workflow: false
-    high_level_summary: true
-    high_level_summary_instructions: "Focus on architectural impact, API changes, binary format handling, and semantic classification accuracy."
-    high_level_summary_in_walkthrough: true
-    review_status: true
-    commit_status: true
-    fail_commit_status: false
-    collapse_walkthrough: true
-    changed_files_summary: true
-    sequence_diagrams: true
-    estimate_code_review_effort: true
-    assess_linked_issues: true
-    related_issues: true
-    related_prs: true
-    suggested_labels: true
-    auto_apply_labels: true
-    suggested_reviewers: true
-    auto_assign_reviewers: true
-    poem: true
-    abort_on_close: true
-    disable_cache: false
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_instructions: "Focus on architectural impact, API changes, binary format handling, and semantic classification accuracy."
+  high_level_summary_in_walkthrough: true
+  review_status: true
+  commit_status: true
+  fail_commit_status: false
+  collapse_walkthrough: true
+  changed_files_summary: true
+  sequence_diagrams: true
+  estimate_code_review_effort: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  suggested_labels: true
+  auto_apply_labels: true
+  suggested_reviewers: true
+  auto_assign_reviewers: true
+  poem: true
+  abort_on_close: true
+  disable_cache: false
 
-    # ---------------------------------------------------------------------------
-    # Path Filters
-    # ---------------------------------------------------------------------------
-    path_filters:
-        - "!**/Cargo.lock"
-        - "!**/target/**"
-        - "!**/.git/**"
-        - "!**/tests/fixtures/**"
-        - "!**/tests/snapshots/**"
+  # ---------------------------------------------------------------------------
+  # Path Filters
+  # ---------------------------------------------------------------------------
+  path_filters:
+    - "!**/Cargo.lock"
+    - "!**/target/**"
+    - "!**/.git/**"
+    - "!**/tests/fixtures/**"
+    - "!**/tests/snapshots/**"
 
-    # ---------------------------------------------------------------------------
-    # Path Instructions - Module-specific review guidelines
-    # ---------------------------------------------------------------------------
-    path_instructions:
-        # -------------------------------------------------------------------------
-        # Core Library
-        # -------------------------------------------------------------------------
-        - path: "src/lib.rs"
-          instructions: |
-              This is the library entry point with module declarations and re-exports. Review for:
-              - #![forbid(unsafe_code)] and #![deny(warnings)] are present
-              - Public re-exports are ergonomic (import from stringy::types, not deeply nested)
-              - Module organization matches the data flow pipeline
-              - No unnecessary public exports
+  # ---------------------------------------------------------------------------
+  # Path Instructions - Module-specific review guidelines
+  # ---------------------------------------------------------------------------
+  path_instructions:
+    # -------------------------------------------------------------------------
+    # Core Library
+    # -------------------------------------------------------------------------
+    - path: "src/lib.rs"
+      instructions: |
+        This is the library entry point with module declarations and re-exports. Review for:
+        - #![forbid(unsafe_code)] and #![deny(warnings)] are present
+        - Public re-exports are ergonomic (import from stringy::types, not deeply nested)
+        - Module organization matches the data flow pipeline
+        - No unnecessary public exports
 
-        - path: "src/main.rs"
-          instructions: |
-              This is the CLI entry point using clap derive macros. Review for:
-              - Correct use of clap attributes (#[arg], #[command])
-              - Help text is clear and actionable
-              - Error handling uses Box<dyn std::error::Error> or StringyError
-              - Pipeline integration: format detection -> parsing -> extraction -> classification -> output
+    - path: "src/main.rs"
+      instructions: |
+        This is the CLI entry point using clap derive macros. Review for:
+        - Correct use of clap attributes (#[arg], #[command])
+        - Help text is clear and actionable
+        - Error handling uses Box<dyn std::error::Error> or StringyError
+        - Pipeline integration: format detection -> parsing -> extraction -> classification -> output
 
-        - path: "src/types.rs"
-          instructions: |
-              This file defines core data structures. Review for:
-              - All public structs use #[non_exhaustive] with explicit constructors
-              - Tag enum covers all semantic classification types
-              - StringyError uses thiserror with descriptive messages and context
-              - Encoding, BinaryFormat, SectionType, StringSource enums are complete
-              - FoundString and ContainerInfo have all necessary metadata fields
-              - All structs derive appropriate traits (Debug, Clone, Serialize, Deserialize)
+    - path: "src/types.rs"
+      instructions: |
+        This file defines core data structures. Review for:
+        - All public structs use #[non_exhaustive] with explicit constructors
+        - Tag enum covers all semantic classification types
+        - StringyError uses thiserror with descriptive messages and context
+        - Encoding, BinaryFormat, SectionType, StringSource enums are complete
+        - FoundString and ContainerInfo have all necessary metadata fields
+        - All structs derive appropriate traits (Debug, Clone, Serialize, Deserialize)
 
-        # -------------------------------------------------------------------------
-        # Container Module - Binary Format Parsing
-        # -------------------------------------------------------------------------
-        - path: "src/container/mod.rs"
-          instructions: |
-              This file defines the ContainerParser trait and format detection. Review for:
-              - ContainerParser trait has detect() and parse() methods
-              - detect_format() correctly identifies ELF, PE, Mach-O via magic bytes
-              - create_parser() returns appropriate parser for each format
-              - Error handling uses StringyError variants
+    # -------------------------------------------------------------------------
+    # Container Module - Binary Format Parsing
+    # -------------------------------------------------------------------------
+    - path: "src/container/mod.rs"
+      instructions: |
+        This file defines the ContainerParser trait and format detection. Review for:
+        - ContainerParser trait has detect() and parse() methods
+        - detect_format() correctly identifies ELF, PE, Mach-O via magic bytes
+        - create_parser() returns appropriate parser for each format
+        - Error handling uses StringyError variants
 
-        - path: "src/container/elf.rs"
-          instructions: |
-              This file implements ELF binary parsing via goblin. Review for:
-              - Section weight system (1.0-10.0) follows established patterns:
-                - .rodata: 10.0, .comment/.note: 9.0, .dynstr/.strtab: 8.0
-                - .data.rel.ro: 7.0, .data: 5.0
-              - Import/export extraction from symbol tables
-              - SectionType classification is accurate
-              - Error context includes section names and offsets
+    - path: "src/container/elf.rs"
+      instructions: |
+        This file implements ELF binary parsing via goblin. Review for:
+        - Section weight system (1.0-10.0) follows established patterns:
+          - .rodata: 10.0, .comment/.note: 9.0, .dynstr/.strtab: 8.0
+          - .data.rel.ro: 7.0, .data: 5.0
+        - Import/export extraction from symbol tables
+        - SectionType classification is accurate
+        - Error context includes section names and offsets
 
-        - path: "src/container/pe.rs"
-          instructions: |
-              This file implements PE binary parsing via goblin. Review for:
-              - Section weight system follows established patterns:
-                - .rdata: 10.0, .rsrc: 9.0, .data (by permissions): 5.0-7.0, .text: 3.0
-              - Import/export extraction from PE tables
-              - Resource section handling coordinates with pe_resources.rs
-              - Windows-specific characteristics are handled
+    - path: "src/container/pe.rs"
+      instructions: |
+        This file implements PE binary parsing via goblin. Review for:
+        - Section weight system follows established patterns:
+          - .rdata: 10.0, .rsrc: 9.0, .data (by permissions): 5.0-7.0, .text: 3.0
+        - Import/export extraction from PE tables
+        - Resource section handling coordinates with pe_resources.rs
+        - Windows-specific characteristics are handled
 
-        - path: "src/container/macho.rs"
-          instructions: |
-              This file implements Mach-O binary parsing via goblin. Review for:
-              - Segment/section weight system follows established patterns:
-                - __TEXT,__cstring: 10.0, __TEXT,__const: 9.0
-                - __DATA_CONST: 7.0, __DATA,__data: 5.0
-              - Load command processing
-              - Universal binary (fat) handling if applicable
-              - Import/export extraction from symbol tables
+    - path: "src/container/macho.rs"
+      instructions: |
+        This file implements Mach-O binary parsing via goblin. Review for:
+        - Segment/section weight system follows established patterns:
+          - __TEXT,__cstring: 10.0, __TEXT,__const: 9.0
+          - __DATA_CONST: 7.0, __DATA,__data: 5.0
+        - Load command processing
+        - Universal binary (fat) handling if applicable
+        - Import/export extraction from symbol tables
 
-        # -------------------------------------------------------------------------
-        # Extraction Module - String Extraction
-        # -------------------------------------------------------------------------
-        - path: "src/extraction/mod.rs"
-          instructions: |
-              This file defines the StringExtractor trait and BasicExtractor. Review for:
-              - StringExtractor trait signature: extract(&self, data, info) -> Vec<FoundString>
-              - BasicExtractor combines ASCII, UTF-16, and filter configs
-              - Per-section extraction respects section weights
-              - Proper coordination between extraction components
+    # -------------------------------------------------------------------------
+    # Extraction Module - String Extraction
+    # -------------------------------------------------------------------------
+    - path: "src/extraction/mod.rs"
+      instructions: |
+        This file defines the StringExtractor trait and BasicExtractor. Review for:
+        - StringExtractor trait signature: extract(&self, data, info) -> Vec<FoundString>
+        - BasicExtractor combines ASCII, UTF-16, and filter configs
+        - Per-section extraction respects section weights
+        - Proper coordination between extraction components
 
-        - path: "src/extraction/ascii.rs"
-          instructions: |
-              This file handles ASCII/UTF-8 string extraction. Review for:
-              - AsciiExtractionConfig has sensible defaults (min_length: 4, max_length: 1024)
-              - UTF-8 validation is correct
-              - Confidence scoring logic is sound
-              - Performance for large binaries
+    - path: "src/extraction/ascii.rs"
+      instructions: |
+        This file handles ASCII/UTF-8 string extraction. Review for:
+        - AsciiExtractionConfig has sensible defaults (min_length: 4, max_length: 1024)
+        - UTF-8 validation is correct
+        - Confidence scoring logic is sound
+        - Performance for large binaries
 
-        - path: "src/extraction/utf16.rs"
-          instructions: |
-              This file handles UTF-16LE/BE string extraction. Review for:
-              - Both little-endian and big-endian support
-              - BOM detection and handling
-              - Confidence scoring distinguishes real UTF-16 from garbage
-              - Null-interleaved ASCII detection
-              - Performance considerations
+    - path: "src/extraction/utf16.rs"
+      instructions: |
+        This file handles UTF-16LE/BE string extraction. Review for:
+        - Both little-endian and big-endian support
+        - BOM detection and handling
+        - Confidence scoring distinguishes real UTF-16 from garbage
+        - Null-interleaved ASCII detection
+        - Performance considerations
 
-        - path: "src/extraction/dedup.rs"
-          instructions: |
-              This file handles string deduplication with occurrence tracking. Review for:
-              - Grouping by (text, encoding) tuple
-              - All occurrences are preserved with metadata
-              - Tag merging uses HashSet union
-              - Score formula: base + occurrence_bonus + cross_section_bonus + multi_source_bonus + confidence_boost
-              - No data loss during deduplication
+    - path: "src/extraction/dedup.rs"
+      instructions: |
+        This file handles string deduplication with occurrence tracking. Review for:
+        - Grouping by (text, encoding) tuple
+        - All occurrences are preserved with metadata
+        - Tag merging uses HashSet union
+        - Score formula: base + occurrence_bonus + cross_section_bonus + multi_source_bonus + confidence_boost
+        - No data loss during deduplication
 
-        - path: "src/extraction/pe_resources.rs"
-          instructions: |
-              This file extracts PE resources using pelite. Review for:
-              - VERSIONINFO parsing and string extraction
-              - STRINGTABLE resource handling
-              - MANIFEST XML parsing
-              - Resource metadata capture (type, language, size)
-              - Error handling for malformed resources
+    - path: "src/extraction/pe_resources.rs"
+      instructions: |
+        This file extracts PE resources using pelite. Review for:
+        - VERSIONINFO parsing and string extraction
+        - STRINGTABLE resource handling
+        - MANIFEST XML parsing
+        - Resource metadata capture (type, language, size)
+        - Error handling for malformed resources
 
-        - path: "src/extraction/filters.rs"
-          instructions: |
-              This file implements noise filtering to reduce false positives. Review for:
-              - Filter criteria are well-justified
-              - Entropy-based filtering uses appropriate thresholds
-              - No legitimate strings are filtered incorrectly
-              - FilterConfig is configurable
+    - path: "src/extraction/filters.rs"
+      instructions: |
+        This file implements noise filtering to reduce false positives. Review for:
+        - Filter criteria are well-justified
+        - Entropy-based filtering uses appropriate thresholds
+        - No legitimate strings are filtered incorrectly
+        - FilterConfig is configurable
 
-        - path: "src/extraction/config.rs"
-          instructions: |
-              This file defines extraction configuration structs. Review for:
-              - All config structs have sensible defaults
-              - Builder pattern if used
-              - Validation of config values
-              - Documentation of config options
+    - path: "src/extraction/config.rs"
+      instructions: |
+        This file defines extraction configuration structs. Review for:
+        - All config structs have sensible defaults
+        - Builder pattern if used
+        - Validation of config values
+        - Documentation of config options
 
-        # -------------------------------------------------------------------------
-        # Classification Module - Semantic Tagging
-        # -------------------------------------------------------------------------
-        - path: "src/classification/mod.rs"
-          instructions: |
-              This file exports the classification module. Review for:
-              - SemanticClassifier is publicly exported
-              - Module organization is clean
+    # -------------------------------------------------------------------------
+    # Classification Module - Semantic Tagging
+    # -------------------------------------------------------------------------
+    - path: "src/classification/mod.rs"
+      instructions: |
+        This file exports the classification module. Review for:
+        - SemanticClassifier is publicly exported
+        - Module organization is clean
 
-        - path: "src/classification/semantic.rs"
-          instructions: |
-              This file implements semantic classification with regex patterns. Review for:
-              - Regex patterns use lazy_static! for caching
-              - URL pattern handles safe characters correctly
-              - Domain validation includes TLD checking
-              - IPv4/IPv6 uses regex pre-filter + std::net::IpAddr validation
-              - POSIX paths: absolute paths starting with /
-              - Windows paths: drive letter + backslash, no consecutive backslashes
-              - UNC paths: \\server\share format
-              - Registry paths: HKEY_* and HK* abbreviations
-              - False positive reduction logic is sound
-              - No catastrophic backtracking in regex patterns
-              - classify() method returns Vec<Tag>
+    - path: "src/classification/semantic.rs"
+      instructions: |
+        This file implements semantic classification with regex patterns. Review for:
+        - Regex patterns use lazy_static! for caching
+        - URL pattern handles safe characters correctly
+        - Domain validation includes TLD checking
+        - IPv4/IPv6 uses regex pre-filter + std::net::IpAddr validation
+        - POSIX paths: absolute paths starting with /
+        - Windows paths: drive letter + backslash, no consecutive backslashes
+        - UNC paths: \\server\share format
+        - Registry paths: HKEY_* and HK* abbreviations
+        - False positive reduction logic is sound
+        - No catastrophic backtracking in regex patterns
+        - classify() method returns Vec<Tag>
 
-        # -------------------------------------------------------------------------
-        # Output Module - Formatters
-        # -------------------------------------------------------------------------
-        - path: "src/output/mod.rs"
-          instructions: |
-              This file defines output formatters. Review for:
-              - OutputFormatter trait if defined
-              - JSON output is valid and complete
-              - Human-readable output is clear
-              - YARA-friendly output follows YARA syntax
+    # -------------------------------------------------------------------------
+    # Output Module - Formatters
+    # -------------------------------------------------------------------------
+    - path: "src/output/mod.rs"
+      instructions: |
+        This file defines output formatters. Review for:
+        - OutputFormatter trait if defined
+        - JSON output is valid and complete
+        - Human-readable output is clear
+        - YARA-friendly output follows YARA syntax
 
-        # -------------------------------------------------------------------------
-        # Tests
-        # -------------------------------------------------------------------------
-        - path: "tests/**/*.rs"
-          instructions: |
-              Review test files for:
-              - Integration tests use fixtures from tests/fixtures/
-              - Snapshot testing uses insta with assert_debug_snapshot!
-              - Test names follow test_<function>_<scenario> pattern
-              - Both success and error cases are covered
-              - Performance tests have reasonable timeouts
-              - No flaky tests (avoid timing-dependent assertions)
-              - Helper functions like make_found_string() are reused
+    # -------------------------------------------------------------------------
+    # Tests
+    # -------------------------------------------------------------------------
+    - path: "tests/**/*.rs"
+      instructions: |
+        Review test files for:
+        - Integration tests use fixtures from tests/fixtures/
+        - Snapshot testing uses insta with assert_debug_snapshot!
+        - Test names follow test_<function>_<scenario> pattern
+        - Both success and error cases are covered
+        - Performance tests have reasonable timeouts
+        - No flaky tests (avoid timing-dependent assertions)
+        - Helper functions like make_found_string() are reused
 
-        - path: "benches/**/*.rs"
-          instructions: |
-              Review benchmark files for:
-              - Uses Criterion framework correctly
-              - Benchmarks measure meaningful operations (parsing, extraction)
-              - Input sizes are realistic (actual binary fixtures)
-              - No I/O in hot paths being measured
-              - Results are reproducible
+    - path: "benches/**/*.rs"
+      instructions: |
+        Review benchmark files for:
+        - Uses Criterion framework correctly
+        - Benchmarks measure meaningful operations (parsing, extraction)
+        - Input sizes are realistic (actual binary fixtures)
+        - No I/O in hot paths being measured
+        - Results are reproducible
 
-        # -------------------------------------------------------------------------
-        # Configuration & Documentation
-        # -------------------------------------------------------------------------
-        - path: "Cargo.toml"
-          instructions: |
-              Review Cargo.toml changes for:
-              - Version bumps follow semver
-              - Edition is 2024, MSRV is 1.85+
-              - New dependencies are necessary and well-maintained
-              - Core deps: goblin, pelite, clap, regex, lazy_static, serde, thiserror
-              - Dev deps: criterion, insta, tempfile
-              - No unnecessary feature flags
+    # -------------------------------------------------------------------------
+    # Configuration & Documentation
+    # -------------------------------------------------------------------------
+    - path: "Cargo.toml"
+      instructions: |
+        Review Cargo.toml changes for:
+        - Version bumps follow semver
+        - Edition is 2024, MSRV is 1.85+
+        - New dependencies are necessary and well-maintained
+        - Core deps: goblin, pelite, clap, regex, lazy_static, serde, thiserror
+        - Dev deps: criterion, insta, tempfile
+        - No unnecessary feature flags
 
-        - path: "*.md"
-          instructions: |
-              Review documentation for:
-              - ASCII only - no emojis, em-dashes, or Unicode punctuation
-              - Accuracy with current implementation
-              - Clear examples that work
-              - Proper markdown formatting
-              - No broken links
+    - path: "*.md"
+      instructions: |
+        Review documentation for:
+        - ASCII only - no emojis, em-dashes, or Unicode punctuation
+        - Accuracy with current implementation
+        - Clear examples that work
+        - Proper markdown formatting
+        - No broken links
 
-        - path: "justfile"
-          instructions: |
-              Review justfile changes for:
-              - Cross-platform compatibility (Windows PowerShell / Unix bash)
-              - Commands follow existing patterns
-              - No breaking changes to common commands (check, test, lint, build)
+    - path: "justfile"
+      instructions: |
+        Review justfile changes for:
+        - Cross-platform compatibility (Windows PowerShell / Unix bash)
+        - Commands follow existing patterns
+        - No breaking changes to common commands (check, test, lint, build)
 
-    # ---------------------------------------------------------------------------
-    # Auto Review Settings
-    # ---------------------------------------------------------------------------
-    auto_review:
-        enabled: true
-        auto_incremental_review: true
-        ignore_title_keywords:
-            - "WIP"
-            - "DO NOT REVIEW"
-            - "[skip ci]"
-            - "[skip review]"
-        labels: []
-        drafts: false
-        base_branches: []
-        ignore_usernames:
-            - "dependabot[bot]"
-            - "renovate[bot]"
+  # ---------------------------------------------------------------------------
+  # Auto Review Settings
+  # ---------------------------------------------------------------------------
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT REVIEW"
+      - "[skip ci]"
+      - "[skip review]"
+    labels: []
+    drafts: false
+    base_branches: []
+    ignore_usernames:
+      - "dependabot[bot]"
+      - "renovate[bot]"
 
-    # ---------------------------------------------------------------------------
-    # Finishing Touches
-    # ---------------------------------------------------------------------------
-    finishing_touches:
-        docstrings:
-            enabled: true
-        unit_tests:
-            enabled: true
+  # ---------------------------------------------------------------------------
+  # Finishing Touches
+  # ---------------------------------------------------------------------------
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: true
 
-    # ---------------------------------------------------------------------------
-    # Pre-merge Checks
-    # ---------------------------------------------------------------------------
-    pre_merge_checks:
-        docstrings:
-            mode: "warning"
-            threshold: 70
+  # ---------------------------------------------------------------------------
+  # Pre-merge Checks
+  # ---------------------------------------------------------------------------
+  pre_merge_checks:
+    docstrings:
+      mode: "warning"
+      threshold: 70
 
-        title:
-            mode: "warning"
-            requirements: |
-                PR titles must follow Conventional Commits format:
-                <type>(<scope>): <description>
+    title:
+      mode: "warning"
+      requirements: |
+        PR titles must follow Conventional Commits format:
+        <type>(<scope>): <description>
 
-                Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore
-                Scopes: container, extraction, classification, output, types, cli, deps, release
+        Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore
+        Scopes: container, extraction, classification, output, types, cli, deps, release
 
-                Examples:
-                - feat(classification): add GUID pattern detection
-                - fix(extraction): handle malformed PE resources
-                - docs(readme): update installation instructions
-                - refactor(container): extract common section weight logic
+        Examples:
+        - feat(classification): add GUID pattern detection
+        - fix(extraction): handle malformed PE resources
+        - docs(readme): update installation instructions
+        - refactor(container): extract common section weight logic
 
-        description:
-            mode: "warning"
+    description:
+      mode: "warning"
 
-        issue_assessment:
-            mode: "warning"
+    issue_assessment:
+      mode: "warning"
 
-        custom_checks:
-            - mode: "warning"
-              name: "No Unsafe Code"
-              instructions: |
-                  Verify that no unsafe code is introduced:
-                  1. No `unsafe` blocks or functions
-                  2. No `#[allow(unsafe_code)]` attributes
-                  3. The crate uses `#![forbid(unsafe_code)]`
+    custom_checks:
+      - mode: "warning"
+        name: "No Unsafe Code"
+        instructions: |
+          Verify that no unsafe code is introduced:
+          1. No `unsafe` blocks or functions
+          2. No `#[allow(unsafe_code)]` attributes
+          3. The crate uses `#![forbid(unsafe_code)]`
 
-            - mode: "warning"
-              name: "Error Handling"
-              instructions: |
-                  Verify that all error handling follows the project conventions:
-                  1. Use StringyError variants from types.rs, never raw strings
-                  2. Add context with descriptive messages including offsets and section names
-                  3. Map external errors (goblin, pelite, io) to appropriate StringyError variants
-                  4. Use thiserror #[error] and #[from] attributes correctly
+      - mode: "warning"
+        name: "Error Handling"
+        instructions: |
+          Verify that all error handling follows the project conventions:
+          1. Use StringyError variants from types.rs, never raw strings
+          2. Add context with descriptive messages including offsets and section names
+          3. Map external errors (goblin, pelite, io) to appropriate StringyError variants
+          4. Use thiserror #[error] and #[from] attributes correctly
 
-            - mode: "warning"
-              name: "ASCII Only"
-              instructions: |
-                  Verify that no Unicode punctuation is introduced unless explicitly required:
-                  1. No emojis in code or documentation
-                  2. No em-dashes - use regular hyphens
-                  3. No smart quotes - use straight quotes
-                  4. No other non-ASCII characters in strings or comments
+      - mode: "warning"
+        name: "ASCII Only"
+        instructions: |
+          Verify that no Unicode punctuation is introduced unless explicitly required:
+          1. No emojis in code or documentation
+          2. No em-dashes - use regular hyphens
+          3. No smart quotes - use straight quotes
+          4. No other non-ASCII characters in strings or comments
 
-            - mode: "warning"
-              name: "File Size Limit"
-              instructions: |
-                  Verify that files stay under 500 lines:
-                  1. New files should be under 500 lines
-                  2. If a file exceeds 500 lines, consider splitting into modules
-                  3. No blanket #[allow] attributes on modules or files
+      - mode: "warning"
+        name: "File Size Limit"
+        instructions: |
+          Verify that files stay under 500 lines:
+          1. New files should be under 500 lines
+          2. If a file exceeds 500 lines, consider splitting into modules
+          3. No blanket #[allow] attributes on modules or files
 
-            - mode: "warning"
-              name: "Section Weight Consistency"
-              instructions: |
-                  For changes to container parsers, verify section weights are consistent:
-                  1. Read-only string sections: 9.0-10.0
-                  2. String tables: 8.0
-                  3. Read-only data: 7.0
-                  4. Writable data: 5.0
-                  5. Code sections: 3.0 or lower
-                  6. Follow existing patterns in container/*.rs
+      - mode: "warning"
+        name: "Section Weight Consistency"
+        instructions: |
+          For changes to container parsers, verify section weights are consistent:
+          1. Read-only string sections: 9.0-10.0
+          2. String tables: 8.0
+          3. Read-only data: 7.0
+          4. Writable data: 5.0
+          5. Code sections: 3.0 or lower
+          6. Follow existing patterns in container/*.rs
 
-    # ---------------------------------------------------------------------------
-    # Labeling Instructions
-    # ---------------------------------------------------------------------------
-    labeling_instructions:
-        - label: "bug"
-          instructions: "Apply when the PR fixes something that is not working correctly. Look for fixes to parsing errors, incorrect classification, false positives/negatives, or crashes."
-        - label: "enhancement"
-          instructions: "Apply when the PR adds new features or improves existing functionality. This includes new binary format support, new semantic classifiers, new output formats, or performance improvements."
-        - label: "documentation"
-          instructions: "Apply when the PR primarily updates documentation files (*.md), code comments, or inline documentation."
-        - label: "help wanted"
-          instructions: "Apply when the PR is incomplete or the author explicitly requests help with implementation."
-        - label: "question"
-          instructions: "Apply when the PR raises questions about implementation approach or needs discussion before proceeding."
-        - label: "duplicate"
-          instructions: "Apply when the PR duplicates work from another open or merged PR."
-        - label: "invalid"
-          instructions: "Apply when the PR does not follow project conventions, targets the wrong branch, or is not appropriate for the project."
+  # ---------------------------------------------------------------------------
+  # Labeling Instructions
+  # ---------------------------------------------------------------------------
+  labeling_instructions:
+    - label: "bug"
+      instructions: "Apply when the PR fixes something that is not working correctly. Look for fixes to parsing errors, incorrect classification, false positives/negatives, or crashes."
+    - label: "enhancement"
+      instructions: "Apply when the PR adds new features or improves existing functionality. This includes new binary format support, new semantic classifiers, new output formats, or performance improvements."
+    - label: "documentation"
+      instructions: "Apply when the PR primarily updates documentation files (*.md), code comments, or inline documentation."
+    - label: "help wanted"
+      instructions: "Apply when the PR is incomplete or the author explicitly requests help with implementation."
+    - label: "question"
+      instructions: "Apply when the PR raises questions about implementation approach or needs discussion before proceeding."
+    - label: "duplicate"
+      instructions: "Apply when the PR duplicates work from another open or merged PR."
+    - label: "invalid"
+      instructions: "Apply when the PR does not follow project conventions, targets the wrong branch, or is not appropriate for the project."
 
-    # ---------------------------------------------------------------------------
-    # Tools Configuration
-    # ---------------------------------------------------------------------------
-    tools:
-        # Rust-specific tools
-        clippy:
-            enabled: true
+  # ---------------------------------------------------------------------------
+  # Tools Configuration
+  # ---------------------------------------------------------------------------
+  tools:
+    # Rust-specific tools
+    clippy:
+      enabled: true
 
-        # General tools
-        ast-grep:
-            essential_rules: true
-            rule_dirs: []
-            util_dirs: []
-            packages: []
+    # General tools
+    ast-grep:
+      essential_rules: true
+      rule_dirs: []
+      util_dirs: []
+      packages: []
 
-        shellcheck:
-            enabled: true
+    shellcheck:
+      enabled: true
 
-        markdownlint:
-            enabled: true
+    markdownlint:
+      enabled: true
 
-        github-checks:
-            enabled: true
-            timeout_ms: 90000
+    github-checks:
+      enabled: true
+      timeout_ms: 90000
 
-        languagetool:
-            enabled: true
-            enabled_rules: []
-            disabled_rules: []
-            enabled_categories: []
-            disabled_categories: []
-            enabled_only: false
+    languagetool:
+      enabled: true
+      enabled_rules: []
+      disabled_rules: []
+      enabled_categories: []
+      disabled_categories: []
+      enabled_only: false
 
-        gitleaks:
-            enabled: true
+    gitleaks:
+      enabled: true
 
-        checkov:
-            enabled: true
+    checkov:
+      enabled: true
 
-        semgrep:
-            enabled: true
+    semgrep:
+      enabled: true
 
-        actionlint:
-            enabled: true
+    actionlint:
+      enabled: true
 
-        yamllint:
-            enabled: true
+    yamllint:
+      enabled: true
 
-        # Disable tools not relevant to this project
-        ruff:
-            enabled: false
-        eslint:
-            enabled: false
-        biome:
-            enabled: false
-        phpstan:
-            enabled: false
-        swiftlint:
-            enabled: false
-        rubocop:
-            enabled: false
-        detekt:
-            enabled: false
-        golangci-lint:
-            enabled: false
+    # Disable tools not relevant to this project
+    ruff:
+      enabled: false
+    eslint:
+      enabled: false
+    biome:
+      enabled: false
+    phpstan:
+      enabled: false
+    swiftlint:
+      enabled: false
+    rubocop:
+      enabled: false
+    detekt:
+      enabled: false
+    golangci-lint:
+      enabled: false
 
 # =============================================================================
 # CHAT CONFIGURATION
 # =============================================================================
 chat:
-    art: true
-    auto_reply: true
-    integrations:
-        jira:
-            usage: "disabled"
-        linear:
-            usage: "disabled"
+  art: true
+  auto_reply: true
+  integrations:
+    jira:
+      usage: "disabled"
+    linear:
+      usage: "disabled"
 
 # =============================================================================
 # KNOWLEDGE BASE CONFIGURATION
 # =============================================================================
 knowledge_base:
-    opt_out: false
+  opt_out: false
 
-    web_search:
-        enabled: true
+  web_search:
+    enabled: true
 
-    code_guidelines:
-        enabled: true
-        filePatterns:
-            - "AGENTS.md"
-            - "CLAUDE.md"
-            - ".github/copilot-instructions.md"
-            - "README.md"
-            - "codebase_analysis.md"
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - ".github/copilot-instructions.md"
+      - "README.md"
+      - "codebase_analysis.md"
 
-    learnings:
-        scope: "local"
+  learnings:
+    scope: "local"
 
-    issues:
-        scope: "local"
+  issues:
+    scope: "local"
 
-    pull_requests:
-        scope: "local"
+  pull_requests:
+    scope: "local"
 
-    jira:
-        usage: "disabled"
-        project_keys: []
+  jira:
+    usage: "disabled"
+    project_keys: []
 
-    linear:
-        usage: "disabled"
-        team_keys: []
+  linear:
+    usage: "disabled"
+    team_keys: []
 
-    mcp:
-        usage: "disabled"
-        disabled_servers: []
+  mcp:
+    usage: "disabled"
+    disabled_servers: []
 
 # =============================================================================
 # CODE GENERATION CONFIGURATION
 # =============================================================================
 code_generation:
-    docstrings:
-        language: "en-US"
-        path_instructions:
-            - path: "src/**/*.rs"
-              instructions: |
-                  Generate Rust documentation comments (///) for public items.
-                  Follow these conventions:
-                  - Start with a brief one-line summary
-                  - Add # Examples section with working code when helpful
-                  - Add # Errors section documenting error conditions
-                  - Add # Panics section if the function can panic
-                  - Use backticks for code references
-                  - Reference related items with [links]
-                  - ASCII only - no emojis or Unicode punctuation
+  docstrings:
+    language: "en-US"
+    path_instructions:
+      - path: "src/**/*.rs"
+        instructions: |
+          Generate Rust documentation comments (///) for public items.
+          Follow these conventions:
+          - Start with a brief one-line summary
+          - Add # Examples section with working code when helpful
+          - Add # Errors section documenting error conditions
+          - Add # Panics section if the function can panic
+          - Use backticks for code references
+          - Reference related items with [links]
+          - ASCII only - no emojis or Unicode punctuation
 
-    unit_tests:
-        path_instructions:
-            - path: "src/**/*.rs"
-              instructions: |
-                  Generate Rust unit tests following project conventions:
-                  - Place tests in #[cfg(test)] mod tests { } blocks
-                  - Use #[test] for all tests (project is synchronous)
-                  - Use tempfile for filesystem fixtures
-                  - Use insta for snapshot testing where appropriate
-                  - Include both success and error cases
-                  - Use assert_eq! with descriptive messages
-                  - Name tests: test_<function>_<scenario>
-                  - Binary fixtures go in tests/fixtures/
+  unit_tests:
+    path_instructions:
+      - path: "src/**/*.rs"
+        instructions: |
+          Generate Rust unit tests following project conventions:
+          - Place tests in #[cfg(test)] mod tests { } blocks
+          - Use #[test] for all tests (project is synchronous)
+          - Use tempfile for filesystem fixtures
+          - Use insta for snapshot testing where appropriate
+          - Include both success and error cases
+          - Use assert_eq! with descriptive messages
+          - Name tests: test_<function>_<scenario>
+          - Binary fixtures go in tests/fixtures/
 
 # =============================================================================
 # ISSUE ENRICHMENT CONFIGURATION
 # =============================================================================
 issue_enrichment:
-    auto_enrich:
-        enabled: true
+  auto_enrich:
+    enabled: true
 
-    planning:
-        enabled: true
-        auto_planning:
-            enabled: false
-            labels:
-                - "enhancement"
-                - "bug"
+  planning:
+    enabled: true
+    auto_planning:
+      enabled: false
+      labels:
+        - "enhancement"
+        - "bug"
 
-    labeling:
-        auto_apply_labels: true
-        labeling_instructions:
-            - label: "bug"
-              instructions: "Apply when the issue reports something that is not working correctly. Look for error messages, unexpected behavior, crashes, or incorrect classification results."
-            - label: "enhancement"
-              instructions: "Apply when the issue requests new features or improvements. This includes new binary format support, new semantic classifiers, new output formats, or performance improvements."
-            - label: "documentation"
-              instructions: "Apply when the issue is about missing, incorrect, or unclear documentation. This includes README updates, API documentation, examples, or inline code comments."
-            - label: "good first issue"
-              instructions: "Apply when the issue is well-scoped, has clear requirements, and does not require deep knowledge of the codebase. Good for newcomers to contribute."
-            - label: "help wanted"
-              instructions: "Apply when the issue needs community input, additional expertise, or the maintainers explicitly request assistance."
-            - label: "question"
-              instructions: "Apply when the issue is asking for clarification, guidance, or discussion rather than reporting a bug or requesting a feature."
-            - label: "duplicate"
-              instructions: "Apply when this issue duplicates an existing open or recently closed issue. Reference the original issue."
-            - label: "invalid"
-              instructions: "Apply when the issue does not provide enough information, is not related to this project, or cannot be reproduced."
-            - label: "wontfix"
-              instructions: "Apply when the issue describes behavior that is working as intended, is out of scope for the project, or conflicts with project goals."
+  labeling:
+    auto_apply_labels: true
+    labeling_instructions:
+      - label: "bug"
+        instructions: "Apply when the issue reports something that is not working correctly. Look for error messages, unexpected behavior, crashes, or incorrect classification results."
+      - label: "enhancement"
+        instructions: "Apply when the issue requests new features or improvements. This includes new binary format support, new semantic classifiers, new output formats, or performance improvements."
+      - label: "documentation"
+        instructions: "Apply when the issue is about missing, incorrect, or unclear documentation. This includes README updates, API documentation, examples, or inline code comments."
+      - label: "good first issue"
+        instructions: "Apply when the issue is well-scoped, has clear requirements, and does not require deep knowledge of the codebase. Good for newcomers to contribute."
+      - label: "help wanted"
+        instructions: "Apply when the issue needs community input, additional expertise, or the maintainers explicitly request assistance."
+      - label: "question"
+        instructions: "Apply when the issue is asking for clarification, guidance, or discussion rather than reporting a bug or requesting a feature."
+      - label: "duplicate"
+        instructions: "Apply when this issue duplicates an existing open or recently closed issue. Reference the original issue."
+      - label: "invalid"
+        instructions: "Apply when the issue does not provide enough information, is not related to this project, or cannot be reproduced."
+      - label: "wontfix"
+        instructions: "Apply when the issue describes behavior that is working as intended, is out of scope for the project, or conflicts with project goals."
