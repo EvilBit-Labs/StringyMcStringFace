@@ -110,7 +110,7 @@ merge_protections:
     success_conditions:
       - "#commits-behind <= 10"
 merge_protections_settings:
-# auto_merge_conditions reflects the queue_conditions of the queue rules that previously had autoqueue: true. The following queue rules were manual-only ('default') and remain reachable via the `/queue` command. Review and adjust if needed.
+  # auto_merge_conditions reflects the queue_conditions of the queue rules that previously had autoqueue: true. The following queue rules were manual-only ('default') and remain reachable via the `/queue` command. Review and adjust if needed.
   auto_merge_conditions:
     - or:
         - and:
