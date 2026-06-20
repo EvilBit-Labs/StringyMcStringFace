@@ -30,10 +30,6 @@ jobs:
           cache: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run just install
-        run: |
-          just install-tools
-
       - name: Setup summary
         run: |
           echo "Stringy development environment setup complete!"
