@@ -11,7 +11,7 @@ depth: standard
 
 ## Summary
 
-`SymbolDemangler` (`src/classification/symbols.rs`) already demangles Rust legacy (`_ZN`), Rust v0 (`_R`), and C++ Itanium ABI (`_Z`) symbols. The pipeline's `classify_strings()` already flags `?`-prefixed MSVC symbols as mangled candidates, but `SymbolDemangler` has no `?` handling -- so every MSVC-mangled symbol from a Windows PE binary is detected, then silently passed through with no demangled output.
+`SymbolDemangler` (`src/classification/symbols/mod.rs`) already demangles Rust legacy (`_ZN`), Rust v0 (`_R`), and C++ Itanium ABI (`_Z`) symbols. The pipeline's `classify_strings()` already flags `?`-prefixed MSVC symbols as mangled candidates, but `SymbolDemangler` has no `?` handling -- so every MSVC-mangled symbol from a Windows PE binary is detected, then silently passed through with no demangled output.
 
 This plan closes that gap by adding the `msvc-demangler` crate, allowing its NCSA license in `deny.toml`, and extending `SymbolDemangler` with a `try_msvc_demangle()` branch that mirrors the existing Rust/C++ helpers exactly. No pipeline changes are required.
 
@@ -90,7 +90,7 @@ sequenceDiagram
 
 **Files:**
 
-- `src/classification/symbols.rs` -- modify
+- `src/classification/symbols/mod.rs` -- modify
 
 **Approach:**
 
@@ -101,7 +101,7 @@ sequenceDiagram
 - Update doc-comments: module-level "Supported Symbol Formats" list (add MSVC `?`), the `is_mangled()` doc + doctest (add an `?printf@@YAHPEBDZZ` assertion), and the `try_demangle()` `# Examples` block (add an MSVC example). Verify doctests still pass (`cargo test --doc`).
 - No changes to `demangle()` itself -- R3 (original_text + `Tag::DemangledSymbol`) is satisfied by the existing flow once `try_demangle_internal()` returns `Some`.
 
-**Patterns to follow:** Mirror `try_cpp_demangle()` (`src/classification/symbols.rs:196`) for the helper shape and the "differs from input" guard. Mirror existing doctest style in the `is_mangled` / `try_demangle` doc-comments.
+**Patterns to follow:** Mirror `try_cpp_demangle()` (`src/classification/symbols/mod.rs`) for the helper shape and the "differs from input" guard. Mirror existing doctest style in the `is_mangled` / `try_demangle` doc-comments.
 
 **Test scenarios** (unit tests in the existing `#[cfg(test)] mod tests`, using the `create_test_string` helper):
 
@@ -209,6 +209,6 @@ sequenceDiagram
 
 - GitHub issue #19 -- "Add MSVC Symbol Demangling Support for PE Binaries" (origin; includes CodeRabbit codebase analysis and a Traycer implementation plan that this plan refines).
 - crates.io `msvc-demangler` -- latest stable `0.11.0`, license `MIT/NCSA` (verified 2026-06-19).
-- `src/classification/symbols.rs` -- existing `SymbolDemangler` (Rust/C++ helpers to mirror).
+- `src/classification/symbols/mod.rs` -- existing `SymbolDemangler` (Rust/C++ helpers to mirror).
 - `src/pipeline/mod.rs` `classify_strings()` -- existing `?`-prefix detection (no change needed).
 - `Cargo.toml` (lines 23-36), `deny.toml` `[licenses]`/`[bans]` -- dependency and policy surfaces.

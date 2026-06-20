@@ -2,23 +2,16 @@ use super::*;
 use crate::types::{Encoding, StringSource};
 
 fn create_test_string(text: &str) -> FoundString {
-    FoundString {
-        text: text.to_string(),
-        original_text: None,
-        encoding: Encoding::Ascii,
-        offset: 0,
-        rva: None,
-        section: None,
-        length: text.len() as u32,
-        tags: Vec::new(),
-        score: 0,
-        section_weight: None,
-        semantic_boost: None,
-        noise_penalty: None,
-        display_score: None,
-        source: StringSource::ImportName,
-        confidence: 1.0,
-    }
+    // FoundString is #[non_exhaustive]; use the constructor so adding fields
+    // doesn't break these tests. new() already defaults original_text to None,
+    // tags to empty, score to 0, and confidence to 1.0.
+    FoundString::new(
+        text.to_string(),
+        Encoding::Ascii,
+        0,
+        text.len() as u32,
+        StringSource::ImportName,
+    )
 }
 
 #[test]
@@ -353,7 +346,7 @@ fn test_demangle_msvc_oversized_symbol_rejected() {
     // A crafted ?-symbol with deeply nested pointer modifiers would overflow
     // the demangler's recursive parser; the length guard must reject it
     // before parsing, leaving the FoundString untouched.
-    let oversized = format!("?x@@3{}HA", "PEA".repeat(20_000));
+    let oversized = format!("?x@@3{}HA", "PEA".repeat(1400));
     assert!(oversized.len() > MSVC_MAX_SYMBOL_LEN);
     let mut found_string = create_test_string(&oversized);
 
