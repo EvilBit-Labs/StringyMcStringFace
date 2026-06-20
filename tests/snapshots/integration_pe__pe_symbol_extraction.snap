@@ -3,7 +3,7 @@ source: tests/integration_pe.rs
 expression: output
 ---
 === IMPORTS ===
-Total: 71
+Total: 98
 
 Import 1: _set_new_mode
   Library: api-ms-win-crt-heap-l1-1-0.dll
@@ -45,7 +45,7 @@ Import 10: _crt_atexit
   Library: api-ms-win-crt-runtime-l1-1-0.dll
   Address: 0x[ADDR]
 
-... and 61 more imports
+... and 88 more imports
 
 === EXPORTS ===
 Total: 0
