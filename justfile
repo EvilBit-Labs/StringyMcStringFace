@@ -67,26 +67,15 @@ update-deps:
 # Formatting and Linting
 
 alias format-rust := fmt
-alias format-md := format-docs
 alias format-just := fmt-justfile
 
 # Run every formatter
 [group('quality')]
-format: fmt format-json-yaml format-docs fmt-justfile
+format: fmt format-json-yaml fmt-justfile
 
 [group('quality')]
 format-json-yaml:
     {{ mise_exec }} prettier --write "**/*.{json,yaml,yml}"
-
-[group('quality')]
-[windows]
-format-docs:
-    Get-ChildItem -Recurse -Filter "*.md" | Where-Object { $_.FullName -notmatch "\\target\\" -and $_.FullName -notmatch "\\node_modules\\" } | ForEach-Object { {{ mise_exec }} mdformat $_.FullName }
-
-[group('quality')]
-[unix]
-format-docs:
-    find . -type f -name "*.md" -not -path "./target/*" -not -path "./node_modules/*" -exec {{ mise_exec }} mdformat {} +
 
 [group('quality')]
 fmt:
