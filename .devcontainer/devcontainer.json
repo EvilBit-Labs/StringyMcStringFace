@@ -1,47 +1,47 @@
 {
-	"name": "Rust",
-	"image": "mcr.microsoft.com/devcontainers/rust:2-1-trixie",
-	"features": {
-		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
-			"installDockerBuildx": true,
-			"version": "latest",
-			"dockerDashComposeVersion": "v2",
-			"moby": false
-		},
-		"ghcr.io/devcontainers/features/github-cli:1": {
-			"installDirectlyFromGitHubRelease": true,
-			"version": "latest"
-		},
-		"ghcr.io/eitsupi/devcontainer-features/mdbook:1": {
-			"version": "latest"
-		},
-		"ghcr.io/devcontainers-extra/features/claude-code:2": {
-			"version": "latest"
-		},
-		"ghcr.io/devcontainers-extra/features/mise:1": {
-			"version": "latest"
-		}
-	},
-	"customizations": {
-		"vscode": {
-			"extensions": [
-				"mikestead.dotenv",
-				"EditorConfig.EditorConfig",
-				"tamasfe.even-better-toml",
-				"github.vscode-github-actions",
-				"GitHub.vscode-pull-request-github",
-				"skellock.just",
-				"yzhang.markdown-all-in-one",
-				"bierner.markdown-checkbox",
-				"bierner.markdown-footnotes",
-				"bierner.markdown-mermaid",
-				"bierner.markdown-yaml-preamble",
-				"DavidAnson.vscode-markdownlint",
-				"rust-lang.rust-analyzer",
-				"foxundermoon.shell-format",
-				"redhat.vscode-yaml",
-				"ms-vscode-remote.remote-containers"
-			]
-		}
-	}
+    "name": "Rust",
+    "image": "mcr.microsoft.com/devcontainers/rust:2-1-trixie",
+    "features": {
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+            "installDockerBuildx": true,
+            "version": "latest",
+            "dockerDashComposeVersion": "v2",
+            "moby": false
+        },
+        "ghcr.io/devcontainers/features/github-cli:1": {
+            "installDirectlyFromGitHubRelease": true,
+            "version": "latest"
+        },
+        "ghcr.io/eitsupi/devcontainer-features/mdbook:1": {
+            "version": "latest"
+        },
+        "ghcr.io/devcontainers-extra/features/claude-code:2": {
+            "version": "latest"
+        },
+        "ghcr.io/devcontainers-extra/features/mise:1": {
+            "version": "latest"
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "mikestead.dotenv",
+                "EditorConfig.EditorConfig",
+                "tamasfe.even-better-toml",
+                "github.vscode-github-actions",
+                "GitHub.vscode-pull-request-github",
+                "skellock.just",
+                "yzhang.markdown-all-in-one",
+                "bierner.markdown-checkbox",
+                "bierner.markdown-footnotes",
+                "bierner.markdown-mermaid",
+                "bierner.markdown-yaml-preamble",
+                "DavidAnson.vscode-markdownlint",
+                "rust-lang.rust-analyzer",
+                "foxundermoon.shell-format",
+                "redhat.vscode-yaml",
+                "ms-vscode-remote.remote-containers"
+            ]
+        }
+    }
 }
