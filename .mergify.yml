@@ -27,13 +27,11 @@ queue_rules:
       - check-success = test-cross-platform (windows-latest, Windows)
       - check-success = coverage
 
-  # Human PRs: manually enqueued via /queue command (repo permissions restrict to maintainers)
+  # Human PRs: manual-only. This queue has no queue_conditions, so no PR enters
+  # it automatically -- a maintainer must send the `/queue` command (only
+  # dosubot and dependabot are auto-queued, via auto_merge_conditions below).
   - name: default
     merge_method: squash
-    queue_conditions:
-      - base = main
-      - author != dependabot[bot]
-      - author != dosubot[bot]
     merge_conditions:
       - check-success = quality
       - check-success = msrv (stable)
