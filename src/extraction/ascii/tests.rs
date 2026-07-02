@@ -391,6 +391,70 @@ fn test_non_null_cutoff_caps_confidence_even_without_filtering() {
 }
 
 #[test]
+fn test_newline_terminated_string_keeps_full_confidence() {
+    // Arrange: a line of text terminated by a newline is cleanly delimited, not
+    // cut off by binary garbage, so it must not be capped (regression for the
+    // multi-line-text case: license headers, embedded scripts).
+    let section = create_test_section(".rodata", 0, 32, None);
+    let data = b"HelloWorld\ntrailing";
+    let config = AsciiExtractionConfig::default();
+
+    // Act
+    let strings = extract_from_section(&section, data, &config, None, false, 0.5);
+
+    // Assert
+    let hello = strings
+        .iter()
+        .find(|s| s.text == "HelloWorld")
+        .expect("HelloWorld should be extracted");
+    assert_eq!(hello.confidence, 1.0);
+}
+
+#[test]
+fn test_tab_terminated_string_keeps_full_confidence() {
+    // Arrange: tab is ASCII whitespace, a legitimate field separator, not a cutoff.
+    let section = create_test_section(".rodata", 0, 32, None);
+    let data = b"HelloWorld\ttrailing";
+    let config = AsciiExtractionConfig::default();
+
+    // Act
+    let strings = extract_from_section(&section, data, &config, None, false, 0.5);
+
+    // Assert
+    let hello = strings
+        .iter()
+        .find(|s| s.text == "HelloWorld")
+        .expect("HelloWorld should be extracted");
+    assert_eq!(hello.confidence, 1.0);
+}
+
+#[test]
+fn test_termination_cap_uses_section_relative_offset() {
+    // Arrange: a non-null-terminated string in a section that does NOT start at
+    // file offset 0. Regression guard for KTD3's ordering constraint: the cap
+    // must read the terminator via the section-relative offset, not the
+    // post-adjustment absolute offset. Section starts at 8, and section_data is
+    // exactly "CappedText\x01" (11 bytes). Correct behavior reads the relative
+    // terminator section_data[10] = 0x01 -> 0.9 cap. A bug using the absolute
+    // offset would read section_data[8 + 10] = out of bounds -> buffer-end ->
+    // wrongly 1.0, so the assertion below fails under that regression.
+    let section = create_test_section(".rodata", 8, 11, None);
+    let data = b"PADDINGXCappedText\x01";
+    let config = AsciiExtractionConfig::default();
+
+    // Act
+    let strings = extract_from_section(&section, data, &config, None, false, 0.5);
+
+    // Assert
+    let capped = strings
+        .iter()
+        .find(|s| s.text == "CappedText")
+        .expect("CappedText should be extracted from the offset-8 section");
+    assert_eq!(capped.offset, 8);
+    assert_eq!(capped.confidence, 0.9);
+}
+
+#[test]
 fn test_buffer_end_string_keeps_full_confidence() {
     // Arrange: "EndString" runs to the end of the section slice; termination
     // is unknown there, and unknown is not evidence of noise.

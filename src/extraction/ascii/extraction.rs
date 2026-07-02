@@ -15,17 +15,27 @@ use super::{AsciiExtractionConfig, is_printable_ascii};
 /// run ending at an arbitrary byte is slightly less trustworthy. The cap is a
 /// tie-breaker (at most 10 noise-penalty points), never a burial: adversarial
 /// binaries deliberately store unterminated strings, and those must still rank.
-pub(crate) const UNTERMINATED_CONFIDENCE_CAP: f32 = 0.9;
+const UNTERMINATED_CONFIDENCE_CAP: f32 = 0.9;
 
 /// Termination confidence for the string at `relative_offset..relative_offset + length`
 /// within `section_data`.
 ///
-/// A null terminator or the end of the slice yields 1.0 (buffer-end termination
-/// is unknown, and unknown is not evidence of noise); any other terminating byte
-/// yields [`UNTERMINATED_CONFIDENCE_CAP`].
-fn termination_confidence(section_data: &[u8], relative_offset: usize, length: usize) -> f32 {
+/// Yields 1.0 for a cleanly-delimited string and [`UNTERMINATED_CONFIDENCE_CAP`]
+/// for one cut off mid-content by binary data. Clean delimiters are: a null
+/// terminator (C strings), the end of the slice (buffer-end termination is
+/// unknown, and unknown is not evidence of noise), and an ASCII whitespace byte
+/// (newline, carriage return, tab, form feed) that separates lines of legitimate
+/// multi-line text such as license headers or embedded scripts. Only a
+/// non-whitespace, non-null terminating byte indicates a fragment cut off by
+/// binary garbage.
+pub(crate) fn termination_confidence(
+    section_data: &[u8],
+    relative_offset: usize,
+    length: usize,
+) -> f32 {
     match section_data.get(relative_offset + length) {
-        Some(&0) | None => 1.0,
+        None | Some(&0) => 1.0,
+        Some(&byte) if byte.is_ascii_whitespace() => 1.0,
         Some(_) => UNTERMINATED_CONFIDENCE_CAP,
     }
 }
@@ -290,6 +300,15 @@ pub fn extract_from_section(
         // Cap confidence for strings cut off by a non-null byte, in both the
         // filtered and unfiltered branches. Must run while string.offset is
         // still relative to section_data.
+        //
+        // The cap is applied AFTER the threshold check above, deliberately: an
+        // unterminated string is never removed from output solely for lacking a
+        // terminator (ADR-0003: "never a burial"). The consequence is that
+        // min_confidence_threshold acts as a floor on the noise-filter verdict,
+        // not on the post-cap value -- a string can be returned at 0.9 even when
+        // the threshold is above 0.9. This is only reachable via the library API
+        // (no CLI flag sets a threshold above the cap), and differs on purpose
+        // from UTF-16's combine-then-check order.
         string.confidence = string.confidence.min(termination_confidence(
             section_data,
             string.offset as usize,
