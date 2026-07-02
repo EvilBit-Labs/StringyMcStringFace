@@ -212,10 +212,9 @@ impl StringExtractor for BasicExtractor {
                 }
 
                 // Resolve confidence via the shared ASCII helper so the
-                // threshold-then-cap flow (ADR-0003 "never a burial") stays
-                // identical to the ASCII path. This gives multibyte UTF-8 strings
-                // the same termination signal, matching the documented
-                // "narrow (ASCII/UTF-8)" behavior.
+                // combine-then-threshold flow stays identical to the ASCII path.
+                // This gives multibyte UTF-8 strings the same termination signal,
+                // matching the documented "narrow (ASCII/UTF-8)" behavior.
                 let confidence = match ascii::resolve_confidence(
                     &text,
                     section_data,

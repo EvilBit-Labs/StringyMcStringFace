@@ -44,15 +44,20 @@ fn termination_confidence(section_data: &[u8], relative_offset: usize, length: u
 ///
 /// This is the single source of truth for the narrow-string confidence flow,
 /// shared by the ASCII path (`extract_from_section`) and the UTF-8 path in
-/// `basic_extractor`. The order is deliberate and must stay consistent across
-/// both callers (ADR-0003):
+/// `basic_extractor`. The order must stay consistent across both callers, and
+/// mirrors UTF-16's combine-then-check order:
 ///
 /// 1. Take the noise-filter verdict, or 1.0 when filtering is disabled.
-/// 2. Apply the threshold against that verdict.
-/// 3. Cap for non-null termination *after* the threshold check, so an
-///    unterminated string is never removed from output solely for lacking a
-///    terminator ("never a burial"). The consequence is that a threshold above
-///    the cap is a floor on the noise-filter verdict, not on the returned value.
+/// 2. Combine it with the non-null-termination cap (min).
+/// 3. Apply the threshold against the *combined* value, so
+///    `min_confidence_threshold` is an honest floor on the returned confidence.
+///
+/// "Never a burial" (ADR-0003) still holds for every realistic threshold: the
+/// cap floors confidence at 0.9, which is at or above the default threshold of
+/// 0.5, so a capped string is never dropped at the default. A string is filtered
+/// for lacking a terminator only when a caller explicitly raises the threshold
+/// above 0.9 -- an opt-in request for high-confidence-only output, reachable via
+/// the library API only (no CLI flag sets a threshold above the cap).
 pub(crate) fn resolve_confidence(
     text: &str,
     section_data: &[u8],
@@ -69,15 +74,17 @@ pub(crate) fn resolve_confidence(
         None => 1.0,
     };
 
-    if noise_filtering_enabled && noise_confidence < min_confidence_threshold {
-        return None;
-    }
-
-    Some(noise_confidence.min(termination_confidence(
+    let confidence = noise_confidence.min(termination_confidence(
         section_data,
         relative_offset,
         length,
-    )))
+    ));
+
+    if noise_filtering_enabled && confidence < min_confidence_threshold {
+        return None;
+    }
+
+    Some(confidence)
 }
 
 /// Extract ASCII strings from a byte slice
@@ -326,8 +333,8 @@ pub fn extract_from_section(
     let mut filtered_strings = Vec::new();
     for mut string in strings {
         // Resolve confidence via the shared helper (noise-filter verdict ->
-        // threshold -> non-null-termination cap). Must run while string.offset
-        // is still relative to section_data, before the adjustment below.
+        // termination cap -> threshold). Must run while string.offset is still
+        // relative to section_data, before the adjustment below.
         match resolve_confidence(
             &string.text,
             section_data,

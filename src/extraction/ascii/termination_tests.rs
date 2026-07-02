@@ -175,6 +175,45 @@ fn test_termination_cap_applies_with_noise_filtering_enabled() {
 }
 
 #[test]
+fn test_threshold_above_cap_filters_unterminated_keeps_terminated() {
+    // min_confidence_threshold is an honest floor on the returned (post-cap)
+    // confidence: a caller setting a threshold above the 0.9 cap gets only
+    // strings whose final confidence meets it. The null-terminated occurrence
+    // survives; its 0x01-cut twin (capped to 0.9) is filtered out.
+    let section = create_test_section(".rodata", 0, 64, None);
+    let text = "Hello World Text";
+    let noise_config = NoiseFilterConfig::default();
+
+    // The fixture is only meaningful if the clean text scores above the cap.
+    let filter = CompositeNoiseFilter::new(&noise_config);
+    let verdict = filter.calculate_confidence(text, &FilterContext::from_section(&section));
+    assert!(
+        verdict > 0.9,
+        "test fixture must have a noise verdict above the 0.9 cap, got {verdict}"
+    );
+    let threshold = (0.9 + verdict) / 2.0; // strictly between the cap and the verdict
+
+    let config = AsciiExtractionConfig::default();
+    let data = b"Hello World Text\0Hello World Text\x01";
+    let strings = extract_from_section(
+        &section,
+        data,
+        &config,
+        Some(&noise_config),
+        true,
+        threshold,
+    );
+
+    let matches: Vec<_> = strings.iter().filter(|s| s.text == text).collect();
+    assert_eq!(
+        matches.len(),
+        1,
+        "only the null-terminated occurrence should survive threshold {threshold}"
+    );
+    assert!(matches[0].confidence > 0.9);
+}
+
+#[test]
 fn test_null_termination_does_not_raise_low_noise_confidence() {
     // Arrange: null termination must never raise confidence above the
     // noise-filter verdict for junk-looking text
