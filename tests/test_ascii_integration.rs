@@ -385,3 +385,45 @@ fn test_extract_from_section_with_filtering() {
         );
     }
 }
+
+#[test]
+fn test_null_terminated_string_scores_at_or_above_unterminated_peer() {
+    // Covers AE1 at the section-extraction level with distinct texts
+    // (identical texts would be collapsed by pipeline deduplication).
+    // "Configuration loaded" is null-terminated; "Configuration reload" is
+    // cut off by 0x01. Comparable English-like texts keep the noise-filter
+    // verdicts close, so the termination cap decides the ordering.
+    let data = b"Configuration loaded\0Configuration reload\x01";
+    let section = SectionInfo::new(
+        ".rodata".to_string(),
+        0,
+        data.len() as u64,
+        SectionType::StringData,
+        1.0,
+    );
+    let config = AsciiExtractionConfig::default();
+    let noise_config = Some(NoiseFilterConfig::default());
+
+    let strings = extract_from_section(&section, data, &config, noise_config.as_ref(), true, 0.0);
+
+    let terminated = strings
+        .iter()
+        .find(|s| s.text == "Configuration loaded")
+        .expect("null-terminated string should be extracted");
+    let unterminated = strings
+        .iter()
+        .find(|s| s.text == "Configuration reload")
+        .expect("unterminated string should be extracted");
+
+    assert!(
+        terminated.confidence >= unterminated.confidence,
+        "null-terminated ({}) should score at or above unterminated ({})",
+        terminated.confidence,
+        unterminated.confidence
+    );
+    assert!(
+        unterminated.confidence <= 0.9,
+        "unterminated string should be capped at 0.9, got {}",
+        unterminated.confidence
+    );
+}
