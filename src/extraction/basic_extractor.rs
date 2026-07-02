@@ -211,29 +211,23 @@ impl StringExtractor for BasicExtractor {
                     continue;
                 }
 
-                // Compute confidence if filtering is enabled
-                let noise_confidence = if let Some(ref noise_filter) = filter {
-                    noise_filter.calculate_confidence(&text, &filter_context)
-                } else {
-                    1.0
-                };
-
-                // Apply threshold filtering against the noise-filter verdict, then
-                // cap for non-null termination so multibyte UTF-8 strings get the
-                // same termination signal as the ASCII path (parity with the
-                // documented "narrow (ASCII/UTF-8)" behavior). Capping after the
-                // threshold keeps an unterminated string from being removed solely
-                // for lacking a terminator (ADR-0003: "never a burial").
-                if config.noise_filtering_enabled
-                    && noise_confidence < config.min_confidence_threshold
-                {
-                    continue;
-                }
-                let confidence = noise_confidence.min(ascii::termination_confidence(
+                // Resolve confidence via the shared ASCII helper so the
+                // threshold-then-cap flow (ADR-0003 "never a burial") stays
+                // identical to the ASCII path. This gives multibyte UTF-8 strings
+                // the same termination signal, matching the documented
+                // "narrow (ASCII/UTF-8)" behavior.
+                let confidence = match ascii::resolve_confidence(
+                    &text,
                     section_data,
                     relative_offset,
                     length,
-                ));
+                    filter.as_ref().map(|f| (f, &filter_context)),
+                    config.noise_filtering_enabled,
+                    config.min_confidence_threshold,
+                ) {
+                    Some(confidence) => confidence,
+                    None => continue,
+                };
 
                 // Calculate absolute offset
                 let absolute_offset = section.offset + relative_offset as u64;

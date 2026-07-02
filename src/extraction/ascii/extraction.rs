@@ -13,8 +13,9 @@ use super::{AsciiExtractionConfig, is_printable_ascii};
 ///
 /// Real C strings in string-bearing sections are null-terminated; a printable
 /// run ending at an arbitrary byte is slightly less trustworthy. The cap is a
-/// tie-breaker (at most 10 noise-penalty points), never a burial: adversarial
-/// binaries deliberately store unterminated strings, and those must still rank.
+/// tie-breaker (at most 10 noise-penalty points at the default
+/// `noise_penalty_multiplier`), never a burial: adversarial binaries
+/// deliberately store unterminated strings, and those must still rank.
 const UNTERMINATED_CONFIDENCE_CAP: f32 = 0.9;
 
 /// Termination confidence for the string at `relative_offset..relative_offset + length`
@@ -23,21 +24,60 @@ const UNTERMINATED_CONFIDENCE_CAP: f32 = 0.9;
 /// Yields 1.0 for a cleanly-delimited string and [`UNTERMINATED_CONFIDENCE_CAP`]
 /// for one cut off mid-content by binary data. Clean delimiters are: a null
 /// terminator (C strings), the end of the slice (buffer-end termination is
-/// unknown, and unknown is not evidence of noise), and an ASCII whitespace byte
-/// (newline, carriage return, tab, form feed) that separates lines of legitimate
-/// multi-line text such as license headers or embedded scripts. Only a
-/// non-whitespace, non-null terminating byte indicates a fragment cut off by
-/// binary garbage.
-pub(crate) fn termination_confidence(
-    section_data: &[u8],
-    relative_offset: usize,
-    length: usize,
-) -> f32 {
+/// unknown, and unknown is not evidence of noise), and any ASCII whitespace byte
+/// (`u8::is_ascii_whitespace`) that separates lines of legitimate multi-line
+/// text such as license headers or embedded scripts. In practice the whitespace
+/// terminator is a control byte (tab, newline, form feed, carriage return):
+/// space cannot appear here because `is_printable_ascii` absorbs it into the run
+/// as content. Only a non-whitespace, non-null terminating byte indicates a
+/// fragment cut off by binary garbage.
+fn termination_confidence(section_data: &[u8], relative_offset: usize, length: usize) -> f32 {
     match section_data.get(relative_offset + length) {
         None | Some(&0) => 1.0,
         Some(&byte) if byte.is_ascii_whitespace() => 1.0,
         Some(_) => UNTERMINATED_CONFIDENCE_CAP,
     }
+}
+
+/// Resolve the final confidence for a candidate string, or `None` if it is
+/// filtered out by the confidence threshold.
+///
+/// This is the single source of truth for the narrow-string confidence flow,
+/// shared by the ASCII path (`extract_from_section`) and the UTF-8 path in
+/// `basic_extractor`. The order is deliberate and must stay consistent across
+/// both callers (ADR-0003):
+///
+/// 1. Take the noise-filter verdict, or 1.0 when filtering is disabled.
+/// 2. Apply the threshold against that verdict.
+/// 3. Cap for non-null termination *after* the threshold check, so an
+///    unterminated string is never removed from output solely for lacking a
+///    terminator ("never a burial"). The consequence is that a threshold above
+///    the cap is a floor on the noise-filter verdict, not on the returned value.
+pub(crate) fn resolve_confidence(
+    text: &str,
+    section_data: &[u8],
+    relative_offset: usize,
+    length: usize,
+    filter: Option<(&CompositeNoiseFilter, &FilterContext)>,
+    noise_filtering_enabled: bool,
+    min_confidence_threshold: f32,
+) -> Option<f32> {
+    let noise_confidence = match filter {
+        Some((noise_filter, filter_context)) => {
+            noise_filter.calculate_confidence(text, filter_context)
+        }
+        None => 1.0,
+    };
+
+    if noise_filtering_enabled && noise_confidence < min_confidence_threshold {
+        return None;
+    }
+
+    Some(noise_confidence.min(termination_confidence(
+        section_data,
+        relative_offset,
+        length,
+    )))
 }
 
 /// Extract ASCII strings from a byte slice
@@ -285,35 +325,21 @@ pub fn extract_from_section(
     // Post-process: compute confidence, apply threshold, adjust offsets and populate metadata
     let mut filtered_strings = Vec::new();
     for mut string in strings {
-        // Compute confidence if filtering is enabled
-        if let Some(ref noise_filter) = filter {
-            string.confidence = noise_filter.calculate_confidence(&string.text, &filter_context);
-            // Apply threshold filtering
-            if noise_filtering_enabled && string.confidence < min_confidence_threshold {
-                continue;
-            }
-        } else {
-            // If filtering is disabled, keep default confidence of 1.0
-            string.confidence = 1.0;
-        }
-
-        // Cap confidence for strings cut off by a non-null byte, in both the
-        // filtered and unfiltered branches. Must run while string.offset is
-        // still relative to section_data.
-        //
-        // The cap is applied AFTER the threshold check above, deliberately: an
-        // unterminated string is never removed from output solely for lacking a
-        // terminator (ADR-0003: "never a burial"). The consequence is that
-        // min_confidence_threshold acts as a floor on the noise-filter verdict,
-        // not on the post-cap value -- a string can be returned at 0.9 even when
-        // the threshold is above 0.9. This is only reachable via the library API
-        // (no CLI flag sets a threshold above the cap), and differs on purpose
-        // from UTF-16's combine-then-check order.
-        string.confidence = string.confidence.min(termination_confidence(
+        // Resolve confidence via the shared helper (noise-filter verdict ->
+        // threshold -> non-null-termination cap). Must run while string.offset
+        // is still relative to section_data, before the adjustment below.
+        match resolve_confidence(
+            &string.text,
             section_data,
             string.offset as usize,
             string.length as usize,
-        ));
+            filter.as_ref().map(|f| (f, &filter_context)),
+            noise_filtering_enabled,
+            min_confidence_threshold,
+        ) {
+            Some(confidence) => string.confidence = confidence,
+            None => continue,
+        }
 
         // Adjust offset: add section.offset to relative offset
         // string.offset is relative to section_data (starts at 0), so add section.offset

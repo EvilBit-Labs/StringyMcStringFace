@@ -65,7 +65,7 @@ Encoding-quality signals also feed the confidence value (and therefore the noise
 
 - **UTF-16 strings**: Extraction computes an encoding-specific confidence (unicode validity, printability, interior-null patterns) and combines it with the noise-filter confidence by taking the minimum.
 
-- **Narrow (ASCII/UTF-8) strings**: A string cut off mid-content by a non-null, non-whitespace byte has its confidence capped at 0.9, since real C strings in string-bearing sections are normally null-terminated. Cleanly-delimited strings are unaffected: null-terminated strings, strings running to the end of a section, and lines of multi-line text separated by ASCII whitespace (newline, carriage return, tab). The cap is deliberately small: binaries that store strings without terminators (length-prefixed or packed data) are nudged, never buried.
+- **Narrow (ASCII/UTF-8) strings**: A string cut off mid-content by a non-null, non-whitespace byte has its confidence capped at 0.9, since real C strings in string-bearing sections are normally null-terminated. Cleanly-delimited strings are unaffected: null-terminated strings, strings running to the end of a section, and lines of multi-line text separated by ASCII whitespace (tab, newline, form feed, carriage return). The cap is deliberately small: binaries that store strings without terminators (length-prefixed or packed data) are nudged, never buried.
 
 UTF-16 termination-byte quality is not evaluated; the UTF-16 null terminator is used only to trim string bytes.
 
