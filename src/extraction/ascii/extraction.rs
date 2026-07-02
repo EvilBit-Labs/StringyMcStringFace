@@ -9,6 +9,27 @@ use crate::types::{Encoding, FoundString, SectionInfo, StringSource};
 
 use super::{AsciiExtractionConfig, is_printable_ascii};
 
+/// Confidence cap for narrow strings cut off by a non-null byte (ADR-0003).
+///
+/// Real C strings in string-bearing sections are null-terminated; a printable
+/// run ending at an arbitrary byte is slightly less trustworthy. The cap is a
+/// tie-breaker (at most 10 noise-penalty points), never a burial: adversarial
+/// binaries deliberately store unterminated strings, and those must still rank.
+pub(crate) const UNTERMINATED_CONFIDENCE_CAP: f32 = 0.9;
+
+/// Termination confidence for the string at `relative_offset..relative_offset + length`
+/// within `section_data`.
+///
+/// A null terminator or the end of the slice yields 1.0 (buffer-end termination
+/// is unknown, and unknown is not evidence of noise); any other terminating byte
+/// yields [`UNTERMINATED_CONFIDENCE_CAP`].
+fn termination_confidence(section_data: &[u8], relative_offset: usize, length: usize) -> f32 {
+    match section_data.get(relative_offset + length) {
+        Some(&0) | None => 1.0,
+        Some(_) => UNTERMINATED_CONFIDENCE_CAP,
+    }
+}
+
 /// Extract ASCII strings from a byte slice
 ///
 /// Scans through the byte slice looking for contiguous sequences of printable ASCII
@@ -265,6 +286,15 @@ pub fn extract_from_section(
             // If filtering is disabled, keep default confidence of 1.0
             string.confidence = 1.0;
         }
+
+        // Cap confidence for strings cut off by a non-null byte, in both the
+        // filtered and unfiltered branches. Must run while string.offset is
+        // still relative to section_data.
+        string.confidence = string.confidence.min(termination_confidence(
+            section_data,
+            string.offset as usize,
+            string.length as usize,
+        ));
 
         // Adjust offset: add section.offset to relative offset
         // string.offset is relative to section_data (starts at 0), so add section.offset

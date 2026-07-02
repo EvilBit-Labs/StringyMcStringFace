@@ -1,4 +1,6 @@
 use super::*;
+use crate::extraction::config::NoiseFilterConfig;
+use crate::extraction::filters::{CompositeNoiseFilter, FilterContext};
 use crate::types::{Encoding, SectionInfo, SectionType, StringSource};
 
 // Helper to create test section
@@ -349,6 +351,123 @@ fn test_extract_from_section_empty_section() {
     let strings = extract_from_section(&section, data, &config, None, false, 0.5);
 
     assert!(strings.is_empty());
+}
+
+#[test]
+fn test_null_terminated_string_keeps_full_confidence() {
+    // Arrange: "HelloWorld" is null-terminated; filtering disabled gives base 1.0
+    let section = create_test_section(".rodata", 0, 32, None);
+    let data = b"HelloWorld\0trailing";
+    let config = AsciiExtractionConfig::default();
+
+    // Act
+    let strings = extract_from_section(&section, data, &config, None, false, 0.5);
+
+    // Assert
+    let hello = strings
+        .iter()
+        .find(|s| s.text == "HelloWorld")
+        .expect("HelloWorld should be extracted");
+    assert_eq!(hello.confidence, 1.0);
+}
+
+#[test]
+fn test_non_null_cutoff_caps_confidence_even_without_filtering() {
+    // Arrange: "HelloWorld" is cut off by 0x01, not a null terminator. The
+    // termination cap must apply even when noise filtering is disabled.
+    let section = create_test_section(".rodata", 0, 32, None);
+    let data = b"HelloWorld\x01trailing";
+    let config = AsciiExtractionConfig::default();
+
+    // Act
+    let strings = extract_from_section(&section, data, &config, None, false, 0.5);
+
+    // Assert
+    let hello = strings
+        .iter()
+        .find(|s| s.text == "HelloWorld")
+        .expect("HelloWorld should be extracted");
+    assert_eq!(hello.confidence, 0.9);
+}
+
+#[test]
+fn test_buffer_end_string_keeps_full_confidence() {
+    // Arrange: "EndString" runs to the end of the section slice; termination
+    // is unknown there, and unknown is not evidence of noise.
+    let section = create_test_section(".rodata", 0, 13, None);
+    let data = b"pad\0EndString";
+    let config = AsciiExtractionConfig::default();
+
+    // Act
+    let strings = extract_from_section(&section, data, &config, None, false, 0.5);
+
+    // Assert
+    let end = strings
+        .iter()
+        .find(|s| s.text == "EndString")
+        .expect("EndString should be extracted");
+    assert_eq!(end.confidence, 1.0);
+}
+
+#[test]
+fn test_null_terminated_outranks_identical_cutoff_twin() {
+    // Arrange: two identical printable runs, one null-terminated, one cut off
+    // by 0x01 (extractor level, pre-dedup)
+    let section = create_test_section(".rodata", 0, 32, None);
+    let data = b"SameText\0SameText\x01";
+    let config = AsciiExtractionConfig::default();
+
+    // Act
+    let strings = extract_from_section(&section, data, &config, None, false, 0.5);
+
+    // Assert
+    assert_eq!(strings.len(), 2);
+    assert_eq!(strings[0].text, "SameText");
+    assert_eq!(strings[1].text, "SameText");
+    assert!(strings[0].confidence > strings[1].confidence);
+    assert_eq!(strings[1].confidence, 0.9);
+}
+
+#[test]
+fn test_termination_cap_applies_with_noise_filtering_enabled() {
+    // Arrange: identical twins so both get the same noise-filter confidence;
+    // only the 0x01-cut twin should additionally be capped
+    let section = create_test_section(".rodata", 0, 64, None);
+    let data = b"Hello World Text\0Hello World Text\x01";
+    let config = AsciiExtractionConfig::default();
+    let noise_config = NoiseFilterConfig::default();
+
+    // Act
+    let strings = extract_from_section(&section, data, &config, Some(&noise_config), true, 0.0);
+
+    // Assert
+    assert_eq!(strings.len(), 2);
+    assert!(strings[1].confidence <= 0.9);
+    assert!(strings[0].confidence >= strings[1].confidence);
+}
+
+#[test]
+fn test_null_termination_does_not_raise_low_noise_confidence() {
+    // Arrange: null termination must never raise confidence above the
+    // noise-filter verdict for junk-looking text
+    let section = create_test_section(".rodata", 0, 64, None);
+    let junk = "qZx9vB2kQpLmWnRt";
+    let data = format!("{junk}\0").into_bytes();
+    let config = AsciiExtractionConfig::default();
+    let noise_config = NoiseFilterConfig::default();
+    let filter = CompositeNoiseFilter::new(&noise_config);
+    let filter_context = FilterContext::from_section(&section);
+    let noise_only = filter.calculate_confidence(junk, &filter_context);
+
+    // Act
+    let strings = extract_from_section(&section, &data, &config, Some(&noise_config), true, 0.0);
+
+    // Assert
+    let extracted = strings
+        .iter()
+        .find(|s| s.text == junk)
+        .expect("junk string should be extracted at threshold 0.0");
+    assert!(extracted.confidence <= noise_only);
 }
 
 #[test]
