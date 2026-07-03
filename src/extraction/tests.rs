@@ -151,6 +151,69 @@ fn test_basic_extractor_utf8_encoding() {
 }
 
 #[test]
+fn test_multibyte_utf8_cutoff_gets_termination_cap() {
+    // A genuinely multibyte UTF-8 string routes through the UTF-8 extraction
+    // path (not the ASCII path). It must receive the same non-null-termination
+    // cap as narrow ASCII strings, matching the documented "narrow (ASCII/UTF-8)"
+    // behavior. With noise filtering disabled the base confidence is 1.0, so a
+    // 0x01 cutoff must lower it to exactly 0.9.
+    let extractor = BasicExtractor::new();
+    let config = ExtractionConfig::default().with_noise_filtering(false);
+
+    let section = SectionInfo::new(".rodata".to_string(), 0, 20, SectionType::StringData, 1.0);
+
+    // "Hello \u{4e16}\u{754c}" cut off by 0x01 (a non-null, non-whitespace byte).
+    let data = "Hello \u{4e16}\u{754c}\u{1}".as_bytes();
+    let strings = extractor
+        .extract_from_section(data, &section, &config)
+        .unwrap();
+
+    let wide = strings
+        .iter()
+        .find(|s| s.text == "Hello \u{4e16}\u{754c}")
+        .expect("multibyte UTF-8 string should be extracted");
+    assert_eq!(wide.encoding, Encoding::Utf8);
+    assert_eq!(wide.confidence, 0.9);
+}
+
+#[test]
+fn test_multibyte_utf8_cutoff_capped_with_filtering_enabled() {
+    // Parity check for the realistic default config (noise filtering enabled):
+    // the UTF-8 path must still apply the termination cap, not only when
+    // filtering is disabled. Two occurrences of the same multibyte string in one
+    // section (no dedup at extract_from_section level): one null-terminated, one
+    // cut off by 0x01.
+    let extractor = BasicExtractor::new();
+    let config = ExtractionConfig::default(); // noise filtering enabled, threshold 0.5
+
+    let section = SectionInfo::new(".rodata".to_string(), 0, 40, SectionType::StringData, 1.0);
+    let data = "Hello \u{4e16}\u{754c}\0Hello \u{4e16}\u{754c}\u{1}".as_bytes();
+    let strings = extractor
+        .extract_from_section(data, &section, &config)
+        .unwrap();
+
+    let wide: Vec<_> = strings
+        .iter()
+        .filter(|s| s.text == "Hello \u{4e16}\u{754c}")
+        .collect();
+    assert_eq!(wide.len(), 2, "both occurrences should be extracted");
+    let terminated = wide.iter().min_by_key(|s| s.offset).unwrap();
+    let cut = wide.iter().max_by_key(|s| s.offset).unwrap();
+
+    assert!(
+        cut.confidence <= 0.9,
+        "cut multibyte string must be capped through the filtering-enabled path, got {}",
+        cut.confidence
+    );
+    assert!(
+        terminated.confidence >= cut.confidence,
+        "null-terminated ({}) should be at or above the cut occurrence ({})",
+        terminated.confidence,
+        cut.confidence
+    );
+}
+
+#[test]
 fn test_basic_extractor_encoding_filtering() {
     let extractor = BasicExtractor::new();
     // Only allow ASCII, exclude UTF-8

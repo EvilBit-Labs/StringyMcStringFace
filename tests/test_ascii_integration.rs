@@ -2,6 +2,7 @@
 
 use insta::assert_snapshot;
 use std::fs;
+use stringy::classification::RankingEngine;
 use stringy::container::{ContainerParser, PeParser};
 use stringy::extraction::ascii::{
     AsciiExtractionConfig, extract_ascii_strings, extract_from_section,
@@ -384,4 +385,70 @@ fn test_extract_from_section_with_filtering() {
             string.confidence
         );
     }
+}
+
+#[test]
+fn test_null_terminated_string_scores_at_or_above_unterminated_peer() {
+    // Covers AE1 at the section-extraction level. "Configuration loaded" is
+    // null-terminated; "Configuration reload" is cut off by 0x01. Noise
+    // filtering is disabled so the termination cap is the only confidence
+    // signal: the null-terminated string stays at 1.0 and the cut one drops to
+    // 0.9, which makes the strict ranking assertion below deterministic. The
+    // filtering-enabled path has its own unit coverage
+    // (test_termination_cap_applies_with_noise_filtering_enabled).
+    let data = b"Configuration loaded\0Configuration reload\x01";
+    let section = SectionInfo::new(
+        ".rodata".to_string(),
+        0,
+        data.len() as u64,
+        SectionType::StringData,
+        1.0,
+    );
+    let config = AsciiExtractionConfig::default();
+
+    let mut strings = extract_from_section(&section, data, &config, None, false, 0.0);
+
+    let terminated_idx = strings
+        .iter()
+        .position(|s| s.text == "Configuration loaded")
+        .expect("null-terminated string should be extracted");
+    let unterminated_idx = strings
+        .iter()
+        .position(|s| s.text == "Configuration reload")
+        .expect("unterminated string should be extracted");
+
+    // Confidence level: the cap lowers the unterminated peer.
+    assert!(
+        strings[terminated_idx].confidence >= strings[unterminated_idx].confidence,
+        "null-terminated ({}) should have confidence at or above unterminated ({})",
+        strings[terminated_idx].confidence,
+        strings[unterminated_idx].confidence
+    );
+    assert!(
+        strings[unterminated_idx].confidence <= 0.9,
+        "unterminated string should be capped at 0.9, got {}",
+        strings[unterminated_idx].confidence
+    );
+
+    // Ranking level: the confidence gap must survive the confidence-to-noise-penalty
+    // mapping. Scored against the same section, so the section-weight and semantic
+    // components are identical and only the noise penalty (driven by confidence)
+    // can differ -- the null-terminated string must rank at or above its peer.
+    let engine = RankingEngine::new(false);
+    engine.calculate_score(&mut strings[terminated_idx], Some(&section));
+    engine.calculate_score(&mut strings[unterminated_idx], Some(&section));
+
+    assert!(
+        strings[terminated_idx].score >= strings[unterminated_idx].score,
+        "at the ranking level, null-terminated (score {}) should rank at or above unterminated (score {})",
+        strings[terminated_idx].score,
+        strings[unterminated_idx].score
+    );
+    // With comparable noise-filter verdicts, the 0.9 cap yields a strictly higher score.
+    assert!(
+        strings[terminated_idx].score > strings[unterminated_idx].score,
+        "the termination cap should produce a strictly higher score for the null-terminated string ({} vs {})",
+        strings[terminated_idx].score,
+        strings[unterminated_idx].score
+    );
 }

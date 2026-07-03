@@ -211,17 +211,22 @@ impl StringExtractor for BasicExtractor {
                     continue;
                 }
 
-                // Compute confidence if filtering is enabled
-                let confidence = if let Some(ref noise_filter) = filter {
-                    noise_filter.calculate_confidence(&text, &filter_context)
-                } else {
-                    1.0
+                // Resolve confidence via the shared ASCII helper so the
+                // combine-then-threshold flow stays identical to the ASCII path.
+                // This gives multibyte UTF-8 strings the same termination signal,
+                // matching the documented "narrow (ASCII/UTF-8)" behavior.
+                let confidence = match ascii::resolve_confidence(
+                    &text,
+                    section_data,
+                    relative_offset,
+                    length,
+                    filter.as_ref().map(|f| (f, &filter_context)),
+                    config.noise_filtering_enabled,
+                    config.min_confidence_threshold,
+                ) {
+                    Some(confidence) => confidence,
+                    None => continue,
                 };
-
-                // Apply threshold filtering
-                if config.noise_filtering_enabled && confidence < config.min_confidence_threshold {
-                    continue;
-                }
 
                 // Calculate absolute offset
                 let absolute_offset = section.offset + relative_offset as u64;
