@@ -389,11 +389,13 @@ fn test_extract_from_section_with_filtering() {
 
 #[test]
 fn test_null_terminated_string_scores_at_or_above_unterminated_peer() {
-    // Covers AE1 at the section-extraction level with distinct texts
-    // (identical texts would be collapsed by pipeline deduplication).
-    // "Configuration loaded" is null-terminated; "Configuration reload" is
-    // cut off by 0x01. Comparable English-like texts keep the noise-filter
-    // verdicts close, so the termination cap decides the ordering.
+    // Covers AE1 at the section-extraction level. "Configuration loaded" is
+    // null-terminated; "Configuration reload" is cut off by 0x01. Noise
+    // filtering is disabled so the termination cap is the only confidence
+    // signal: the null-terminated string stays at 1.0 and the cut one drops to
+    // 0.9, which makes the strict ranking assertion below deterministic. The
+    // filtering-enabled path has its own unit coverage
+    // (test_termination_cap_applies_with_noise_filtering_enabled).
     let data = b"Configuration loaded\0Configuration reload\x01";
     let section = SectionInfo::new(
         ".rodata".to_string(),
@@ -403,10 +405,8 @@ fn test_null_terminated_string_scores_at_or_above_unterminated_peer() {
         1.0,
     );
     let config = AsciiExtractionConfig::default();
-    let noise_config = Some(NoiseFilterConfig::default());
 
-    let mut strings =
-        extract_from_section(&section, data, &config, noise_config.as_ref(), true, 0.0);
+    let mut strings = extract_from_section(&section, data, &config, None, false, 0.0);
 
     let terminated_idx = strings
         .iter()
