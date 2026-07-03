@@ -47,7 +47,7 @@ Strings with multiple semantic tags receive additional (diminishing) bonuses for
 
 ## Noise Penalty
 
-Various factors indicate low-quality or noisy strings, and receive penalties:
+Various factors indicate low-quality or noisy strings, and receive penalties. The penalty is derived from each string's confidence value (0.0-1.0): lower confidence produces a larger penalty.
 
 ### Penalty Categories
 
@@ -58,6 +58,16 @@ Various factors indicate low-quality or noisy strings, and receive penalties:
 - **Repeated Patterns**: Strings with excessive character repetition (e.g., `AAAAAAA...`) are penalized based on the repetition ratio.
 
 - **Common Noise Patterns**: Known noise patterns receive penalties, including padding characters, hex dump patterns, and table-like data with excessive delimiters.
+
+### Encoding Quality
+
+Encoding-quality signals also feed the confidence value (and therefore the noise penalty) -- there is no separate encoding term in the scoring formula:
+
+- **UTF-16 strings**: Extraction computes an encoding-specific confidence (unicode validity, printability, interior-null patterns) and combines it with the noise-filter confidence by taking the minimum.
+
+- **Narrow (ASCII/UTF-8) strings**: A string cut off mid-content by a non-null, non-whitespace byte has its confidence capped at 0.9, since real C strings in string-bearing sections are normally null-terminated. Cleanly-delimited strings are unaffected: null-terminated strings, strings running to the end of a section, and lines of multi-line text separated by ASCII whitespace (tab, newline, form feed, carriage return). The cap is deliberately small: binaries that store strings without terminators (length-prefixed or packed data) are nudged, never buried.
+
+UTF-16 termination-byte quality is not evaluated; the UTF-16 null terminator is used only to trim string bytes.
 
 ## Display Score Mapping
 

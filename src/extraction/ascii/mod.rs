@@ -32,6 +32,10 @@ mod extraction;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod termination_tests;
+
+pub(crate) use extraction::resolve_confidence;
 pub use extraction::{extract_ascii_strings, extract_from_section};
 
 /// Configuration for ASCII string extraction
