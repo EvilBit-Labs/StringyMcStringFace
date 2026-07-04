@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+title: Stringy
+abstract: >-
+  A smarter alternative to the strings command that leverages format-specific
+  knowledge and semantic classification to extract meaningful strings from ELF,
+  PE, and Mach-O binaries.
+type: software
+authors:
+  - name: "EvilBit Labs"
+    website: "https://evilbitlabs.io"
+repository-code: "https://github.com/EvilBit-Labs/Stringy"
+url: "https://evilbitlabs.io/Stringy/"
+license: Apache-2.0
+version: 0.1.0
+keywords:
+  - binary
+  - strings
+  - analysis
+  - reverse-engineering
+  - malware

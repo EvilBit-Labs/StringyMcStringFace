@@ -13,3 +13,6 @@ contact_links:
   - name: Known gotchas
     url: https://github.com/EvilBit-Labs/Stringy/blob/main/GOTCHAS.md
     about: Hard-won lessons and edge cases before you dig into the code.
+  - name: Code of Conduct
+    url: https://github.com/EvilBit-Labs/Stringy/blob/main/CODE_OF_CONDUCT.md
+    about: The standards we expect from everyone participating in this project.

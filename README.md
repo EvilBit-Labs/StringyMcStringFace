@@ -69,7 +69,7 @@ cat target_binary | stringy -
 
 **TTY table:**
 
-```
+```text
 String                                   | Tags       | Score | Section
 -----------------------------------------|------------|-------|--------
 https://api.example.com/v1/              | url        |    95 | .rdata
@@ -133,7 +133,7 @@ Quick links: [Installation](docs/src/installation.md) | [Quick Start](docs/src/q
 
 ## Contributing
 
-See [CONTRIBUTING.md] for development setup, coding guidelines, and submission process.
+See [CONTRIBUTING.md] for development setup, coding guidelines, and submission process. Participation is governed by our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
