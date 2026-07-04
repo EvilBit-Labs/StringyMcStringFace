@@ -1,0 +1,93 @@
+name: Bug Report
+description: Report a problem with Stringy
+title: "bug: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report.
+
+        Before you start, please:
+
+        - Search [existing issues](https://github.com/EvilBit-Labs/Stringy/issues) to avoid duplicates.
+        - Do **not** report security vulnerabilities here. Use
+          [private vulnerability reporting](https://github.com/EvilBit-Labs/Stringy/security/advisories/new)
+          instead (see [SECURITY.md](https://github.com/EvilBit-Labs/Stringy/blob/main/SECURITY.md)).
+  - type: input
+    id: version
+    attributes:
+      label: Stringy version
+      description: Output of `stringy --version` (or the commit SHA if built from source).
+      placeholder: "stringy 0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Where are you running Stringy?
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: format
+    attributes:
+      label: Binary format involved
+      description: The format of the input binary, if relevant.
+      options:
+        - ELF
+        - PE
+        - Mach-O
+        - Not format-specific / unknown
+    validations:
+      required: false
+  - type: input
+    id: command
+    attributes:
+      label: Command run
+      description: The exact command line that triggered the problem.
+      placeholder: "stringy --only-tags url ./target_binary"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Include the full error message if any.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: >
+        Minimal steps to reproduce. If the input binary can be shared, attach it or
+        describe how to obtain an equivalent. Public sample binaries are ideal.
+      placeholder: |
+        1. Build/obtain binary X
+        2. Run `stringy ...`
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: debug
+    attributes:
+      label: Debug output
+      description: >
+        Optional. Output of `stringy --debug <file>` can help diagnose extraction and
+        classification issues. This will be rendered as a code block, so no backticks needed.
+      render: text
+    validations:
+      required: false
