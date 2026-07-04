@@ -1,0 +1,15 @@
+# Keep blank issues enabled so general questions still have a home
+# (CONTRIBUTING.md directs "unsure where to start" questions to a plain issue).
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/EvilBit-Labs/Stringy/security/advisories/new
+    about: >
+      Do not open a public issue for security problems. Use private vulnerability
+      reporting. See SECURITY.md for scope, safe harbor, and our PGP key.
+  - name: Contributing guide
+    url: https://github.com/EvilBit-Labs/Stringy/blob/main/CONTRIBUTING.md
+    about: Development setup, coding standards, and the pull request process.
+  - name: Known gotchas
+    url: https://github.com/EvilBit-Labs/Stringy/blob/main/GOTCHAS.md
+    about: Hard-won lessons and edge cases before you dig into the code.

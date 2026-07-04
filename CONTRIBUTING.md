@@ -14,6 +14,8 @@ Thanks for your interest in Stringy. This guide explains how to propose changes 
 
 Stringy uses Rust 2024 (MSRV 1.91+, see `rust-toolchain.toml`). We also use just for common tasks.
 
+The fastest way to get a working environment from a fresh clone is `./setup.sh`, which installs the pinned toolchain via [mise](https://mise.jdx.dev) and builds the test fixtures. It requires mise to be installed first and prints instructions if it is missing.
+
 Recommended workflow:
 
 - `just setup` (to install tools)

@@ -29,6 +29,8 @@ cargo build --release
 ./target/release/stringy --help
 ```
 
+For a full development environment (pinned toolchain plus test fixtures), run `./setup.sh`, which bootstraps everything via [mise](https://mise.jdx.dev). See [CONTRIBUTING.md] for details.
+
 ### Basic Usage
 
 ```bash
