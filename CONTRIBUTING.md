@@ -4,6 +4,10 @@ Thanks for your interest in Stringy. This guide explains how to propose changes 
 
 > **Before you start:** check [GOTCHAS.md](GOTCHAS.md) for hard-won lessons and edge cases organized by domain (struct literals, CLI, CI, dependencies, pipeline). It will save you from common pitfalls that have tripped up contributors before.
 
+## Code of Conduct
+
+By participating in this project you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md). Please report unacceptable behavior to [support@evilbitlabs.io](mailto:support@evilbitlabs.io).
+
 ## Quick start
 
 1. Search existing issues and pull requests before filing a new one.

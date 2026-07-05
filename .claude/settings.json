@@ -11,6 +11,7 @@
     "comprehensive-review@claude-code-workflows": true,
     "superpowers@claude-plugins-official": true,
     "github@claude-plugins-official": true,
-    "ecc@everything-claude-code": true
+    "ecc@everything-claude-code": true,
+    "rust-skills@rust-skills": true
   }
 }
