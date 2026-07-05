@@ -52,7 +52,7 @@ stringy --top 50 target_binary
 # Output formats
 stringy --json target_binary
 stringy --yara target_binary
-stringy --json target_binary | jq '.[] | select(.tags[] | contains("Url"))'
+stringy --json target_binary | jq 'select(.tags | index("Url"))'
 
 # Raw extraction (no classification or ranking)
 stringy --raw target_binary
@@ -69,7 +69,7 @@ cat target_binary | stringy -
 
 **TTY table:**
 
-```
+```text
 String                                   | Tags       | Score | Section
 -----------------------------------------|------------|-------|--------
 https://api.example.com/v1/              | url        |    95 | .rdata
@@ -133,7 +133,7 @@ Quick links: [Installation](docs/src/installation.md) | [Quick Start](docs/src/q
 
 ## Contributing
 
-See [CONTRIBUTING.md] for development setup, coding guidelines, and submission process.
+See [CONTRIBUTING.md] for development setup, coding guidelines, and submission process. Participation is governed by our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
