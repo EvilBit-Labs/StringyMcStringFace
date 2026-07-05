@@ -21,13 +21,16 @@ stringy [OPTIONS] -        # read from stdin
 
 ### Filtering
 
-| Option            | Description                                                        | Default |
-| ----------------- | ------------------------------------------------------------------ | ------- |
-| `--min-len N`     | Minimum string length (must be >= 1)                               | 4       |
-| `--top N`         | Limit to top N strings by score (applied after all filters)        | -       |
-| `--enc ENCODING`  | Filter by encoding: `ascii`, `utf8`, `utf16`, `utf16le`, `utf16be` | all     |
-| `--only-tags TAG` | Include strings with any of these tags (OR); repeatable            | all     |
-| `--no-tags TAG`   | Exclude strings with any of these tags; repeatable                 | none    |
+| Option            | Description                                                                 | Default |
+| ----------------- | --------------------------------------------------------------------------- | ------- |
+| `--min-len N`     | Minimum string length (must be >= 1)                                        | 4       |
+| `--top N`         | Limit to top N strings by score (applied after all filters)                 | -       |
+| `--enc ENCODING`  | Filter by encoding: `ascii`, `utf8`, `utf16`, `utf16le`, `utf16be`          | all     |
+| `--only-tags TAG` | Include strings with any of these tags (OR); repeatable                     | all     |
+| `--no-tags TAG`   | Exclude strings with any of these tags; repeatable                          | none    |
+| `--imports`       | Shorthand for `--only-tags import`; conflicts with `--only-tags`/`--raw`    | all     |
+| `--exports`       | Shorthand for `--only-tags export`; conflicts with `--only-tags`/`--raw`    | all     |
+| `--symbols`       | Shorthand for `--only-tags demangled`; conflicts with `--only-tags`/`--raw` | all     |
 
 ### Mode Flags
 
