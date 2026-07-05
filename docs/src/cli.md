@@ -34,11 +34,11 @@ stringy [OPTIONS] -        # read from stdin
 
 ### Mode Flags
 
-| Option      | Description                                                                                                                     |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `--raw`     | Extraction-only mode (no tagging, ranking, or scoring); conflicts with `--only-tags`, `--no-tags`, `--top`, `--debug`, `--yara` |
-| `--summary` | Append summary block (TTY table mode only); conflicts with `--json`, `--yara`                                                   |
-| `--debug`   | Include score-breakdown fields (`section_weight`, `semantic_boost`, `noise_penalty`) in JSON output; conflicts with `--raw`     |
+| Option      | Description                                                                                                                                                            |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--raw`     | Extraction-only mode (no tagging, ranking, or scoring); conflicts with `--only-tags`, `--no-tags`, `--top`, `--debug`, `--yara`, `--imports`, `--exports`, `--symbols` |
+| `--summary` | Append summary block (TTY table mode only); conflicts with `--json`, `--yara`                                                                                          |
+| `--debug`   | Include score-breakdown fields (`section_weight`, `semantic_boost`, `noise_penalty`) in JSON output; conflicts with `--raw`                                            |
 
 ## Encoding Options
 

@@ -71,7 +71,7 @@ Use idiomatic `clap` derive API patterns. Push validation into clap wherever pos
 | `--min-len`   | `-m`  | `Option<usize>`       | Custom parser enforces >= 1                                                                                                                                                    |
 | `--top`       | `-t`  | `Option<usize>`       | Custom parser enforces >= 1                                                                                                                                                    |
 | `--enc`       |       | `Option<CliEncoding>` | utf8, utf16, utf16le, utf16be filter by stored encoding; `ascii` is content-based (matches pure-ASCII text that is not UTF-16, since extraction labels ASCII content as UTF-8) |
-| `--raw`       |       | bool                  | Conflicts with `--only-tags`, `--no-tags`, `--top`, `--debug`, `--yara`                                                                                                        |
+| `--raw`       |       | bool                  | Conflicts with `--only-tags`, `--no-tags`, `--top`, `--debug`, `--yara`, `--imports`, `--exports`, `--symbols`                                                                 |
 | `--summary`   |       | bool                  | Conflicts with `--json`, `--yara`; runtime TTY check                                                                                                                           |
 | `--debug`     |       | bool                  | Conflicts with `--raw`                                                                                                                                                         |
 

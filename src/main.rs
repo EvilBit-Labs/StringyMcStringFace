@@ -165,9 +165,10 @@ struct Cli {
 impl Cli {
     /// Effective include-tag set: explicit `--only-tags` plus the convenience
     /// flags (`--imports` / `--exports` / `--symbols`). The convenience flags
-    /// conflict with `--only-tags` at parse time, so in practice only one source
-    /// populates the set, but merging is harmless and keeps a single
-    /// authoritative include list.
+    /// conflict with `--only-tags` at parse time, so the set is populated by
+    /// exactly one of those two mechanisms -- never both -- though the
+    /// convenience-flag mechanism itself may combine several flags into a union.
+    /// Merging is harmless and keeps a single authoritative include list.
     fn resolved_include_tags(&self) -> Vec<Tag> {
         let mut tags = self.only_tags.clone();
         if self.imports {
@@ -320,5 +321,47 @@ fn main() {
     if let Err(e) = run(&cli) {
         eprintln!("Error: {e}");
         std::process::exit(e.exit_code());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Fixture-independent checks that each convenience flag maps to the exact
+    // Tag it claims. Integration tests can't falsify the --symbols mapping
+    // because no fixture yields demangled-tagged rows; these pin it directly.
+
+    #[test]
+    fn resolved_include_tags_imports_is_import_only() {
+        let cli = Cli::parse_from(["stringy", "f", "--imports"]);
+        assert_eq!(cli.resolved_include_tags(), vec![Tag::Import]);
+    }
+
+    #[test]
+    fn resolved_include_tags_exports_is_export_only() {
+        let cli = Cli::parse_from(["stringy", "f", "--exports"]);
+        assert_eq!(cli.resolved_include_tags(), vec![Tag::Export]);
+    }
+
+    #[test]
+    fn resolved_include_tags_symbols_is_demangled_only() {
+        let cli = Cli::parse_from(["stringy", "f", "--symbols"]);
+        assert_eq!(cli.resolved_include_tags(), vec![Tag::DemangledSymbol]);
+    }
+
+    #[test]
+    fn resolved_include_tags_all_three_flags_form_union() {
+        let cli = Cli::parse_from(["stringy", "f", "--imports", "--exports", "--symbols"]);
+        assert_eq!(
+            cli.resolved_include_tags(),
+            vec![Tag::Import, Tag::Export, Tag::DemangledSymbol]
+        );
+    }
+
+    #[test]
+    fn resolved_include_tags_empty_without_convenience_flags() {
+        let cli = Cli::parse_from(["stringy", "f"]);
+        assert!(cli.resolved_include_tags().is_empty());
     }
 }

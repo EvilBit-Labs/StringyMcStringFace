@@ -131,17 +131,19 @@ fn cli_convenience_flags_no_tags_contradiction_rejected() {
 }
 
 #[test]
-fn cli_imports_no_tags_compatible() {
-    // AE5 / R5: --imports composes with a non-overlapping --no-tags.
-    stringy()
-        .args([ELF, "--imports", "--no-tags", "version"])
-        .assert()
-        .success();
+fn cli_convenience_flags_no_tags_compatible() {
+    // AE5 / R5: each convenience flag composes with a non-overlapping --no-tags.
+    for flag in ["--imports", "--exports", "--symbols"] {
+        stringy()
+            .args([ELF, flag, "--no-tags", "version"])
+            .assert()
+            .success();
+    }
 }
 
 #[test]
 fn cli_help_lists_convenience_flags() {
-    // R6: help lists the three flags and each points to --only-tags.
+    // R6: help lists the three flags and each one points to --only-tags.
     stringy()
         .arg("--help")
         .assert()
@@ -149,5 +151,9 @@ fn cli_help_lists_convenience_flags() {
         .stdout(predicate::str::contains("--imports"))
         .stdout(predicate::str::contains("--exports"))
         .stdout(predicate::str::contains("--symbols"))
-        .stdout(predicate::str::contains("Shorthand for --only-tags"));
+        .stdout(predicate::str::contains("Shorthand for --only-tags import"))
+        .stdout(predicate::str::contains("Shorthand for --only-tags export"))
+        .stdout(predicate::str::contains(
+            "Shorthand for --only-tags demangled",
+        ));
 }
