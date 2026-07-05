@@ -21,21 +21,24 @@ stringy [OPTIONS] -        # read from stdin
 
 ### Filtering
 
-| Option            | Description                                                        | Default |
-| ----------------- | ------------------------------------------------------------------ | ------- |
-| `--min-len N`     | Minimum string length (must be >= 1)                               | 4       |
-| `--top N`         | Limit to top N strings by score (applied after all filters)        | -       |
-| `--enc ENCODING`  | Filter by encoding: `ascii`, `utf8`, `utf16`, `utf16le`, `utf16be` | all     |
-| `--only-tags TAG` | Include strings with any of these tags (OR); repeatable            | all     |
-| `--no-tags TAG`   | Exclude strings with any of these tags; repeatable                 | none    |
+| Option            | Description                                                                 | Default |
+| ----------------- | --------------------------------------------------------------------------- | ------- |
+| `--min-len N`     | Minimum string length (must be >= 1)                                        | 4       |
+| `--top N`         | Limit to top N strings by score (applied after all filters)                 | -       |
+| `--enc ENCODING`  | Filter by encoding: `ascii`, `utf8`, `utf16`, `utf16le`, `utf16be`          | all     |
+| `--only-tags TAG` | Include strings with any of these tags (OR); repeatable                     | all     |
+| `--no-tags TAG`   | Exclude strings with any of these tags; repeatable                          | none    |
+| `--imports`       | Shorthand for `--only-tags import`; conflicts with `--only-tags`/`--raw`    | all     |
+| `--exports`       | Shorthand for `--only-tags export`; conflicts with `--only-tags`/`--raw`    | all     |
+| `--symbols`       | Shorthand for `--only-tags demangled`; conflicts with `--only-tags`/`--raw` | all     |
 
 ### Mode Flags
 
-| Option      | Description                                                                                                                     |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `--raw`     | Extraction-only mode (no tagging, ranking, or scoring); conflicts with `--only-tags`, `--no-tags`, `--top`, `--debug`, `--yara` |
-| `--summary` | Append summary block (TTY table mode only); conflicts with `--json`, `--yara`                                                   |
-| `--debug`   | Include score-breakdown fields (`section_weight`, `semantic_boost`, `noise_penalty`) in JSON output; conflicts with `--raw`     |
+| Option      | Description                                                                                                                                                            |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--raw`     | Extraction-only mode (no tagging, ranking, or scoring); conflicts with `--only-tags`, `--no-tags`, `--top`, `--debug`, `--yara`, `--imports`, `--exports`, `--symbols` |
+| `--summary` | Append summary block (TTY table mode only); conflicts with `--json`, `--yara`                                                                                          |
+| `--debug`   | Include score-breakdown fields (`section_weight`, `semantic_boost`, `noise_penalty`) in JSON output; conflicts with `--raw`                                            |
 
 ## Encoding Options
 

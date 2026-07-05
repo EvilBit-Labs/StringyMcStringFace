@@ -103,7 +103,7 @@ struct Cli {
     #[arg(
         long = "only-tags",
         action = ArgAction::Append,
-        value_parser = Tag::from_str,
+        value_parser = <Tag as FromStr>::from_str,
         value_name = "TAG",
         long_help = "Include only strings with this tag. Repeat the flag for multiple tags \
             (OR logic).\nValid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, \
@@ -116,7 +116,7 @@ struct Cli {
     #[arg(
         long = "no-tags",
         action = ArgAction::Append,
-        value_parser = Tag::from_str,
+        value_parser = <Tag as FromStr>::from_str,
         value_name = "TAG",
         long_help = "Exclude strings with this tag. Repeat the flag for multiple tags \
             (OR logic).\nValid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, \
@@ -124,6 +124,18 @@ struct Cli {
             dylib-path, rpath, rpath-var, framework-path, crypto, network, fileio, entry-point"
     )]
     no_tags: Vec<Tag>,
+
+    /// Shorthand for --only-tags import (see --only-tags for the full tag set)
+    #[arg(long, conflicts_with_all = ["only_tags", "raw"])]
+    imports: bool,
+
+    /// Shorthand for --only-tags export (see --only-tags for the full tag set)
+    #[arg(long, conflicts_with_all = ["only_tags", "raw"])]
+    exports: bool,
+
+    /// Shorthand for --only-tags demangled (see --only-tags for the full tag set)
+    #[arg(long, conflicts_with_all = ["only_tags", "raw"])]
+    symbols: bool,
 
     /// Minimum string length in bytes (must be >= 1)
     #[arg(short = 'm', long = "min-len", value_name = "N", value_parser = parse_positive_usize)]
@@ -150,18 +162,41 @@ struct Cli {
     debug: bool,
 }
 
+impl Cli {
+    /// Effective include-tag set: explicit `--only-tags` plus the convenience
+    /// flags (`--imports` / `--exports` / `--symbols`). The convenience flags
+    /// conflict with `--only-tags` at parse time, so the set is populated by
+    /// exactly one of those two mechanisms -- never both -- though the
+    /// convenience-flag mechanism itself may combine several flags into a union.
+    /// Merging is harmless and keeps a single authoritative include list.
+    fn resolved_include_tags(&self) -> Vec<Tag> {
+        let mut tags = self.only_tags.clone();
+        if self.imports {
+            tags.push(Tag::Import);
+        }
+        if self.exports {
+            tags.push(Tag::Export);
+        }
+        if self.symbols {
+            tags.push(Tag::DemangledSymbol);
+        }
+        tags
+    }
+}
+
 fn run(cli: &Cli) -> Result<(), StringyError> {
-    // Runtime validation: tag overlap between --only-tags and --no-tags
-    let overlap: Vec<&Tag> = cli
-        .only_tags
+    let include_tags = cli.resolved_include_tags();
+
+    // Runtime validation: tag overlap between the resolved include set and --no-tags
+    let overlap: Vec<&Tag> = include_tags
         .iter()
         .filter(|t| cli.no_tags.contains(t))
         .collect();
     if !overlap.is_empty() {
-        let tag_names: Vec<String> = overlap.iter().map(|t| format!("{t:?}")).collect();
+        let tag_names: Vec<String> = overlap.iter().map(|t| t.to_string()).collect();
         return Err(StringyError::ValidationError(format!(
-            "conflicting tag filters: {} appear in both --only-tags and --no-tags\n\
-             Remove these tags from one of the filter lists to continue.",
+            "conflicting tag filters: {} are both included and excluded (--no-tags)\n\
+             Remove these tags from the include filter or from --no-tags to continue.",
             tag_names.join(", ")
         )));
     }
@@ -205,8 +240,8 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
     if let Some(enc) = cli.enc {
         filter_config = filter_config.with_encoding(enc.into());
     }
-    if !cli.only_tags.is_empty() {
-        filter_config = filter_config.with_include_tags(cli.only_tags.clone());
+    if !include_tags.is_empty() {
+        filter_config = filter_config.with_include_tags(include_tags);
     }
     if !cli.no_tags.is_empty() {
         filter_config = filter_config.with_exclude_tags(cli.no_tags.clone());
@@ -286,5 +321,47 @@ fn main() {
     if let Err(e) = run(&cli) {
         eprintln!("Error: {e}");
         std::process::exit(e.exit_code());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Fixture-independent checks that each convenience flag maps to the exact
+    // Tag it claims. Integration tests can't falsify the --symbols mapping
+    // because no fixture yields demangled-tagged rows; these pin it directly.
+
+    #[test]
+    fn resolved_include_tags_imports_is_import_only() {
+        let cli = Cli::parse_from(["stringy", "f", "--imports"]);
+        assert_eq!(cli.resolved_include_tags(), vec![Tag::Import]);
+    }
+
+    #[test]
+    fn resolved_include_tags_exports_is_export_only() {
+        let cli = Cli::parse_from(["stringy", "f", "--exports"]);
+        assert_eq!(cli.resolved_include_tags(), vec![Tag::Export]);
+    }
+
+    #[test]
+    fn resolved_include_tags_symbols_is_demangled_only() {
+        let cli = Cli::parse_from(["stringy", "f", "--symbols"]);
+        assert_eq!(cli.resolved_include_tags(), vec![Tag::DemangledSymbol]);
+    }
+
+    #[test]
+    fn resolved_include_tags_all_three_flags_form_union() {
+        let cli = Cli::parse_from(["stringy", "f", "--imports", "--exports", "--symbols"]);
+        assert_eq!(
+            cli.resolved_include_tags(),
+            vec![Tag::Import, Tag::Export, Tag::DemangledSymbol]
+        );
+    }
+
+    #[test]
+    fn resolved_include_tags_empty_without_convenience_flags() {
+        let cli = Cli::parse_from(["stringy", "f"]);
+        assert!(cli.resolved_include_tags().is_empty());
     }
 }

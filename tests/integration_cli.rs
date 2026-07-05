@@ -155,7 +155,7 @@ fn cli_overlapping_tags_rejected() {
         ])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("--only-tags and --no-tags"));
+        .stderr(predicate::str::contains("conflicting tag filters"));
 }
 
 #[test]
