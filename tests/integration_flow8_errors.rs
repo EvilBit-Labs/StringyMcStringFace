@@ -124,5 +124,5 @@ fn flow8_tag_overlap_exit_2() {
         .assert()
         .failure()
         .code(2)
-        .stderr(predicate::str::contains("--only-tags and --no-tags"));
+        .stderr(predicate::str::contains("conflicting tag filters"));
 }
