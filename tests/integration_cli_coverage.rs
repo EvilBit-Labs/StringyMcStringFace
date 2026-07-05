@@ -231,7 +231,7 @@ fn exit_code_2_validation_error() {
         .assert()
         .failure()
         .code(2)
-        .stderr(predicate::str::contains("--only-tags and --no-tags"));
+        .stderr(predicate::str::contains("conflicting tag filters"));
 }
 
 #[test]

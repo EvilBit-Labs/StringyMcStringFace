@@ -56,7 +56,7 @@ pub fn format_tags(tags: &[Tag]) -> String {
     let tag_strings: Vec<String> = tags
         .iter()
         .filter(|tag| tag_boost_value(tag, config) == max_boost)
-        .map(tag_to_display_string)
+        .map(|tag| tag.to_string())
         .collect();
 
     let result = tag_strings.join(", ");
@@ -72,39 +72,6 @@ pub fn format_tags(tags: &[Tag]) -> String {
 /// Get the ranking boost value for a tag using the provided config.
 fn tag_boost_value(tag: &Tag, config: &RankingConfig) -> i32 {
     config.tag_boosts.get(tag).copied().unwrap_or(0)
-}
-
-/// Convert a single tag to its display string.
-///
-/// Uses the serde rename value where defined, otherwise uses lowercase Debug format.
-pub(crate) fn tag_to_display_string(tag: &Tag) -> String {
-    match tag {
-        Tag::Url => "url".to_string(),
-        Tag::Domain => "domain".to_string(),
-        Tag::IPv4 => "ipv4".to_string(),
-        Tag::IPv6 => "ipv6".to_string(),
-        Tag::FilePath => "filepath".to_string(),
-        Tag::RegistryPath => "regpath".to_string(),
-        Tag::Guid => "guid".to_string(),
-        Tag::Email => "email".to_string(),
-        Tag::Base64 => "b64".to_string(),
-        Tag::FormatString => "fmt".to_string(),
-        Tag::UserAgent => "user-agent-ish".to_string(),
-        Tag::DemangledSymbol => "demangled".to_string(),
-        Tag::Import => "import".to_string(),
-        Tag::Export => "export".to_string(),
-        Tag::Version => "version".to_string(),
-        Tag::Manifest => "manifest".to_string(),
-        Tag::Resource => "resource".to_string(),
-        Tag::DylibPath => "dylib-path".to_string(),
-        Tag::Rpath => "rpath".to_string(),
-        Tag::RpathVariable => "rpath-var".to_string(),
-        Tag::FrameworkPath => "framework-path".to_string(),
-        Tag::Crypto => "crypto".to_string(),
-        Tag::Network => "network".to_string(),
-        Tag::FileIO => "fileio".to_string(),
-        Tag::EntryPoint => "entry-point".to_string(),
-    }
 }
 
 /// Truncate a string to the specified maximum length.
@@ -254,8 +221,8 @@ mod tests {
             ];
 
             for tag in all_tags {
-                let display = tag_to_display_string(&tag);
-                assert!(!display.is_empty(), "Tag {:?} should have display", tag);
+                let display = tag.to_string();
+                assert!(!display.is_empty(), "Tag {tag:?} should have display");
                 assert!(display.is_ascii(), "Tag display should be ASCII");
             }
         }
