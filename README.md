@@ -52,7 +52,7 @@ stringy --top 50 target_binary
 # Output formats
 stringy --json target_binary
 stringy --yara target_binary
-stringy --json target_binary | jq '.[] | select(.tags[] | contains("Url"))'
+stringy --json target_binary | jq 'select(.tags | index("Url"))'
 
 # Raw extraction (no classification or ranking)
 stringy --raw target_binary
