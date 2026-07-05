@@ -152,7 +152,7 @@ fn test_tag_from_str_all_variants() {
     ];
 
     for (input, expected) in cases {
-        let result = Tag::from_str(input);
+        let result = <Tag as FromStr>::from_str(input);
         assert_eq!(result, Ok(expected), "failed for input: {input}");
     }
 }
@@ -161,6 +161,29 @@ fn test_tag_from_str_all_variants() {
 fn test_tag_from_str_unknown() {
     use std::str::FromStr;
 
-    let result = Tag::from_str("bogus");
+    let result = <Tag as FromStr>::from_str("bogus");
     assert_eq!(result, Err("unknown tag: bogus".to_string()));
+}
+
+#[test]
+fn test_tag_display_renders_cli_name_and_round_trips() {
+    use clap::ValueEnum;
+    use std::str::FromStr;
+
+    // Display must render the canonical CLI form (the token users type), not
+    // the PascalCase Debug variant name, and every rendered name must parse
+    // back to the same tag.
+    for tag in Tag::value_variants() {
+        let name = tag.to_string();
+        assert_eq!(
+            <Tag as FromStr>::from_str(&name),
+            Ok(tag.clone()),
+            "Display name {name:?} must parse back to the same tag"
+        );
+    }
+
+    // Spot-check the specific Debug-vs-CLI mismatches this guards against.
+    assert_eq!(Tag::Import.to_string(), "import");
+    assert_eq!(Tag::DemangledSymbol.to_string(), "demangled");
+    assert_eq!(Tag::UserAgent.to_string(), "user-agent-ish");
 }

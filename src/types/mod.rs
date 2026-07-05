@@ -6,6 +6,7 @@ mod found_string;
 
 pub use error::{Result, StringyError};
 
+use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 /// Represents the encoding of an extracted string
@@ -19,83 +20,96 @@ pub enum Encoding {
 
 /// Semantic tags for classifying strings
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ValueEnum)]
 pub enum Tag {
+    #[value(name = "url")]
     Url,
+    #[value(name = "domain")]
     Domain,
     #[serde(rename = "ipv4")]
+    #[value(name = "ipv4")]
     IPv4,
     #[serde(rename = "ipv6")]
+    #[value(name = "ipv6")]
     IPv6,
     #[serde(rename = "filepath")]
+    #[value(name = "filepath")]
     FilePath,
     #[serde(rename = "regpath")]
+    #[value(name = "regpath")]
     RegistryPath,
     #[serde(rename = "guid")]
+    #[value(name = "guid")]
     Guid,
+    #[value(name = "email")]
     Email,
     #[serde(rename = "b64")]
+    #[value(name = "b64")]
     Base64,
     #[serde(rename = "fmt")]
+    #[value(name = "fmt")]
     FormatString,
     #[serde(rename = "user-agent-ish")]
+    #[value(name = "user-agent-ish")]
     UserAgent,
     #[serde(rename = "demangled")]
+    #[value(name = "demangled")]
     DemangledSymbol,
+    #[value(name = "import")]
     Import,
+    #[value(name = "export")]
     Export,
+    #[value(name = "version")]
     Version,
+    #[value(name = "manifest")]
     Manifest,
+    #[value(name = "resource")]
     Resource,
     #[serde(rename = "dylib-path")]
+    #[value(name = "dylib-path")]
     DylibPath,
     #[serde(rename = "rpath")]
+    #[value(name = "rpath")]
     Rpath,
     #[serde(rename = "rpath-var")]
+    #[value(name = "rpath-var")]
     RpathVariable,
     #[serde(rename = "framework-path")]
+    #[value(name = "framework-path")]
     FrameworkPath,
     #[serde(rename = "crypto")]
+    #[value(name = "crypto")]
     Crypto,
     #[serde(rename = "network")]
+    #[value(name = "network")]
     Network,
     #[serde(rename = "fileio")]
+    #[value(name = "fileio")]
     FileIO,
     #[serde(rename = "entry-point")]
+    #[value(name = "entry-point")]
     EntryPoint,
 }
 
 impl std::str::FromStr for Tag {
     type Err = String;
 
+    /// Parses a canonical CLI tag name into a `Tag`, delegating to the
+    /// `ValueEnum` definition so the accepted names have a single source of
+    /// truth (the `#[value(name = ...)]` attributes above).
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        match s {
-            "url" => Ok(Tag::Url),
-            "domain" => Ok(Tag::Domain),
-            "ipv4" => Ok(Tag::IPv4),
-            "ipv6" => Ok(Tag::IPv6),
-            "filepath" => Ok(Tag::FilePath),
-            "regpath" => Ok(Tag::RegistryPath),
-            "guid" => Ok(Tag::Guid),
-            "email" => Ok(Tag::Email),
-            "b64" => Ok(Tag::Base64),
-            "fmt" => Ok(Tag::FormatString),
-            "user-agent-ish" => Ok(Tag::UserAgent),
-            "demangled" => Ok(Tag::DemangledSymbol),
-            "import" => Ok(Tag::Import),
-            "export" => Ok(Tag::Export),
-            "version" => Ok(Tag::Version),
-            "manifest" => Ok(Tag::Manifest),
-            "resource" => Ok(Tag::Resource),
-            "dylib-path" => Ok(Tag::DylibPath),
-            "rpath" => Ok(Tag::Rpath),
-            "rpath-var" => Ok(Tag::RpathVariable),
-            "framework-path" => Ok(Tag::FrameworkPath),
-            "crypto" => Ok(Tag::Crypto),
-            "network" => Ok(Tag::Network),
-            "fileio" => Ok(Tag::FileIO),
-            "entry-point" => Ok(Tag::EntryPoint),
-            _ => Err(format!("unknown tag: {s}")),
+        <Self as ValueEnum>::from_str(s, false).map_err(|_| format!("unknown tag: {s}"))
+    }
+}
+
+impl std::fmt::Display for Tag {
+    /// Renders the canonical CLI tag name -- the form users type and that
+    /// `--only-tags`/`--no-tags` accept -- sourced from the `ValueEnum`
+    /// definition rather than the `Debug` variant name (`import`, not `Import`).
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.to_possible_value() {
+            Some(value) => f.write_str(value.get_name()),
+            None => f.write_str("<unknown>"),
         }
     }
 }

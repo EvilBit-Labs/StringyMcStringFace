@@ -142,7 +142,7 @@ fn format_summary_block(metadata: &OutputMetadata) -> String {
         let tag_parts: Vec<String> = metadata
             .top_tags
             .iter()
-            .map(|(tag, count)| format!("{tag:?}: {count}"))
+            .map(|(tag, count)| format!("{tag}: {count}"))
             .collect();
         block.push_str(&format!("\nTop tags: {}", tag_parts.join(", ")));
     }

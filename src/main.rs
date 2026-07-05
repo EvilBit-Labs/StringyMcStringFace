@@ -103,7 +103,7 @@ struct Cli {
     #[arg(
         long = "only-tags",
         action = ArgAction::Append,
-        value_parser = Tag::from_str,
+        value_parser = <Tag as FromStr>::from_str,
         value_name = "TAG",
         long_help = "Include only strings with this tag. Repeat the flag for multiple tags \
             (OR logic).\nValid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, \
@@ -116,7 +116,7 @@ struct Cli {
     #[arg(
         long = "no-tags",
         action = ArgAction::Append,
-        value_parser = Tag::from_str,
+        value_parser = <Tag as FromStr>::from_str,
         value_name = "TAG",
         long_help = "Exclude strings with this tag. Repeat the flag for multiple tags \
             (OR logic).\nValid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, \
@@ -193,7 +193,7 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
         .filter(|t| cli.no_tags.contains(t))
         .collect();
     if !overlap.is_empty() {
-        let tag_names: Vec<String> = overlap.iter().map(|t| format!("{t:?}")).collect();
+        let tag_names: Vec<String> = overlap.iter().map(|t| t.to_string()).collect();
         return Err(StringyError::ValidationError(format!(
             "conflicting tag filters: {} are both included and excluded (--no-tags)\n\
              Remove these tags from the include filter or from --no-tags to continue.",
