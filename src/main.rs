@@ -125,6 +125,18 @@ struct Cli {
     )]
     no_tags: Vec<Tag>,
 
+    /// Shorthand for --only-tags import (see --only-tags for the full tag set)
+    #[arg(long, conflicts_with_all = ["only_tags", "raw"])]
+    imports: bool,
+
+    /// Shorthand for --only-tags export (see --only-tags for the full tag set)
+    #[arg(long, conflicts_with_all = ["only_tags", "raw"])]
+    exports: bool,
+
+    /// Shorthand for --only-tags demangled (see --only-tags for the full tag set)
+    #[arg(long, conflicts_with_all = ["only_tags", "raw"])]
+    symbols: bool,
+
     /// Minimum string length in bytes (must be >= 1)
     #[arg(short = 'm', long = "min-len", value_name = "N", value_parser = parse_positive_usize)]
     min_len: Option<usize>,
@@ -150,18 +162,42 @@ struct Cli {
     debug: bool,
 }
 
+impl Cli {
+    /// Effective include-tag set: explicit `--only-tags` plus the convenience
+    /// flags (`--imports` / `--exports` / `--symbols`). The convenience flags
+    /// conflict with `--only-tags` at parse time, so in practice only one source
+    /// populates the set, but merging is harmless and keeps a single
+    /// authoritative include list.
+    fn resolved_include_tags(&self) -> Vec<Tag> {
+        let mut tags = self.only_tags.clone();
+        if self.imports {
+            tags.push(Tag::Import);
+        }
+        if self.exports {
+            tags.push(Tag::Export);
+        }
+        if self.symbols {
+            tags.push(Tag::DemangledSymbol);
+        }
+        tags
+    }
+}
+
 fn run(cli: &Cli) -> Result<(), StringyError> {
-    // Runtime validation: tag overlap between --only-tags and --no-tags
-    let overlap: Vec<&Tag> = cli
-        .only_tags
+    // Resolve the effective include-tag set once: --only-tags plus the
+    // convenience flags (--imports / --exports / --symbols).
+    let include_tags = cli.resolved_include_tags();
+
+    // Runtime validation: tag overlap between the resolved include set and --no-tags
+    let overlap: Vec<&Tag> = include_tags
         .iter()
         .filter(|t| cli.no_tags.contains(t))
         .collect();
     if !overlap.is_empty() {
         let tag_names: Vec<String> = overlap.iter().map(|t| format!("{t:?}")).collect();
         return Err(StringyError::ValidationError(format!(
-            "conflicting tag filters: {} appear in both --only-tags and --no-tags\n\
-             Remove these tags from one of the filter lists to continue.",
+            "conflicting tag filters: {} are both included and excluded (--no-tags)\n\
+             Remove these tags from the include filter or from --no-tags to continue.",
             tag_names.join(", ")
         )));
     }
@@ -205,8 +241,8 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
     if let Some(enc) = cli.enc {
         filter_config = filter_config.with_encoding(enc.into());
     }
-    if !cli.only_tags.is_empty() {
-        filter_config = filter_config.with_include_tags(cli.only_tags.clone());
+    if !include_tags.is_empty() {
+        filter_config = filter_config.with_include_tags(include_tags.clone());
     }
     if !cli.no_tags.is_empty() {
         filter_config = filter_config.with_exclude_tags(cli.no_tags.clone());
