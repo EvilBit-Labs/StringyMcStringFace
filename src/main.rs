@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+use std::collections::BTreeSet;
 use std::io::IsTerminal;
 use std::io::Write;
 use std::path::PathBuf;
@@ -179,19 +180,18 @@ impl Cli {
 fn run(cli: &Cli) -> Result<(), StringyError> {
     let include_tags = cli.resolved_include_tags();
 
-    // Runtime validation: tag overlap between the resolved include set and --no-tags
-    let overlap: Vec<&Tag> = include_tags
+    // Runtime validation: tag overlap between the resolved include set and --no-tags.
+    // A BTreeSet yields the conflicting names sorted and de-duplicated in one pass.
+    let overlap: BTreeSet<String> = include_tags
         .iter()
         .filter(|t| cli.no_tags.contains(t))
+        .map(|t| t.to_string())
         .collect();
     if !overlap.is_empty() {
-        let mut tag_names: Vec<String> = overlap.iter().map(|t| t.to_string()).collect();
-        tag_names.sort();
-        tag_names.dedup();
         return Err(StringyError::ValidationError(format!(
             "conflicting tag filters: {} are both included and excluded (--no-tags)\n\
              Remove these tags from the include filter or from --no-tags to continue.",
-            tag_names.join(", ")
+            overlap.into_iter().collect::<Vec<_>>().join(", ")
         )));
     }
 
