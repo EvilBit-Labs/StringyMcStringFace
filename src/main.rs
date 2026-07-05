@@ -184,8 +184,6 @@ impl Cli {
 }
 
 fn run(cli: &Cli) -> Result<(), StringyError> {
-    // Resolve the effective include-tag set once: --only-tags plus the
-    // convenience flags (--imports / --exports / --symbols).
     let include_tags = cli.resolved_include_tags();
 
     // Runtime validation: tag overlap between the resolved include set and --no-tags
@@ -242,7 +240,7 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
         filter_config = filter_config.with_encoding(enc.into());
     }
     if !include_tags.is_empty() {
-        filter_config = filter_config.with_include_tags(include_tags.clone());
+        filter_config = filter_config.with_include_tags(include_tags);
     }
     if !cli.no_tags.is_empty() {
         filter_config = filter_config.with_exclude_tags(cli.no_tags.clone());
