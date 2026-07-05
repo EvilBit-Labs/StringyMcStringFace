@@ -165,8 +165,8 @@ fn flow7_tty_summary_block_contains_required_fields() {
         "summary must contain 'Top tags:' label, got: {rendered}"
     );
     assert!(
-        rendered.contains("url"),
-        "summary must contain the canonical tag name 'url', got: {rendered}"
+        rendered.contains("url:"),
+        "summary must contain the 'url:' tag-count entry, got: {rendered}"
     );
     // Analysis timing
     assert!(

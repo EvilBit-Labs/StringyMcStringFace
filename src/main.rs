@@ -3,7 +3,6 @@
 use std::io::IsTerminal;
 use std::io::Write;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use clap::{ArgAction, Parser, ValueEnum};
 use patharg::InputArg;
@@ -56,10 +55,9 @@ impl From<CliEncoding> for EncodingFilter {
     }
 }
 
-// The tag list in --only-tags and --no-tags long_help must stay in sync with
-// Tag::from_str() in src/types/mod.rs. A compile-time const can't be used in
-// Clap derive attributes, so tests/integration_cli.rs verifies the help text
-// contains all known tags.
+// --only-tags and --no-tags parse into Tag via clap's ValueEnum derive, so the
+// accepted values and the help "possible values" list stay in sync with the
+// #[value(name = ...)] definitions in src/types/mod.rs automatically.
 
 /// A smarter alternative to the strings command that leverages format-specific knowledge
 #[derive(Parser)]
@@ -103,12 +101,9 @@ struct Cli {
     #[arg(
         long = "only-tags",
         action = ArgAction::Append,
-        value_parser = <Tag as FromStr>::from_str,
+        value_enum,
         value_name = "TAG",
-        long_help = "Include only strings with this tag. Repeat the flag for multiple tags \
-            (OR logic).\nValid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, \
-            b64, fmt, user-agent-ish, demangled, import, export, version, manifest, resource, \
-            dylib-path, rpath, rpath-var, framework-path, crypto, network, fileio, entry-point"
+        long_help = "Include only strings with this tag. Repeat the flag for multiple tags (OR logic)."
     )]
     only_tags: Vec<Tag>,
 
@@ -116,12 +111,9 @@ struct Cli {
     #[arg(
         long = "no-tags",
         action = ArgAction::Append,
-        value_parser = <Tag as FromStr>::from_str,
+        value_enum,
         value_name = "TAG",
-        long_help = "Exclude strings with this tag. Repeat the flag for multiple tags \
-            (OR logic).\nValid tags: url, domain, ipv4, ipv6, filepath, regpath, guid, email, \
-            b64, fmt, user-agent-ish, demangled, import, export, version, manifest, resource, \
-            dylib-path, rpath, rpath-var, framework-path, crypto, network, fileio, entry-point"
+        long_help = "Exclude strings with this tag. Repeat the flag for multiple tags (OR logic)."
     )]
     no_tags: Vec<Tag>,
 
@@ -193,7 +185,9 @@ fn run(cli: &Cli) -> Result<(), StringyError> {
         .filter(|t| cli.no_tags.contains(t))
         .collect();
     if !overlap.is_empty() {
-        let tag_names: Vec<String> = overlap.iter().map(|t| t.to_string()).collect();
+        let mut tag_names: Vec<String> = overlap.iter().map(|t| t.to_string()).collect();
+        tag_names.sort();
+        tag_names.dedup();
         return Err(StringyError::ValidationError(format!(
             "conflicting tag filters: {} are both included and excluded (--no-tags)\n\
              Remove these tags from the include filter or from --no-tags to continue.",

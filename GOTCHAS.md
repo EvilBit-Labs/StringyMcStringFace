@@ -23,7 +23,7 @@ Changing default values in `ExtractionConfig::default()` requires updating asser
 ## CLI
 
 - `clap::value_parser!(usize).range(..)` does not exist -- use a custom `fn(s: &str) -> Result<usize, String>` value parser for range-constrained `usize` args
-- `Tag::from_str` in `value_parser` requires `use std::str::FromStr` in scope (clap resolves it as an associated fn, not a trait method)
+- `--only-tags`/`--no-tags` use `value_enum` (Tag derives `clap::ValueEnum`); clap owns parsing and the help "possible values" list. `Tag`'s `FromStr` delegates to `ValueEnum` and its `Display` renders the canonical CLI name -- all sourced from the `#[value(name = ...)]` attributes, so add or change a tag name in one place
 - CLI flag changes in `main.rs` require updating `tests/integration_cli.rs` (uses `Command` with flag names)
 - `Tag::from_str` accepts lowercase (`"url"`) but serde serializes PascalCase (`"Url"`) for variants without `#[serde(rename)]` -- tests comparing JSON output must use case-insensitive comparison or the serialized form
 - `--raw` mode performs extraction only and then early-exits: ranking, normalization, and pipeline-level classification are skipped. `tags` are cleared, `score` is forced to 0, and `display_score` is set to `Some(0)`. `assert_cmd` tests run piped (non-TTY); use `format_table_with_mode(&strings, &metadata, true)` to test TTY table rendering
@@ -32,7 +32,7 @@ Changing default values in `ExtractionConfig::default()` requires updating asser
 - Short flags: `-j` (json), `-m` (min-len), `-t` (top). Do not add short flags for infrequent flags (--enc, --yara, --raw, --summary, --debug)
 - `NO_COLOR` env var disables progress spinner. The spinner is also hidden when stderr is not a TTY
 - `--enc ascii` is a CONTENT filter (`EncodingFilter::AsciiContent`), not a stored-encoding match. Extraction labels ASCII content as `Encoding::Utf8` (ASCII is a UTF-8 subset), so no row is ever `Encoding::Ascii`; `--enc ascii` matches rows whose `text.is_ascii()` and whose encoding is not UTF-16. `--enc utf8`/`--enc utf16*` still match the stored encoding. JSON output no longer emits `"encoding":"Ascii"` for narrow strings -- it emits `"Utf8"`
-- Clap derive attributes (`long_help`, `about`, etc.) require string literals -- `const` values and `concat!` with consts do not work. The `cli_help_lists_all_canonical_tags` test in `integration_cli.rs` verifies help text stays in sync with `Tag::from_str()`
+- Clap derive attributes (`long_help`, `about`, etc.) require string literals -- `const` values and `concat!` with consts do not work. The `cli_help_lists_all_canonical_tags` test in `integration_cli.rs` verifies the `ValueEnum`-generated "possible values" list in help contains every canonical tag name
 
 ## Dependencies
 
