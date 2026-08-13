@@ -35,7 +35,7 @@ jobs:
         run: rustup component add rustfmt clippy
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2.9.2
 
       - name: Rustfmt Check
         run: cargo fmt --all -- --check
@@ -61,7 +61,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2.9.2
 
       - name: Check MSRV compliance
         run: cargo check --all-features
